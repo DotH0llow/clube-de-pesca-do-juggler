@@ -12,6 +12,7 @@ export const REGIONS: Record<RegionId, Region> = {
     unlock: null,
     valueMultiplier: 1,
     rarityBonus: 0,
+    maxRarity: 'raro',
     difficulty: 0,
     palette: {
       skyTop: '#39b6ef',
@@ -28,9 +29,10 @@ export const REGIONS: Record<RegionId, Region> = {
     id: 'recife',
     name: 'Recife Neon',
     subtitle: 'Por do sol eterno e cardume que brilha no escuro.',
-    unlock: { currency: 'sazoncoins', cost: 3500 },
+    unlock: { currency: 'sazoncoins', cost: 6000 },
     valueMultiplier: 1.35,
     rarityBonus: 0.15,
+    maxRarity: 'epico',
     difficulty: 0.1,
     palette: {
       skyTop: '#2b1055',
@@ -47,9 +49,10 @@ export const REGIONS: Record<RegionId, Region> = {
     id: 'naufragio',
     name: 'Naufragio do Cargueiro',
     subtitle: 'Ferro velho, oleo na agua e bicho grande embaixo.',
-    unlock: { currency: 'sazoncoins', cost: 18000 },
+    unlock: { currency: 'sazoncoins', cost: 30000 },
     valueMultiplier: 1.8,
     rarityBonus: 0.32,
+    maxRarity: 'lendario',
     difficulty: 0.2,
     palette: {
       skyTop: '#33506b',
@@ -69,6 +72,7 @@ export const REGIONS: Record<RegionId, Region> = {
     unlock: { currency: 'hydraEyes', cost: 12 },
     valueMultiplier: 2.6,
     rarityBonus: 0.6,
+    maxRarity: 'mitico',
     difficulty: 0.32,
     palette: {
       skyTop: '#04081c',

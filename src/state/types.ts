@@ -75,6 +75,8 @@ export interface Region {
   valueMultiplier: number;
   /** deslocamento de peso para raridades altas (0 = neutro) */
   rarityBonus: number;
+  /** raridade maxima que aparece aqui. O resto do peso desce para o teto. */
+  maxRarity: Rarity;
   /** dificuldade extra no minigame de fisga (0 a 1) */
   difficulty: number;
   palette: {
