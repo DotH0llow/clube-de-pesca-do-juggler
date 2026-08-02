@@ -12,7 +12,7 @@ export const UPGRADES: Upgrade[] = [
     maxLevel: 8,
     baseCost: 120,
     costGrowth: 1.62,
-    icon: '🎣',
+    icon: 'props/fishing-rod',
     effectText: (lv) => `-${(lv * 1.6).toFixed(1)} pontos na chance de "Nada"`,
   },
   {
@@ -23,7 +23,7 @@ export const UPGRADES: Upgrade[] = [
     maxLevel: 6,
     baseCost: 200,
     costGrowth: 1.7,
-    icon: '🧵',
+    icon: 'props/fishing-line-spool',
     effectText: (lv) => `+${pct(lv * 0.06)} de margem na fisga`,
   },
   {
@@ -34,7 +34,7 @@ export const UPGRADES: Upgrade[] = [
     maxLevel: 8,
     baseCost: 260,
     costGrowth: 1.75,
-    icon: '✨',
+    icon: 'props/bait-lure',
     effectText: (lv) => `+${pct(lv * 0.09)} de peso em Incomum e Raro`,
   },
   {
@@ -45,7 +45,7 @@ export const UPGRADES: Upgrade[] = [
     maxLevel: 10,
     baseCost: 400,
     costGrowth: 1.58,
-    icon: '🪣',
+    icon: 'props/fishing-bucket',
     effectText: (lv) => `+${pct(lv * 0.08)} no valor de venda`,
   },
   {
@@ -56,7 +56,7 @@ export const UPGRADES: Upgrade[] = [
     maxLevel: 5,
     baseCost: 900,
     costGrowth: 1.9,
-    icon: '👁️',
+    icon: 'props/lead-sinker',
     effectText: (lv) => `+${pct(lv * 0.5)} de chance de Bau Afundado`,
   },
   {
@@ -67,7 +67,7 @@ export const UPGRADES: Upgrade[] = [
     maxLevel: 5,
     baseCost: 3,
     costGrowth: 1.6,
-    icon: '🐉',
+    icon: 'props/distant-underwater-silhouette',
     effectText: (lv) => `+${pct(lv * 0.6)} em Evento Hydra, +${pct(lv * 0.15)} de Olhos`,
   },
 ];
@@ -86,38 +86,38 @@ export function upgradeCost(id: UpgradeId, currentLevel: number): number {
 export const RELICS: Relic[] = [
   {
     id: 'radio_pirata',
-    name: 'Radio Pirata',
-    desc: 'Musica boa no barco. Comprador paga +25% sem saber por que.',
+    name: 'Lanterna do Pier',
+    desc: 'Descarrega a noite toda com luz. Comprador paga +25% sem pechinchar.',
     cost: 6,
-    icon: '📻',
+    icon: 'props/pier-lantern',
   },
   {
     id: 'vara_leviata',
-    name: 'Vara do Leviata',
+    name: 'Puca Reforcado',
     desc: 'Peso de Epico e Lendario sobe 35%.',
     cost: 9,
-    icon: '🔱',
+    icon: 'props/capture-net',
   },
   {
     id: 'amuleto_pity',
-    name: 'Amuleto do Pescador',
-    desc: 'A mare vira mais rapido: pity acumula 60% mais depressa.',
+    name: 'Estrela Torta',
+    desc: 'A mare vira mais rapido: o pity acumula 60% mais depressa.',
     cost: 11,
-    icon: '🧿',
+    icon: 'props/starfish',
   },
   {
     id: 'isca_mistica',
-    name: 'Isca Mistica',
+    name: 'Concha da Sereia',
     desc: 'Peso de Lendario e Mitico quase dobra. Use com respeito.',
     cost: 16,
-    icon: '🩸',
+    icon: 'props/seashell',
   },
   {
     id: 'skin_neon',
     name: 'Kit Neon do Clube',
     desc: 'Cosmetico. Deixa o HUD do clube em neon anos 2000.',
     cost: 4,
-    icon: '🌈',
+    icon: 'fx/rare-sparkles',
   },
 ];
 

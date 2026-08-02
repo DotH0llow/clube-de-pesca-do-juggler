@@ -62,4 +62,11 @@ export const RARITIES: Record<Rarity, RarityMeta> = {
   },
 };
 
+/** O kit tem tres selos de raridade; as seis do jogo se dividem neles. */
+export function rarityBadge(rarity: Rarity): string {
+  if (rarity === 'comum' || rarity === 'incomum') return 'ui/rarity-common';
+  if (rarity === 'raro') return 'ui/rarity-rare';
+  return 'ui/rarity-epic';
+}
+
 export const RARITY_ORDER: Rarity[] = ['comum', 'incomum', 'raro', 'epico', 'lendario', 'mitico'];

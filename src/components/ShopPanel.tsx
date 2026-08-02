@@ -1,12 +1,23 @@
 import { useState } from 'react';
 import { REGION_ORDER, REGIONS } from '../data/regions';
+import type { RegionId } from '../state/types';
 import { RELICS, UPGRADES, upgradeCost } from '../data/upgrades';
 import { playSfx } from '../engine/audio';
 import { useSettings } from '../state/settings';
 import { buyRelic, buyUpgrade, setRegion, unlockRegion, useGame } from '../state/store';
 import { Panel } from './Panel';
+import { Sprite } from './Sprite';
+import { asset } from '../assets';
 
 type Tab = 'loja' | 'altar' | 'mapa';
+
+/** Miniatura do ceu de cada pesqueiro no mapa. */
+const REGION_SKY: Record<RegionId, string> = {
+  enseada: 'bg/sky-day',
+  recife: 'bg/sky-sunset',
+  naufragio: 'bg/reef-deep',
+  fossa: 'bg/sky-night',
+};
 
 /**
  * Botao de compra. Gastos em Olhos da Hydra pedem um segundo clique,
@@ -53,7 +64,7 @@ export function ShopPanel({ onClose }: { onClose: () => void }) {
       title="Cais do Clube"
       onClose={onClose}
       right={
-        <span style={{ fontSize: 11 }}>
+        <span style={{ fontSize: 13 }}>
           {s.sazoncoins.toLocaleString('pt-BR')} SZ &middot; {s.hydraEyes} Olhos
         </span>
       }
@@ -79,7 +90,7 @@ export function ShopPanel({ onClose }: { onClose: () => void }) {
           const canBuy = !maxed && wallet >= cost;
           return (
             <div className="row" key={u.id}>
-              <div style={{ fontSize: 22 }}>{u.icon}</div>
+              <Sprite path={u.icon} size={36} />
               <div className="grow">
                 <div className="title">{u.name}</div>
                 <div className="desc">{u.desc}</div>
@@ -113,7 +124,7 @@ export function ShopPanel({ onClose }: { onClose: () => void }) {
             const owned = s.relics.includes(r.id);
             return (
               <div className="row" key={r.id}>
-                <div style={{ fontSize: 22 }}>{r.icon}</div>
+                <Sprite path={r.icon} size={36} />
                 <div className="grow">
                   <div className="title">{r.name}</div>
                   <div className="desc">{r.desc}</div>
@@ -143,12 +154,8 @@ export function ShopPanel({ onClose }: { onClose: () => void }) {
           return (
             <div className="row" key={id}>
               <div
-                style={{
-                  width: 34,
-                  height: 34,
-                  background: `linear-gradient(180deg, ${r.palette.skyTop}, ${r.palette.seaBottom})`,
-                  border: '2px solid #041b28',
-                }}
+                className="region-thumb"
+                style={{ backgroundImage: `url(${asset(REGION_SKY[id])})` }}
               />
               <div className="grow">
                 <div className="title" style={{ color: active ? 'var(--neon)' : undefined }}>

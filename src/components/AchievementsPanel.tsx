@@ -1,6 +1,7 @@
 import { ACHIEVEMENT_CATEGORY_LABEL, ACHIEVEMENTS } from '../data/achievements';
 import { useGame } from '../state/store';
 import { Panel } from './Panel';
+import { Sprite } from './Sprite';
 
 export function AchievementsPanel({ onClose }: { onClose: () => void }) {
   const s = useGame();
@@ -23,7 +24,11 @@ export function AchievementsPanel({ onClose }: { onClose: () => void }) {
         const hidden = a.secret && !unlocked;
         return (
           <div className="row" key={a.id}>
-            <div style={{ fontSize: 20, opacity: unlocked ? 1 : 0.35 }}>{unlocked ? '🏅' : '🔒'}</div>
+            <Sprite
+              path={unlocked ? 'ui/ranking-icon' : 'ui/rarity-common'}
+              size={32}
+              style={{ opacity: unlocked ? 1 : 0.25, filter: unlocked ? undefined : 'grayscale(1)' }}
+            />
             <div className="grow">
               <div className="title" style={{ color: unlocked ? 'var(--coin)' : undefined }}>
                 {hidden ? '???' : a.name}

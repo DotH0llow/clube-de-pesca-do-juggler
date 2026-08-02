@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { FAMILIES, FAMILY_MEMBERS, FISH } from '../data/fish';
-import { RARITIES } from '../data/rarities';
+import { RARITIES, rarityBadge } from '../data/rarities';
 import { REGIONS } from '../data/regions';
 import { useGame } from '../state/store';
 import type { FamilyId } from '../state/types';
-import { FishSprite } from './FishSprite';
+import { FishSprite, Sprite } from './Sprite';
 import { Panel } from './Panel';
 
 export function AlbumPanel({ onClose }: { onClose: () => void }) {
@@ -73,17 +73,20 @@ export function AlbumPanel({ onClose }: { onClose: () => void }) {
             <div key={f.id} className={`card${entry ? '' : ' locked'}`}>
               <div style={{ height: 54, display: 'grid', placeItems: 'center' }}>
                 {entry ? (
-                  <FishSprite fish={f} size={44} />
+                  <FishSprite fish={f} size={52} />
                 ) : (
-                  <span style={{ fontSize: 26, opacity: 0.5 }}>?</span>
+                  <Sprite path="ui/fish-album-icon" size={40} style={{ opacity: 0.35 }} />
                 )}
               </div>
               <div className="name" style={{ color: entry ? rar.color : undefined }}>
                 {entry ? f.name : '???'}
               </div>
-              <span className="rarity-tag" style={{ color: rar.color, alignSelf: 'flex-start' }}>
-                {rar.label}
-              </span>
+              <div className="rarity-line">
+                <Sprite path={rarityBadge(f.rarity)} size={22} />
+                <span className="rarity-tag" style={{ color: rar.color }}>
+                  {rar.label}
+                </span>
+              </div>
               {entry ? (
                 <div className="meta">
                   {entry.count}x capturado

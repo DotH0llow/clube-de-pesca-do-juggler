@@ -6,7 +6,8 @@ compra upgrades permanentes e, de vez em quando, encontra algo no fundo que
 prefere nao ter encontrado.
 
 Estetica: pixel art tropical/oceanica com cara de anos 2000 - agua turquesa,
-ilhas de calcario, por do sol neon, barco ancorado. Nada de fantasia medieval.
+ilhas ao longe, por do sol, barco ancorado. Nada de fantasia medieval.
+Tipografia unica: **VCR OSD Mono**, servida localmente em woff2.
 
 ## Rodando
 
@@ -19,6 +20,59 @@ npm run simulate  # simulador de economia (sem UI)
 ```
 
 Node 18+ recomendado. Nao precisa de backend: o save fica em `localStorage`.
+
+## Assets
+
+Todo o visual vem do kit de pixel art do projeto. O pipeline de importacao
+(`scripts/import-assets.py`) faz, para cada PNG:
+
+1. recorta a margem transparente **e os pixels soltos** - rotulagem de
+   componentes conexos por propagacao vetorizada, descartando fragmentos com
+   menos de 6% da area do maior blob (varios sprites vinham com respingo de
+   nadadeira solta na borda do canvas);
+2. redimensiona para o teto da categoria (peixe 340 px, lixo 200, UI 340, ceu 380);
+3. exporta webp com qualidade por categoria.
+
+Resultado: **217 PNGs (49 MB) viraram 175 webp (2,2 MB)**.
+
+O acesso e por nome, via `src/assets/index.ts`:
+
+```ts
+import { asset } from './assets';
+asset('fish/mahi-mahi');   // URL versionada pelo Vite
+```
+
+O registro usa `import.meta.glob`, entao adicionar um arquivo na pasta ja o
+disponibiliza - nao existe lista de imports para manter em sincronia. O smoke
+test valida que **todo sprite referenciado em dados existe** (peixes, lixo,
+upgrades, reliquias e familias).
+
+### Onde cada grupo foi parar
+
+| Grupo do kit | Uso |
+| --- | --- |
+| `04_sprites/fish` | as 24 especies pescaveis do album |
+| `05_sprites/trash` | os 20 itens da categoria "Lixo" |
+| `10_weather-and-sky/backgrounds` | ceu de cada pesqueiro (dia / por do sol / noite) |
+| `10_weather-and-sky` (nuvens, chuva, raio) | clima: o Naufragio e o ceu de dia sob tempestade |
+| `07_effects` | ondas em parallax, brilho do sol, linha, ondulacao, fuga, bolhas |
+| `02_sprites/boats-and-pier` | barco em duas poses alternadas + sombra |
+| `03_sprites/fishing-gear` | icones dos upgrades (vara, carretel, isca, balde, chumbada) |
+| `01_sprites/environment` | icones de familia, reliquias do Altar e a silhueta da Hydra |
+| `08_interface` | moldura dos paineis, botoes, selos de raridade, icones do HUD |
+| `09_rewards-and-feedback` | faixa de captura, bau, particulas por raridade, alerta de mordida |
+| `06_backgrounds/ocean` | miniaturas de pesqueiro e fundo do minigame de puxada |
+
+44 arquivos ficaram de fora e estao separados em
+[`assets-inuteis/`](assets-inuteis/README.md), com o motivo de cada um.
+
+### Duas licencas poeticas
+
+- **Sombra da Hydra** e **Hydrinho Abissal** usam a mesma silhueta submersa do
+  kit, tratada com filtro escuro e brilho vermelho. E de proposito: a lenda diz
+  que ninguem nunca viu a Hydra direito.
+- O kit traz tres selos de raridade e o jogo tem seis. Comum e Incomum dividem o
+  selo comum, Raro fica com o proprio, e Epico/Lendario/Mitico dividem o epico.
 
 ## Menu e configuracoes
 
@@ -103,6 +157,9 @@ lendario. Trocar de regiao e o que abre raridade nova, nao so multiplicador.
 | Naufragio do Cargueiro | Lendario | x1,8 | 30.000 SZ |
 | Fossa da Hydra | Mitico | x2,6 | 12 Olhos da Hydra |
 
+Cada pesqueiro tem ceu e clima proprios: dia limpo na Enseada, por do sol no
+Recife, tempestade com chuva e raio no Naufragio, noite estrelada na Fossa.
+
 ### Pity e streak correction
 
 - **Seca**: cada lancamento sem peixe tira peso de "Nada" e devolve para comum/incomum (ate 22 pontos).
@@ -134,7 +191,7 @@ verificado antes de ir pro jogo.
 
 ```
 src/
-  assets/      arte de capa (fundador.webp)
+  assets/      capa, fonte VCR OSD Mono e os 175 sprites do kit
   data/        peixes, lixo, regioes, upgrades, reliquias, conquistas, raridades
   engine/      rng, modificadores, pesos + pity, resolucao do lancamento, audio
   state/       tipos, estado inicial, store do jogo, store de configuracoes
@@ -163,7 +220,7 @@ Tudo o mais e SVG ou CSS.
 
 ## Roadmap curto
 
-- [ ] Sprites finais de peixe e cena
+- [ ] Aplicar as molduras restantes do kit (barra de forca, tensao, tooltip)
 - [ ] Trilha e SFX definitivos no lugar do audio procedural
 - [ ] Eventos temporarios / temporada
 - [ ] Cameo do Hydrinho como NPC no cais

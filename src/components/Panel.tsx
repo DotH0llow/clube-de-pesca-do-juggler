@@ -10,7 +10,7 @@ interface Props {
 export function Panel({ title, onClose, children, right }: Props) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="pixel-box panel" onClick={(e) => e.stopPropagation()}>
+      <div className="pixel-box framed panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-head">
           <h2>{title}</h2>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

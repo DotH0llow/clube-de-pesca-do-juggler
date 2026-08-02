@@ -1,45 +1,59 @@
-import { RARITIES } from '../data/rarities';
+import { asset } from '../assets';
+import { RARITIES, rarityBadge } from '../data/rarities';
 import type { Outcome } from '../hooks/useFishingLoop';
-import { FishSprite } from './FishSprite';
+import type { Rarity } from '../state/types';
+import { FishSprite, JunkSprite, Sprite } from './Sprite';
 
 interface Props {
   outcome: Outcome;
   onAgain: () => void;
 }
 
+/** Efeito de fundo por raridade: quanto mais raro, mais escandaloso. */
+const BURST: Record<Rarity, string | null> = {
+  comum: null,
+  incomum: 'fx/common-particles',
+  raro: 'fx/rare-sparkles',
+  epico: 'fx/epic-particle-burst',
+  lendario: 'fx/reward-glow',
+  mitico: 'fx/reward-glow',
+};
+
 export function CatchPopup({ outcome, onAgain }: Props) {
   const { result, landed, escapeText } = outcome;
   const fish = result.fish;
   const rarity = fish ? RARITIES[fish.rarity] : null;
   const failed = Boolean(fish) && !landed;
+  const burst = fish && !failed ? BURST[fish.rarity] : null;
 
   const accent = failed ? '#ff5f7e' : rarity ? rarity.color : '#cfe8f5';
 
   return (
     <div className="catch-popup" onClick={onAgain}>
-      <div
-        className="pixel-box catch-card"
-        style={{ borderColor: accent, boxShadow: `0 0 0 4px #041b28, 0 0 26px ${rarity?.glow ?? 'rgba(0,0,0,0)'}` }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="headline" style={{ color: accent }}>
-          {failed ? 'ESCAPOU' : result.headline}
+      <div className="pixel-box framed catch-card" onClick={(e) => e.stopPropagation()}>
+        <div className="catch-banner">
+          <img src={asset('fx/capture-banner')} alt="" />
+          <span className="headline" style={{ color: failed ? '#a3301f' : '#3a2410' }}>
+            {failed ? 'ESCAPOU' : result.headline}
+          </span>
         </div>
 
         <div className="sprite-frame">
+          {burst && <img className="burst" src={asset(burst)} alt="" />}
           {fish ? (
-            <div className={failed ? '' : 'bobbing'} style={{ opacity: failed ? 0.35 : 1 }}>
-              <FishSprite fish={fish} size={110} />
+            <div className={failed ? '' : 'bobbing'} style={{ opacity: failed ? 0.4 : 1 }}>
+              <FishSprite fish={fish} size={140} />
             </div>
           ) : result.junk ? (
-            <div style={{ fontSize: 64 }}>{result.junk.emoji}</div>
+            <JunkSprite junk={result.junk} size={120} />
           ) : result.category === 'bau' ? (
-            <div style={{ fontSize: 64 }}>🧰</div>
+            <Sprite path={landed ? 'fx/chest-open' : 'fx/chest-closed'} size={130} />
           ) : result.category === 'evento' ? (
-            <div style={{ fontSize: 64 }}>👁️</div>
+            <Sprite path="props/distant-underwater-silhouette" size={120} className="sprite-silhouette" />
           ) : (
-            <div style={{ fontSize: 56, opacity: 0.5 }}>🎣</div>
+            <Sprite path="fx/snapped-fishing-line" size={110} />
           )}
+          {failed && <img className="burst" src={asset('fx/escape-swirl')} alt="" />}
         </div>
 
         {fish && (
@@ -47,7 +61,8 @@ export function CatchPopup({ outcome, onAgain }: Props) {
             <div className="fish-name" style={{ color: accent }}>
               {fish.name}
             </div>
-            <div>
+            <div className="rarity-line">
+              <Sprite path={rarityBadge(fish.rarity)} size={30} />
               <span className="rarity-tag" style={{ color: rarity?.color }}>
                 {rarity?.label}
               </span>
@@ -98,3 +113,4 @@ export function CatchPopup({ outcome, onAgain }: Props) {
     </div>
   );
 }
+

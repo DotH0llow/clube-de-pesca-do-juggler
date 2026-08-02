@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { clamp } from '../engine/rng';
 import type { CastResult } from '../state/types';
-import { FishSprite } from './FishSprite';
+import { FishSprite, JunkSprite, Sprite } from './Sprite';
 
 interface Props {
   target: CastResult;
@@ -134,9 +134,11 @@ export function ReelMinigame({ target, onDone }: Props) {
           />
           <div className="reel-fish" style={{ top: `calc(${fish * 100}% - 11px)` }}>
             {target.fish ? (
-              <FishSprite fish={target.fish} size={16} flip />
+              <FishSprite fish={target.fish} size={22} flip />
+            ) : target.junk ? (
+              <JunkSprite junk={target.junk} size={22} />
             ) : (
-              <span style={{ fontSize: 16 }}>🧰</span>
+              <Sprite path="fx/chest-closed" size={22} />
             )}
           </div>
         </div>

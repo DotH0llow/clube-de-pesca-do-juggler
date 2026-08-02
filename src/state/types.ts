@@ -26,19 +26,6 @@ export type UpgradeId = 'vara' | 'linha' | 'isca' | 'balde' | 'olho' | 'bencao';
 
 export type RelicId = 'vara_leviata' | 'isca_mistica' | 'amuleto_pity' | 'skin_neon' | 'radio_pirata';
 
-/** Silhuetas usadas pelo sprite procedural (SVG). */
-export type FishShape =
-  | 'sardinha'
-  | 'redondo'
-  | 'comprido'
-  | 'enguia'
-  | 'tubarao'
-  | 'arraia'
-  | 'cristal'
-  | 'serpente'
-  | 'baiacu'
-  | 'polvo';
-
 export interface FishSpecies {
   id: string;
   name: string;
@@ -51,9 +38,12 @@ export interface FishSpecies {
   length: [number, number];
   /** valor base em Sazoncoins antes dos multiplicadores */
   baseValue: number;
+  /** caminho no registro de assets, ex.: 'fish/mahi-mahi' */
+  sprite: string;
+  /** cor de apoio para brilho e borda na UI */
   color: string;
-  accent: string;
-  shape: FishShape;
+  /** a Hydra nunca aparece nitida: renderiza como silhueta tratada */
+  silhouette?: boolean;
   flavor: string;
 }
 
@@ -61,7 +51,8 @@ export interface JunkItem {
   id: string;
   name: string;
   value: number;
-  emoji: string;
+  /** caminho no registro de assets, ex.: 'trash/old-boot' */
+  sprite: string;
   flavor: string;
 }
 

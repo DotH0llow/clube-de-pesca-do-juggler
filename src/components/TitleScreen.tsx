@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { asset } from '../assets';
 import cover from '../assets/fundador.webp';
 import { initAudio, playSfx, startAmbience } from '../engine/audio';
 import { useGame } from '../state/store';
@@ -29,6 +30,7 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
 
       <div className="title-content">
         <div className="title-brand">
+          <img className="title-mark" src={asset('ui/temporary-logo-mark')} alt="" />
           <span className="title-kicker">UNIVERSO HYDRA</span>
           <h1>
             CLUBE DE PESCA

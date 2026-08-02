@@ -7,6 +7,7 @@ import { PauseMenu } from './components/PauseMenu';
 import { ReelMinigame } from './components/ReelMinigame';
 import { Scene } from './components/Scene';
 import { ShopPanel } from './components/ShopPanel';
+import { Sprite } from './components/Sprite';
 import { TitleScreen } from './components/TitleScreen';
 import { ACHIEVEMENTS_BY_ID } from './data/achievements';
 import { FAMILIES } from './data/fish';
@@ -176,6 +177,7 @@ export default function App() {
             }}
             aria-label="Pausar"
           >
+            <Sprite path="ui/settings-icon" size={18} className="btn-icon" />
             MENU
           </button>
           <div className="wallet">
@@ -196,7 +198,7 @@ export default function App() {
         </div>
 
         {shards > 0 && (
-          <div className="chip" style={{ alignSelf: 'flex-start', fontSize: 11 }}>
+          <div className="chip" style={{ alignSelf: 'flex-start', fontSize: 13 }}>
             Escamas lendarias {shards}/{SHARDS_FOR_LEGENDARY}
           </div>
         )}
@@ -209,18 +211,21 @@ export default function App() {
               <button
                 className="btn primary"
                 onClick={startCast}
-                style={{ fontSize: 14, padding: '16px 26px' }}
+                style={{ fontSize: 22, padding: '18px 34px' }}
               >
                 LANCAR
               </button>
               <div className="btn-row">
                 <button className="btn ghost" onClick={() => openPanel('album')}>
+                  <Sprite path="ui/fish-album-icon" size={18} className="btn-icon" />
                   ALBUM
                 </button>
                 <button className="btn ghost" onClick={() => openPanel('loja')}>
+                  <Sprite path="ui/upgrade-icon" size={18} className="btn-icon" />
                   CAIS
                 </button>
                 <button className="btn ghost" onClick={() => openPanel('conquistas')}>
+                  <Sprite path="ui/ranking-icon" size={18} className="btn-icon" />
                   CONQUISTAS
                 </button>
               </div>
@@ -239,7 +244,7 @@ export default function App() {
             <button
               className="btn danger"
               onClick={hook}
-              style={{ fontSize: 16, padding: '18px 30px' }}
+              style={{ fontSize: 24, padding: '20px 38px' }}
             >
               FISGAR!
             </button>
@@ -271,7 +276,7 @@ export default function App() {
             <div className="headline" style={{ color: 'var(--coin)' }}>
               BOM DIA, PESCADOR
             </div>
-            <div style={{ fontSize: 46 }}>🌅</div>
+            <Sprite path="sky/setting-sun" size={92} />
             <div className="flavor">
               Dia {daily.streak} seguido no cais. O clube guardou uma ajuda pra voce.
             </div>

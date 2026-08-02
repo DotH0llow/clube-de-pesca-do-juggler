@@ -1,8 +1,9 @@
+import { asset } from '../assets';
 import { REGIONS } from '../data/regions';
 import { useSettings } from '../state/settings';
 import type { CastResult, RegionId } from '../state/types';
 import type { Phase } from '../hooks/useFishingLoop';
-import { FishSprite } from './FishSprite';
+import { FishSprite, Sprite } from './Sprite';
 
 interface Props {
   region: RegionId;
@@ -10,171 +11,105 @@ interface Props {
   pending: CastResult | null;
 }
 
+/** Ceu e clima de cada pesqueiro, montados com os assets do kit. */
+const SKY: Record<RegionId, { bg: string; clouds: string; storm: boolean; night: boolean }> = {
+  enseada: { bg: 'bg/sky-day', clouds: 'sky/large-cloud', storm: false, night: false },
+  recife: { bg: 'bg/sky-sunset', clouds: 'sky/sunset-cloud-strip', storm: false, night: false },
+  naufragio: { bg: 'bg/sky-day', clouds: 'sky/storm-cloud', storm: true, night: false },
+  fossa: { bg: 'bg/sky-night', clouds: 'sky/night-cloud-strip', storm: false, night: true },
+};
+
 /**
- * Cena de fundo inteira em SVG: ceu, sol, ilhas de calcario, mar, barco,
- * linha e boia. A paleta vem da regiao selecionada.
+ * Cena em camadas: ceu (imagem do kit), horizonte, mar, ondas, barco e
+ * os efeitos de linha/mordida/puxada. A faixa de mar usa a paleta da regiao,
+ * entao o recorte do ceu nunca briga com a cor da agua.
  */
 export function Scene({ region, phase, pending }: Props) {
   const settings = useSettings();
+  const cfg = SKY[region];
   const p = REGIONS[region].palette;
   const inWater = phase === 'waiting' || phase === 'bite' || phase === 'reeling';
-  const biting = phase === 'bite' || phase === 'reeling';
-  const night = region === 'fossa';
+  const biting = phase === 'bite';
+  const reeling = phase === 'reeling';
 
   return (
-    <svg
-      className="stage"
-      viewBox="0 0 320 180"
-      preserveAspectRatio="xMidYMid slice"
-      shapeRendering="crispEdges"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={p.skyTop} />
-          <stop offset="100%" stopColor={p.skyBottom} />
-        </linearGradient>
-        <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={p.seaTop} />
-          <stop offset="100%" stopColor={p.seaBottom} />
-        </linearGradient>
-        <linearGradient id="glare" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={p.sun} stopOpacity="0.5" />
-          <stop offset="100%" stopColor={p.sun} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-
-      {/* ceu */}
-      <rect x="0" y="0" width="320" height="96" fill="url(#sky)" />
-
-      {/* sol / lua */}
-      <g>
-        <circle cx="238" cy="34" r="16" fill={p.sun} opacity="0.9" />
-        <circle cx="238" cy="34" r="26" fill={p.sun} opacity="0.16" />
-      </g>
-
-      {/* nuvens chapadas */}
-      {!night && (
-        <g fill="#ffffff" opacity="0.55">
-          <rect x="24" y="20" width="34" height="5" />
-          <rect x="30" y="15" width="22" height="5" />
-          <rect x="128" y="34" width="42" height="5" />
-          <rect x="136" y="29" width="24" height="5" />
-          <rect x="266" y="58" width="30" height="4" />
-        </g>
-      )}
-      {night && (
-        <g fill="#ffffff" opacity="0.8">
-          <rect x="40" y="18" width="2" height="2" />
-          <rect x="88" y="30" width="2" height="2" />
-          <rect x="150" y="14" width="2" height="2" />
-          <rect x="196" y="44" width="2" height="2" />
-          <rect x="286" y="26" width="2" height="2" />
-          <rect x="66" y="52" width="2" height="2" />
-        </g>
-      )}
-
-      {/* ilhas de calcario ao fundo */}
-      <g>
-        <polygon points="0,96 8,58 22,44 34,52 44,40 58,60 66,96" fill={p.island} />
-        <polygon points="34,52 44,40 58,60 48,96 30,96" fill={p.islandShade} opacity="0.55" />
-        <polygon points="248,96 258,54 270,42 284,50 296,36 312,58 320,96" fill={p.island} />
-        <polygon points="284,50 296,36 312,58 306,96 286,96" fill={p.islandShade} opacity="0.55" />
-        <polygon points="96,96 104,74 116,66 128,76 138,96" fill={p.island} opacity="0.75" />
-        {/* vegetacao no topo */}
-        {!night && (
-          <g fill="#3f7d43" opacity="0.85">
-            <rect x="18" y="42" width="10" height="4" />
-            <rect x="40" y="38" width="8" height="4" />
-            <rect x="266" y="40" width="10" height="4" />
-            <rect x="292" y="34" width="8" height="4" />
-            <rect x="108" y="64" width="10" height="4" />
-          </g>
+    <div className="stage" aria-hidden="true">
+      {/* ---------------------------------------------------------- ceu */}
+      <div
+        className="scene-sky"
+        style={{ backgroundImage: `url(${asset(cfg.bg)})` }}
+      >
+        <img className="cloud cloud-a" src={asset(cfg.clouds)} alt="" />
+        <img className="cloud cloud-b" src={asset(cfg.night ? 'sky/star-cluster' : 'sky/small-cloud')} alt="" />
+        {!cfg.night && !cfg.storm && (
+          <img className="birds" src={asset('sky/distant-bird-flock')} alt="" />
         )}
-      </g>
+        {cfg.night && <img className="stars" src={asset('sky/star-cluster')} alt="" />}
+        {cfg.storm && (
+          <>
+            <div className="storm-tint" />
+            <img className="rain" src={asset('sky/rain-streaks')} alt="" />
+            <img className="rain rain-2" src={asset('sky/rain-streaks')} alt="" />
+            <img className="lightning" src={asset('sky/lightning-bolt')} alt="" />
+          </>
+        )}
+        <img className="island-strip" src={asset('sky/distant-island-strip')} alt="" />
+      </div>
 
-      {/* neblina do horizonte */}
-      <rect x="0" y="84" width="320" height="14" fill={p.haze} opacity="0.35" />
+      {/* ------------------------------------------------------ horizonte */}
+      <img className="haze" src={asset('sky/horizon-haze-strip')} alt="" />
 
-      {/* mar */}
-      <rect x="0" y="96" width="320" height="84" fill="url(#sea)" />
-      <rect x="200" y="96" width="80" height="60" fill="url(#glare)" opacity="0.7" />
+      {/* ---------------------------------------------------------- mar */}
+      <div
+        className="scene-sea"
+        style={{ background: `linear-gradient(180deg, ${p.seaTop}, ${p.seaBottom})` }}
+      >
+        {!cfg.night && <img className="glint" src={asset('fx/sun-glint-strip')} alt="" />}
+        <img className="wave wave-far" src={asset('fx/small-wave-strip')} alt="" />
+        <img className="wave wave-mid" src={asset('fx/large-wave-strip')} alt="" />
+        <img className="wave wave-near" src={asset('fx/foam-strip')} alt="" />
+        {cfg.night && <div className="hydra-glow" />}
+      </div>
 
-      {/* ondas */}
-      <g className="waves-a" fill="#ffffff" opacity="0.22">
-        <rect x="10" y="106" width="16" height="2" />
-        <rect x="60" y="116" width="22" height="2" />
-        <rect x="140" y="110" width="18" height="2" />
-        <rect x="212" y="122" width="26" height="2" />
-        <rect x="280" y="112" width="16" height="2" />
-      </g>
-      <g className="waves-b" fill="#ffffff" opacity="0.16">
-        <rect x="34" y="134" width="26" height="2" />
-        <rect x="112" y="146" width="30" height="2" />
-        <rect x="196" y="138" width="22" height="2" />
-        <rect x="262" y="152" width="28" height="2" />
-      </g>
+      {/* -------------------------------------------------------- barco */}
+      <div className={`boat${settings.animations ? ' rocking' : ''}`}>
+        <img className="boat-shadow" src={asset('props/boat-shadow')} alt="" />
+        <img className="boat-frame boat-a" src={asset('props/fishing-boat-idle-side')} alt="" />
+        <img className="boat-frame boat-b" src={asset('props/fishing-boat-rocking-side')} alt="" />
+      </div>
 
-      {/* sombra da Hydra no fundo da fossa */}
-      {night && (
-        <g opacity="0.8">
-          <circle cx="70" cy="158" r="2" fill="#ff2e4d" />
-          <circle cx="80" cy="158" r="2" fill="#ff2e4d" />
-          <circle cx="104" cy="166" r="2" fill="#ff2e4d" />
-          <circle cx="114" cy="166" r="2" fill="#ff2e4d" />
-        </g>
-      )}
-
-      {/* linha, boia e o que estiver preso nela */}
+      {/* ------------------------------------------- linha, boia e peixe */}
       {inWater && (
-        <g>
-          <line x1="232" y1="118" x2="150" y2="126" stroke="#ffffff" strokeWidth="1" opacity="0.75" />
-          <g className={biting && settings.screenShake ? 'shaking' : 'bobbing'}>
-            <rect x="146" y="122" width="8" height="4" fill="#ff3b3b" />
-            <rect x="146" y="126" width="8" height="4" fill="#f4f4f4" />
-            <rect x="149" y="118" width="2" height="4" fill="#2b2b2b" />
-          </g>
+        <div className="rig">
+          <img
+            className="rig-line"
+            src={asset(reeling ? 'fx/taut-fishing-line' : 'fx/line-across-surface')}
+            alt=""
+          />
+          <img
+            className={`ripple${biting && settings.screenShake ? ' shaking' : ''}`}
+            src={asset('fx/circular-ripple')}
+            alt=""
+          />
           {biting && (
-            <g opacity="0.45">
-              <ellipse cx="150" cy="140" rx="20" ry="6" fill="#02121b" />
-            </g>
+            <>
+              <img className="bite-ring" src={asset('fx/bite-alert-ring')} alt="" />
+              <img className="bang" src={asset('fx/exclamation-mark')} alt="" />
+            </>
           )}
-          {phase === 'reeling' && pending?.fish && (
-            <g transform="translate(126,132)" opacity="0.9">
-              <FishSprite fish={pending.fish} size={22} flip />
-            </g>
+          {reeling && pending?.fish && (
+            <div className="hooked">
+              <FishSprite fish={pending.fish} size={54} flip />
+              <img className="trail" src={asset('fx/fish-movement-trail')} alt="" />
+            </div>
           )}
-        </g>
+          {reeling && !pending?.fish && (
+            <div className="hooked">
+              <Sprite path="fx/underwater-bubbles" size={40} />
+            </div>
+          )}
+        </div>
       )}
-
-      {/* barco do clube, ancorado a direita */}
-      <g>
-        {/* toldo */}
-        <rect x="238" y="96" width="66" height="6" fill="#ffcf4d" />
-        <rect x="238" y="102" width="66" height="3" fill="#e0a020" />
-        <rect x="240" y="105" width="3" height="18" fill="#d8d8d8" />
-        <rect x="300" y="105" width="3" height="18" fill="#d8d8d8" />
-        {/* pescador */}
-        <rect x="262" y="106" width="10" height="14" fill="#ff4d6d" />
-        <rect x="263" y="100" width="8" height="7" fill="#e8b98a" />
-        <rect x="262" y="98" width="10" height="3" fill="#2f3b45" />
-        <rect x="272" y="110" width="2" height="2" fill="#e8b98a" />
-        {/* vara */}
-        <line x1="272" y1="110" x2="234" y2="116" stroke="#3b2b1a" strokeWidth="2" />
-        {/* casco */}
-        <rect x="226" y="123" width="94" height="14" fill="#f2f7fa" />
-        <rect x="226" y="130" width="94" height="7" fill="#2fa8d8" />
-        <polygon points="226,123 226,137 214,133 214,127" fill="#f2f7fa" />
-        {/* boias na lateral */}
-        <g fill="#f5deb3">
-          <rect x="234" y="128" width="7" height="7" />
-          <rect x="248" y="128" width="7" height="7" />
-          <rect x="262" y="128" width="7" height="7" />
-          <rect x="276" y="128" width="7" height="7" />
-        </g>
-        {/* reflexo */}
-        <rect x="222" y="137" width="98" height="3" fill="#02121b" opacity="0.25" />
-      </g>
-    </svg>
+    </div>
   );
 }

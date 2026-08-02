@@ -2,6 +2,17 @@
    Clube de Pesca do Juggler - estilo tropical anos 2000, pixel
    ============================================================ */
 
+/* VCR OSD Mono e a fonte padrao de todo texto do jogo. */
+@font-face {
+  font-family: 'VCR OSD Mono';
+  src:
+    url('../assets/fonts/vcr_osd_mono.woff2') format('woff2'),
+    url('../assets/fonts/vcr-osd-mono.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --sky-top: #39b6ef;
   --sky-bottom: #b8ecff;
@@ -23,8 +34,9 @@
   --neon: #33f0d0;
 
   --px: 4px;
-  --font-title: 'Press Start 2P', 'Silkscreen', monospace;
-  --font-body: 'Silkscreen', 'Press Start 2P', monospace;
+  /* uma fonte so para o jogo inteiro; titulos mudam tamanho e espacamento */
+  --font-title: 'VCR OSD Mono', ui-monospace, monospace;
+  --font-body: 'VCR OSD Mono', ui-monospace, monospace;
 }
 
 * {
@@ -101,9 +113,355 @@ button {
   flex: 1;
 }
 
+/* ------------------------------------------------------------------- cena */
+
+.sprite {
+  display: block;
+  image-rendering: pixelated;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* a Hydra nunca aparece nitida */
+.sprite-silhouette {
+  filter: brightness(0.12) drop-shadow(0 0 10px var(--eye)) drop-shadow(0 0 22px rgba(255, 46, 99, 0.55));
+}
+
+.stage img {
+  position: absolute;
+  image-rendering: pixelated;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+.scene-sky {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 58%;
+  overflow: hidden;
+  background-size: cover;
+  background-position: 50% 74%;
+  background-repeat: no-repeat;
+}
+
+.scene-sea {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 58%;
+  bottom: 0;
+  overflow: hidden;
+}
+
+.haze {
+  left: -5%;
+  width: 110%;
+  top: calc(58% - 5vh);
+  height: 10vh;
+  opacity: 0.5;
+  object-fit: fill;
+}
+
+.cloud {
+  height: 14%;
+  opacity: 0.85;
+}
+
+.cloud-a {
+  top: 8%;
+  left: -20%;
+  animation: cloud-drift 96s linear infinite;
+}
+
+.cloud-b {
+  top: 26%;
+  left: -30%;
+  height: 9%;
+  opacity: 0.7;
+  animation: cloud-drift 152s linear infinite;
+  animation-delay: -40s;
+}
+
+.stars {
+  top: 4%;
+  right: 8%;
+  height: 26%;
+  opacity: 0.75;
+}
+
+.birds {
+  top: 18%;
+  left: 12%;
+  height: 6%;
+  opacity: 0.75;
+  animation: cloud-drift 220s linear infinite;
+}
+
+.island-strip {
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 14%;
+  object-fit: cover;
+  object-position: 50% 100%;
+  opacity: 0.9;
+}
+
+.storm-tint {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(12, 22, 34, 0.72), rgba(20, 36, 50, 0.42));
+}
+
+.rain {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.35;
+  animation: rain-fall 0.7s linear infinite;
+}
+
+.rain-2 {
+  opacity: 0.22;
+  transform: scaleX(-1);
+  animation-duration: 1.1s;
+}
+
+.lightning {
+  top: 2%;
+  right: 18%;
+  height: 46%;
+  opacity: 0;
+  animation: flash 9s steps(1) infinite;
+}
+
+.glint {
+  top: 2%;
+  right: 4%;
+  width: 46%;
+  opacity: 0.5;
+}
+
+.wave {
+  left: -6%;
+  width: 112%;
+  object-fit: fill;
+}
+
+.wave-far {
+  top: 6%;
+  height: 9%;
+  opacity: 0.45;
+  animation: wave-drift 15s ease-in-out infinite alternate;
+}
+
+.wave-mid {
+  top: 24%;
+  height: 16%;
+  opacity: 0.65;
+  animation: wave-drift 11s ease-in-out infinite alternate-reverse;
+}
+
+.wave-near {
+  bottom: 2%;
+  height: 14%;
+  opacity: 0.5;
+  animation: wave-drift 8s ease-in-out infinite alternate;
+}
+
+.hydra-glow {
+  position: absolute;
+  left: 10%;
+  bottom: 6%;
+  width: 42%;
+  height: 40%;
+  background: radial-gradient(circle, rgba(255, 46, 77, 0.24), transparent 70%);
+  animation: pulse 6s ease-in-out infinite;
+}
+
+/* -------------------------------------------------------------- barco */
+
+.boat {
+  position: absolute;
+  right: -2%;
+  top: 46%;
+  width: min(46%, 420px);
+  z-index: 1;
+}
+
+.boat img {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: auto;
+}
+
+.boat-shadow {
+  opacity: 0.35;
+  transform: translateY(38%);
+}
+
+.boat-frame {
+  opacity: 0;
+}
+
+.boat-a {
+  opacity: 1;
+}
+
+.boat.rocking .boat-a {
+  animation: frame-a 2.4s steps(1) infinite;
+}
+
+.boat.rocking .boat-b {
+  animation: frame-b 2.4s steps(1) infinite;
+}
+
+/* ------------------------------------------------- linha, boia, peixe */
+
+.rig {
+  position: absolute;
+  left: 26%;
+  top: 60%;
+  width: 24%;
+  min-width: 110px;
+  z-index: 1;
+}
+
+.rig img {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: auto;
+}
+
+.rig-line {
+  bottom: 10px;
+  opacity: 0.9;
+}
+
+.ripple {
+  bottom: -6px;
+  opacity: 0.8;
+}
+
+.bite-ring {
+  bottom: -22px;
+  animation: pulse 0.7s ease-in-out infinite;
+}
+
+.bang {
+  left: 34%;
+  bottom: 40px;
+  width: 26%;
+  animation: bob 0.5s steps(4) infinite;
+}
+
+.hooked {
+  position: absolute;
+  left: 8%;
+  top: 26px;
+  display: grid;
+  place-items: center;
+}
+
+.hooked .trail {
+  position: absolute;
+  left: -30%;
+  top: 40%;
+  width: 90%;
+  opacity: 0.5;
+}
+
+@keyframes cloud-drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(140vw);
+  }
+}
+
+@keyframes wave-drift {
+  from {
+    transform: translateX(-2%);
+  }
+  to {
+    transform: translateX(2%);
+  }
+}
+
+@keyframes rain-fall {
+  from {
+    transform: translateY(-12%);
+  }
+  to {
+    transform: translateY(12%);
+  }
+}
+
+@keyframes flash {
+  0%,
+  92% {
+    opacity: 0;
+  }
+  93% {
+    opacity: 0.9;
+  }
+  94% {
+    opacity: 0;
+  }
+  95% {
+    opacity: 0.7;
+  }
+  96%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes frame-a {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes frame-b {
+  0%,
+  49% {
+    opacity: 0;
+  }
+  50%,
+  100% {
+    opacity: 1;
+  }
+}
+
 /* ------------------------------------------------------------- caixa pixel */
 
 .pixel-box {
+  position: relative;
   background: linear-gradient(180deg, rgba(13, 50, 71, 0.94), rgba(6, 32, 46, 0.96));
   border: var(--px) solid var(--panel-line);
   box-shadow:
@@ -112,12 +470,26 @@ button {
   padding: 10px;
 }
 
+/* moldura de corda do kit; decoracao so nos cantos, entao estica bem */
+.pixel-box.framed {
+  border: 26px solid transparent;
+  border-image-source: var(--panel-frame);
+  border-image-slice: 46 fill;
+  border-image-repeat: stretch;
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35);
+  background: none;
+}
+
 .neon .pixel-box {
   border-color: #ff5fd0;
   box-shadow:
     0 0 0 var(--px) #1b0430,
     0 0 18px rgba(255, 95, 208, 0.45),
     0 6px 0 rgba(0, 0, 0, 0.35);
+}
+
+.neon .pixel-box.framed {
+  filter: hue-rotate(-40deg) saturate(1.5);
 }
 
 /* ------------------------------------------------------------------ topbar */
@@ -139,7 +511,7 @@ button {
   align-items: center;
   gap: 6px;
   padding: 7px 10px;
-  font-size: 12px;
+  font-size: 15px;
   letter-spacing: 0.5px;
   background: rgba(4, 22, 33, 0.82);
   border: 2px solid var(--panel-line);
@@ -164,7 +536,8 @@ button {
 
 .region-tag {
   font-family: var(--font-title);
-  font-size: 10px;
+  font-size: 14px;
+  letter-spacing: 1px;
   line-height: 1.6;
   padding: 8px 10px;
   background: rgba(4, 22, 33, 0.82);
@@ -175,7 +548,7 @@ button {
 .region-tag small {
   display: block;
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: 13px;
   opacity: 0.7;
   margin-top: 4px;
 }
@@ -183,52 +556,67 @@ button {
 /* ------------------------------------------------------------------- botoes */
 
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--font-title);
-  font-size: 11px;
+  font-size: 15px;
+  letter-spacing: 1px;
   line-height: 1.5;
-  padding: 12px 16px;
-  background: linear-gradient(180deg, #2fa8d8, #14607f);
-  border: var(--px) solid #041b28;
-  box-shadow:
-    inset 0 3px 0 rgba(255, 255, 255, 0.28),
-    inset 0 -4px 0 rgba(0, 0, 0, 0.28),
-    0 5px 0 #02121b;
-  transition: transform 0.06s steps(2), box-shadow 0.06s steps(2);
+  padding: 12px 18px;
+  color: var(--cream);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.65);
+  border: 14px solid transparent;
+  border-image-source: var(--btn-frame);
+  border-image-slice: 18 22 fill;
+  border-image-repeat: stretch;
+  transition:
+    transform 0.06s steps(2),
+    filter 0.06s steps(2);
 }
 
 .btn:active:not(:disabled) {
-  transform: translateY(4px);
-  box-shadow:
-    inset 0 3px 0 rgba(255, 255, 255, 0.2),
-    inset 0 -4px 0 rgba(0, 0, 0, 0.28),
-    0 1px 0 #02121b;
+  transform: translateY(3px);
+  filter: brightness(0.9);
 }
 
 .btn:disabled {
-  filter: grayscale(0.7) brightness(0.7);
+  filter: grayscale(0.75) brightness(0.6);
   cursor: not-allowed;
 }
 
 .btn.primary {
-  background: linear-gradient(180deg, #ffd166, #f0862a);
-  color: #2b1200;
+  filter: hue-rotate(-18deg) saturate(1.5) brightness(1.14);
+  color: #fff3d6;
+}
+
+.btn.primary:active:not(:disabled) {
+  filter: hue-rotate(-18deg) saturate(1.5) brightness(1);
 }
 
 .btn.danger {
-  background: linear-gradient(180deg, #ff5f7e, #b0142f);
+  filter: hue-rotate(-40deg) saturate(2.2) brightness(1.05);
+  color: #ffe9ea;
 }
 
 .btn.ghost {
-  background: rgba(4, 22, 33, 0.75);
-  border-color: var(--panel-line);
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
-  font-size: 10px;
-  padding: 10px 12px;
+  filter: saturate(0.35) brightness(0.72);
+  font-size: 13px;
+  padding: 10px 14px;
 }
 
 .btn.small {
-  font-size: 9px;
-  padding: 8px 10px;
+  font-size: 12px;
+  padding: 8px 12px;
+  border-width: 12px;
+}
+
+.btn-icon {
+  height: 18px;
+  width: auto;
+  vertical-align: -3px;
+  margin-right: 6px;
+  display: inline-block;
 }
 
 .btn-row {
@@ -338,7 +726,7 @@ button {
 }
 
 .reel-hint {
-  font-size: 11px;
+  font-size: 14px;
   text-align: center;
   opacity: 0.85;
   margin-top: 6px;
@@ -376,7 +764,8 @@ button {
 
 .panel-head h2 {
   font-family: var(--font-title);
-  font-size: 13px;
+  font-size: 19px;
+  letter-spacing: 1px;
   line-height: 1.5;
 }
 
@@ -395,9 +784,9 @@ button {
 }
 
 .tab {
-  font-size: 10px;
+  font-size: 13px;
   font-family: var(--font-title);
-  padding: 8px 10px;
+  padding: 8px 12px;
   background: rgba(4, 22, 33, 0.6);
   border: 2px solid var(--panel-line);
   opacity: 0.65;
@@ -432,19 +821,19 @@ button {
 
 .card .name {
   font-family: var(--font-title);
-  font-size: 9px;
+  font-size: 14px;
   line-height: 1.6;
 }
 
 .card .meta {
-  font-size: 11px;
+  font-size: 13px;
   opacity: 0.75;
   line-height: 1.5;
 }
 
 .rarity-tag {
   display: inline-block;
-  font-size: 10px;
+  font-size: 12px;
   padding: 2px 6px;
   border: 2px solid currentColor;
 }
@@ -465,23 +854,24 @@ button {
 
 .row .title {
   font-family: var(--font-title);
-  font-size: 10px;
+  font-size: 15px;
   line-height: 1.6;
 }
 
 .row .desc {
-  font-size: 11px;
+  font-size: 13px;
   opacity: 0.75;
   margin-top: 4px;
   line-height: 1.5;
 }
 
 .bar {
-  height: 10px;
+  position: relative;
+  height: 14px;
   background: #04202e;
   border: 2px solid #04202e;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-  margin-top: 6px;
+  margin-top: 8px;
   overflow: hidden;
 }
 
@@ -552,15 +942,16 @@ button {
 
 .title-kicker {
   font-family: var(--font-body);
-  font-size: 12px;
-  letter-spacing: 4px;
+  font-size: 15px;
+  letter-spacing: 6px;
   color: var(--neon);
   opacity: 0.9;
 }
 
 .title-brand h1 {
   font-family: var(--font-title);
-  font-size: clamp(15px, 4.4vw, 26px);
+  font-size: clamp(24px, 6.4vw, 44px);
+  letter-spacing: 2px;
   line-height: 1.55;
   margin: 10px 0;
   color: var(--cream);
@@ -575,7 +966,7 @@ button {
 }
 
 .title-sub {
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.6;
   opacity: 0.78;
   max-width: 34ch;
@@ -594,7 +985,7 @@ button {
 }
 
 .title-progress {
-  font-size: 11px;
+  font-size: 13px;
   opacity: 0.7;
   padding: 2px 2px 6px;
   line-height: 1.5;
@@ -604,14 +995,14 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 11px;
+  font-size: 13px;
   opacity: 0.6;
 }
 
 .founder-plate {
   font-family: var(--font-title);
-  font-size: 9px;
-  letter-spacing: 2px;
+  font-size: 13px;
+  letter-spacing: 3px;
   padding: 6px 10px;
   color: #f3e2b0;
   background: linear-gradient(180deg, #8a6a2c, #4a3616);
@@ -636,11 +1027,30 @@ button {
   }
 }
 
+.title-mark {
+  height: 74px;
+  width: auto;
+  display: block;
+  margin-bottom: 6px;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+}
+
+.region-thumb {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  background-size: cover;
+  background-position: 50% 70%;
+  border: 3px solid #041b28;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+  image-rendering: pixelated;
+}
+
 /* ------------------------------------------------- controles de config */
 
 .section-title {
   font-family: var(--font-title);
-  font-size: 10px;
+  font-size: 15px;
   line-height: 1.6;
   color: var(--neon);
   letter-spacing: 1px;
@@ -685,13 +1095,13 @@ button {
 }
 
 .step-number {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   flex: none;
   display: grid;
   place-items: center;
   font-family: var(--font-title);
-  font-size: 11px;
+  font-size: 16px;
   color: #2b1200;
   background: var(--coin);
   border: 2px solid #041b28;
@@ -721,35 +1131,76 @@ button {
 
 .catch-card .headline {
   font-family: var(--font-title);
-  font-size: 12px;
+  font-size: 18px;
+  letter-spacing: 2px;
   line-height: 1.6;
 }
 
 .catch-card .fish-name {
   font-family: var(--font-title);
-  font-size: 15px;
+  font-size: 22px;
   line-height: 1.5;
 }
 
 .catch-card .flavor {
-  font-size: 12px;
+  font-size: 14px;
   opacity: 0.8;
   line-height: 1.6;
 }
 
 .reward-line {
   display: flex;
-  gap: 12px;
+  gap: 14px;
   justify-content: center;
-  font-size: 13px;
+  font-size: 17px;
 }
 
 .sprite-frame {
+  position: relative;
   width: 100%;
-  height: 130px;
+  height: 160px;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 50% 55%, rgba(255, 255, 255, 0.14), transparent 70%);
+  background: radial-gradient(circle at 50% 55%, rgba(255, 255, 255, 0.1), transparent 70%);
+}
+
+.sprite-frame .burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  height: 190px;
+  opacity: 0.85;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.catch-banner {
+  position: relative;
+  width: min(340px, 100%);
+  display: grid;
+  place-items: center;
+}
+
+.catch-banner img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.catch-banner .headline {
+  position: absolute;
+  top: 46%;
+  transform: translateY(-50%);
+  padding: 0 12%;
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.rarity-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* ------------------------------------------------------------------- toasts */
@@ -770,7 +1221,7 @@ button {
 
 .toast {
   width: 100%;
-  font-size: 12px;
+  font-size: 14px;
   padding: 8px 10px;
   text-align: center;
   background: rgba(4, 22, 33, 0.92);
