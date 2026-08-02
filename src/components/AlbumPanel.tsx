@@ -5,9 +5,8 @@ import { REGIONS } from '../data/regions';
 import { useGame } from '../state/store';
 import type { FamilyId } from '../state/types';
 import { FishSprite, Sprite } from './Sprite';
-import { Panel } from './Panel';
 
-export function AlbumPanel({ onClose }: { onClose: () => void }) {
+export function AlbumApp() {
   const s = useGame();
   const [tab, setTab] = useState<FamilyId | 'todos'>('todos');
 
@@ -15,15 +14,10 @@ export function AlbumPanel({ onClose }: { onClose: () => void }) {
   const known = Object.keys(s.album).length;
 
   return (
-    <Panel
-      title="Album do Pescador"
-      onClose={onClose}
-      right={
-        <span style={{ fontSize: 11 }}>
-          {known}/{FISH.length}
-        </span>
-      }
-    >
+    <>
+      <div className="app-summary">
+        {known}/{FISH.length} ESPECIES REGISTRADAS
+      </div>
       <div className="tabs">
         <button className={`tab${tab === 'todos' ? ' active' : ''}`} onClick={() => setTab('todos')}>
           TODOS
@@ -102,6 +96,6 @@ export function AlbumPanel({ onClose }: { onClose: () => void }) {
           );
         })}
       </div>
-    </Panel>
+    </>
   );
 }

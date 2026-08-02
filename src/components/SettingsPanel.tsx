@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { initAudio, playCatch, playSfx, startAmbience, stopAmbience } from '../engine/audio';
 import { resetGame, useGame } from '../state/store';
 import { buzz, resetSettings, updateSettings, useSettings, type Settings } from '../state/settings';
-import { Panel } from './Panel';
 
 function Toggle({
   label,
@@ -68,7 +67,7 @@ function Slider({
   );
 }
 
-export function SettingsPanel({ onClose }: { onClose: () => void }) {
+export function SettingsApp() {
   const s = useSettings();
   const game = useGame();
   const [confirmWipe, setConfirmWipe] = useState(false);
@@ -76,7 +75,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const patch = (p: Partial<Settings>) => updateSettings(p);
 
   return (
-    <Panel title="Configuracoes" onClose={onClose}>
+    <>
       <div className="section-title">Audio</div>
       <Toggle
         label="Silenciar tudo"
@@ -213,6 +212,6 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
           </button>
         )}
       </div>
-    </Panel>
+    </>
   );
 }

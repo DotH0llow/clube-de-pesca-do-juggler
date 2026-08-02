@@ -4,11 +4,12 @@ import cover from '../assets/fundador.webp';
 import { initAudio, playSfx, startAmbience } from '../engine/audio';
 import { useGame } from '../state/store';
 import { useSettings } from '../state/settings';
-import { ControlsPanel } from './ControlsPanel';
-import { CreditsPanel } from './CreditsPanel';
-import { SettingsPanel } from './SettingsPanel';
+import { ControlsApp } from './ControlsPanel';
+import { SettingsApp } from './SettingsPanel';
+import { Sheet } from './Sheet';
+import { Sky } from './Sky';
 
-type Overlay = 'config' | 'controles' | 'creditos' | null;
+type Overlay = 'config' | 'controles' | null;
 
 export function TitleScreen({ onPlay }: { onPlay: () => void }) {
   const s = useGame();
@@ -25,17 +26,24 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
 
   return (
     <div className="title-screen" onPointerDown={initAudio}>
-      <img className="title-art" src={cover} alt="O Fundador do Clube de Pesca do Juggler" />
+      {/* horizonte tropical de verdade no fundo */}
+      <Sky region="enseada" />
+      <div className="title-sea" />
+      <img className="title-islands" src={asset('sky/distant-island-strip')} alt="" />
+      <img className="title-waves" src={asset('fx/large-wave-strip')} alt="" />
+      <img className="title-foam" src={asset('fx/foam-strip')} alt="" />
       <div className="title-vignette" />
+
+      {/* o Juggler encostado no canto direito */}
+      <img className="title-art" src={cover} alt="O Juggler" />
 
       <div className="title-content">
         <div className="title-brand">
           <img className="title-mark" src={asset('ui/temporary-logo-mark')} alt="" />
-          <span className="title-kicker">UNIVERSO HYDRA</span>
           <h1>
-            CLUBE DE PESCA
+            JUGGLER'S
             <br />
-            <em>DO JUGGLER</em>
+            <em>FISHING CLUB</em>
           </h1>
           <p className="title-sub">
             Lanca a linha, fisga o que aparecer e reza pra nao ser a Hydra.
@@ -74,28 +82,22 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
               setOverlay('config');
             }}
           >
-            CONFIGURACOES
-          </button>
-          <button
-            className="btn ghost title-btn"
-            onClick={() => {
-              wake();
-              setOverlay('creditos');
-            }}
-          >
-            CREDITOS
+            AJUSTES
           </button>
         </div>
 
         <div className="title-foot">
           <span className="founder-plate">FUNDADOR</span>
-          <span>v0.1</span>
+          <span>v0.2</span>
         </div>
       </div>
 
-      {overlay === 'config' && <SettingsPanel onClose={() => setOverlay(null)} />}
-      {overlay === 'controles' && <ControlsPanel onClose={() => setOverlay(null)} />}
-      {overlay === 'creditos' && <CreditsPanel onClose={() => setOverlay(null)} />}
+      {overlay === 'config' && <Sheet title="AJUSTES" onClose={() => setOverlay(null)}><SettingsApp /></Sheet>}
+      {overlay === 'controles' && (
+        <Sheet title="COMO JOGAR" onClose={() => setOverlay(null)}>
+          <ControlsApp />
+        </Sheet>
+      )}
     </div>
   );
 }

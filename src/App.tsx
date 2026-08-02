@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { AchievementsPanel } from './components/AchievementsPanel';
-import { AlbumPanel } from './components/AlbumPanel';
 import { CastBar } from './components/CastBar';
 import { CatchPopup } from './components/CatchPopup';
-import { PauseMenu } from './components/PauseMenu';
+import { Phone } from './components/Phone';
 import { ReelMinigame } from './components/ReelMinigame';
-import { Scene } from './components/Scene';
-import { ShopPanel } from './components/ShopPanel';
 import { Sprite } from './components/Sprite';
 import { TitleScreen } from './components/TitleScreen';
+import { World } from './components/World';
 import { ACHIEVEMENTS_BY_ID } from './data/achievements';
 import { FAMILIES } from './data/fish';
 import { REGIONS } from './data/regions';
@@ -17,8 +14,7 @@ import { SHARDS_FOR_LEGENDARY } from './engine/outcomes';
 import { useFishingLoop, type Outcome } from './hooks/useFishingLoop';
 import { useSettings } from './state/settings';
 import { claimDaily, dailyAvailable, dailyPreview, useGame } from './state/store';
-
-type PanelId = 'album' | 'loja' | 'conquistas' | null;
+import { usePlayer } from './world/usePlayer';
 
 interface Toast {
   id: number;
@@ -29,9 +25,9 @@ interface Toast {
 export default function App() {
   const s = useGame();
   const settings = useSettings();
-  const [view, setView] = useState<'titulo' | 'jogo'>('titulo');
-  const [paused, setPaused] = useState(false);
-  const [panel, setPanel] = useState<PanelId>(null);
+  const [view, setView] = useState<'titulo' | 'mundo'>('titulo');
+  const [phoneOpen, setPhoneOpen] = useState(false);
+  const [fishing, setFishing] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [showDaily, setShowDaily] = useState(false);
   const toastId = useRef(0);
@@ -64,9 +60,12 @@ export default function App() {
   const loop = useFishingLoop(handleOutcome);
   const { phase, pending, outcome, startCast, lockPower, hook, finishReel, dismiss, abort } = loop;
 
+  const busy = phoneOpen || showDaily;
+  const player = usePlayer({ active: view === 'mundo' && !busy, fishing });
+
   // ---------------------------------------------------- ambiencia liga/desliga
   useEffect(() => {
-    if (view !== 'jogo') return;
+    if (view !== 'mundo') return;
     if (settings.muted || settings.music <= 0) {
       stopAmbience();
       return;
@@ -75,24 +74,37 @@ export default function App() {
     startAmbience();
   }, [view, settings.muted, settings.music]);
 
+  const startFishing = useCallback(() => {
+    playSfx('ui');
+    setFishing(true);
+  }, []);
+
+  const stopFishing = useCallback(() => {
+    abort();
+    setFishing(false);
+    playSfx('ui');
+  }, [abort]);
+
   // -------------------------------------------------------------- atalhos
   useEffect(() => {
-    if (view !== 'jogo') return;
+    if (view !== 'mundo') return;
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Escape') {
         e.preventDefault();
-        if (panel) {
-          setPanel(null);
-        } else {
-          setPaused((p) => {
-            if (!p) abort();
-            return !p;
-          });
-        }
+        setPhoneOpen((p) => {
+          if (!p) abort();
+          return !p;
+        });
         return;
       }
-      if (panel || paused || showDaily) return;
-      if (e.code !== 'Space' && e.code !== 'Enter') return;
+      if (busy) return;
+      if (e.code === 'KeyE' && player.nearRod && !fishing) {
+        e.preventDefault();
+        startFishing();
+        return;
+      }
+      if (!fishing) return;
+      if (e.code !== 'Enter' && e.code !== 'Space') return;
       if (phase === 'idle') {
         e.preventDefault();
         startCast();
@@ -107,36 +119,20 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [view, phase, panel, paused, showDaily, startCast, hook, dismiss, abort]);
-
-  const openPanel = (id: PanelId) => {
-    playSfx('ui');
-    abort();
-    setPanel(id);
-  };
+  }, [view, phase, busy, fishing, player.nearRod, startCast, hook, dismiss, abort, startFishing]);
 
   const enterGame = () => {
-    setView('jogo');
+    setView('mundo');
     if (dailyAvailable()) setShowDaily(true);
-  };
-
-  const backToTitle = () => {
-    abort();
-    setPaused(false);
-    setPanel(null);
-    setView('titulo');
   };
 
   const region = REGIONS[s.region];
   const styleVars = useMemo(
     () =>
       ({
-        '--sky-top': region.palette.skyTop,
-        '--sky-bottom': region.palette.skyBottom,
         '--sea-top': region.palette.seaTop,
         '--sea-bottom': region.palette.seaBottom,
         '--sun': region.palette.sun,
-        '--island': region.palette.island,
         '--haze': region.palette.haze,
       }) as CSSProperties,
     [region],
@@ -164,7 +160,18 @@ export default function App() {
 
   return (
     <div className={rootClass} style={styleVars}>
-      <Scene region={s.region} phase={phase} pending={pending} />
+      <World
+        region={s.region}
+        phase={phase}
+        pending={pending}
+        fishing={fishing}
+        cameraRef={player.cameraRef}
+        farRef={player.farRef}
+        midRef={player.midRef}
+        playerRef={player.playerRef}
+        spriteRef={player.spriteRef}
+        scale={player.scale}
+      />
 
       <div className="ui-layer">
         <div className="topbar">
@@ -173,12 +180,11 @@ export default function App() {
             onClick={() => {
               playSfx('ui');
               abort();
-              setPaused(true);
+              setPhoneOpen(true);
             }}
-            aria-label="Pausar"
           >
             <Sprite path="ui/settings-icon" size={18} className="btn-icon" />
-            MENU
+            CELULAR
           </button>
           <div className="wallet">
             <span className="chip coin">
@@ -197,7 +203,7 @@ export default function App() {
           </div>
         </div>
 
-        {shards > 0 && (
+        {shards > 0 && fishing && (
           <div className="chip" style={{ alignSelf: 'flex-start', fontSize: 13 }}>
             Escamas lendarias {shards}/{SHARDS_FOR_LEGENDARY}
           </div>
@@ -205,53 +211,82 @@ export default function App() {
 
         <div className="spacer" />
 
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          {phase === 'idle' && (
-            <>
-              <button
-                className="btn primary"
-                onClick={startCast}
-                style={{ fontSize: 22, padding: '18px 34px' }}
-              >
-                LANCAR
+        {/* --------------------------------------------- fora da pescaria */}
+        {!fishing && (
+          <div className="world-hud">
+            {player.nearRod ? (
+              <button className="btn primary" onClick={startFishing} style={{ fontSize: 20 }}>
+                PESCAR &nbsp;<span className="key">E</span>
               </button>
-              <div className="btn-row">
-                <button className="btn ghost" onClick={() => openPanel('album')}>
-                  <Sprite path="ui/fish-album-icon" size={18} className="btn-icon" />
-                  ALBUM
-                </button>
-                <button className="btn ghost" onClick={() => openPanel('loja')}>
-                  <Sprite path="ui/upgrade-icon" size={18} className="btn-icon" />
-                  CAIS
-                </button>
-                <button className="btn ghost" onClick={() => openPanel('conquistas')}>
-                  <Sprite path="ui/ranking-icon" size={18} className="btn-icon" />
-                  CONQUISTAS
-                </button>
-              </div>
-            </>
-          )}
-
-          {phase === 'power' && <CastBar onLock={lockPower} />}
-
-          {phase === 'waiting' && settings.hints && (
-            <div className="pixel-box" style={{ textAlign: 'center', width: 'min(460px, 92vw)' }}>
-              <p className="reel-hint">Linha na agua. Espere a boia mexer...</p>
+            ) : (
+              settings.hints && (
+                <div className="hint-strip">
+                  SETAS OU A/D PARA ANDAR &middot; SHIFT CORRE &middot; ESPACO PULA &middot; ESC ABRE O CELULAR
+                </div>
+              )
+            )}
+            <div className="touch-pad">
+              <button
+                className="btn ghost small"
+                onPointerDown={() => player.press('ArrowLeft', true)}
+                onPointerUp={() => player.press('ArrowLeft', false)}
+                onPointerLeave={() => player.press('ArrowLeft', false)}
+              >
+                &lt;
+              </button>
+              <button
+                className="btn ghost small"
+                onPointerDown={() => player.press('Space', true)}
+                onPointerUp={() => player.press('Space', false)}
+                onPointerLeave={() => player.press('Space', false)}
+              >
+                PULO
+              </button>
+              <button
+                className="btn ghost small"
+                onPointerDown={() => player.press('ArrowRight', true)}
+                onPointerUp={() => player.press('ArrowRight', false)}
+                onPointerLeave={() => player.press('ArrowRight', false)}
+              >
+                &gt;
+              </button>
             </div>
-          )}
+          </div>
+        )}
 
-          {phase === 'bite' && (
-            <button
-              className="btn danger"
-              onClick={hook}
-              style={{ fontSize: 24, padding: '20px 38px' }}
-            >
-              FISGAR!
-            </button>
-          )}
+        {/* ---------------------------------------------------- pescaria */}
+        {fishing && (
+          <div className="world-hud">
+            {phase === 'idle' && (
+              <>
+                <button
+                  className="btn primary"
+                  onClick={startCast}
+                  style={{ fontSize: 22, padding: '18px 34px' }}
+                >
+                  LANCAR
+                </button>
+                <button className="btn ghost small" onClick={stopFishing}>
+                  GUARDAR A VARA
+                </button>
+              </>
+            )}
 
-          {phase === 'reeling' && pending && <ReelMinigame target={pending} onDone={finishReel} />}
-        </div>
+            {phase === 'power' && <CastBar onLock={lockPower} />}
+
+            {phase === 'waiting' && settings.hints && (
+              <div className="hint-strip">LINHA NA AGUA. ESPERE A BOIA MEXER...</div>
+            )}
+
+            {phase === 'bite' && (
+              <button className="btn danger" onClick={hook} style={{ fontSize: 24, padding: '20px 38px' }}>
+                FISGAR!
+              </button>
+            )}
+
+            {phase === 'reeling' && pending && <ReelMinigame target={pending} onDone={finishReel} />}
+          </div>
+        )}
       </div>
 
       {phase === 'result' && outcome && (
@@ -264,38 +299,36 @@ export default function App() {
         />
       )}
 
-      {panel === 'album' && <AlbumPanel onClose={() => setPanel(null)} />}
-      {panel === 'loja' && <ShopPanel onClose={() => setPanel(null)} />}
-      {panel === 'conquistas' && <AchievementsPanel onClose={() => setPanel(null)} />}
-
-      {paused && <PauseMenu onResume={() => setPaused(false)} onTitle={backToTitle} />}
+      {phoneOpen && <Phone onClose={() => setPhoneOpen(false)} />}
 
       {showDaily && (
         <div className="modal-backdrop">
-          <div className="pixel-box catch-card" style={{ width: 'min(380px, 92vw)' }}>
-            <div className="headline" style={{ color: 'var(--coin)' }}>
-              BOM DIA, PESCADOR
+          <div className="sheet daily">
+            <div className="sheet-body daily-body">
+              <div className="headline" style={{ color: 'var(--coin)' }}>
+                BOM DIA, PESCADOR
+              </div>
+              <Sprite path="sky/setting-sun" size={92} />
+              <div className="flavor">
+                Dia {daily.streak} seguido no cais. O clube guardou uma ajuda pra voce.
+              </div>
+              <div className="reward-line">
+                <span style={{ color: 'var(--coin)' }}>+{daily.sazoncoins} SZ</span>
+                {daily.hydraEyes > 0 && (
+                  <span style={{ color: 'var(--eye)' }}>+{daily.hydraEyes} Olhos</span>
+                )}
+              </div>
+              <button
+                className="btn primary"
+                onClick={() => {
+                  claimDaily();
+                  playSfx('coin');
+                  setShowDaily(false);
+                }}
+              >
+                PEGAR
+              </button>
             </div>
-            <Sprite path="sky/setting-sun" size={92} />
-            <div className="flavor">
-              Dia {daily.streak} seguido no cais. O clube guardou uma ajuda pra voce.
-            </div>
-            <div className="reward-line">
-              <span style={{ color: 'var(--coin)' }}>+{daily.sazoncoins} SZ</span>
-              {daily.hydraEyes > 0 && (
-                <span style={{ color: 'var(--eye)' }}>+{daily.hydraEyes} Olhos</span>
-              )}
-            </div>
-            <button
-              className="btn primary"
-              onClick={() => {
-                claimDaily();
-                playSfx('coin');
-                setShowDaily(false);
-              }}
-            >
-              PEGAR
-            </button>
           </div>
         </div>
       )}

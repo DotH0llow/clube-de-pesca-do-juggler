@@ -1,4 +1,3 @@
-import { Panel } from './Panel';
 
 const STEPS = [
   {
@@ -38,9 +37,9 @@ const STEPS = [
   },
 ];
 
-export function ControlsPanel({ onClose }: { onClose: () => void }) {
+export function ControlsApp() {
   return (
-    <Panel title="Como jogar" onClose={onClose}>
+    <>
       <div className="row">
         <div className="grow desc">
           Cinco passos. Da para jogar so com a barra de espaco ou so com o dedo.
@@ -95,6 +94,6 @@ export function ControlsPanel({ onClose }: { onClose: () => void }) {
           que voce pesque. Trocar de regiao no CAIS e o que abre raridade nova.
         </div>
       </div>
-    </Panel>
+    </>
   );
 }

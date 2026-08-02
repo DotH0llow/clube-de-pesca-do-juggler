@@ -30,7 +30,7 @@ export function CatchPopup({ outcome, onAgain }: Props) {
 
   return (
     <div className="catch-popup" onClick={onAgain}>
-      <div className="pixel-box framed catch-card" onClick={(e) => e.stopPropagation()}>
+      <div className="catch-card" onClick={(e) => e.stopPropagation()}>
         <div className="catch-banner">
           <img src={asset('fx/capture-banner')} alt="" />
           <span className="headline" style={{ color: failed ? '#a3301f' : '#3a2410' }}>

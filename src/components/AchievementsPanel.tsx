@@ -1,22 +1,14 @@
 import { ACHIEVEMENT_CATEGORY_LABEL, ACHIEVEMENTS } from '../data/achievements';
 import { useGame } from '../state/store';
-import { Panel } from './Panel';
 import { Sprite } from './Sprite';
 
-export function AchievementsPanel({ onClose }: { onClose: () => void }) {
+export function AchievementsApp() {
   const s = useGame();
   const done = s.achievements.length;
 
   return (
-    <Panel
-      title="Conquistas"
-      onClose={onClose}
-      right={
-        <span style={{ fontSize: 11 }}>
-          {done}/{ACHIEVEMENTS.length}
-        </span>
-      }
-    >
+    <>
+      <div className="app-summary">{done}/{ACHIEVEMENTS.length} CONQUISTAS</div>
       {ACHIEVEMENTS.map((a) => {
         const unlocked = s.achievements.includes(a.id);
         const raw = a.progress(s);
@@ -59,6 +51,6 @@ export function AchievementsPanel({ onClose }: { onClose: () => void }) {
           </div>
         );
       })}
-    </Panel>
+    </>
   );
 }

@@ -1,4 +1,4 @@
-# Clube de Pesca do Juggler
+# Juggler's Fishing Club
 
 Jogo casual de pesca em browser, ambientado no universo Hydra. Voce lanca a linha,
 fisga o que aparecer, vende por **Sazoncoins**, completa o **Album do Pescador**,
@@ -7,7 +7,42 @@ prefere nao ter encontrado.
 
 Estetica: pixel art tropical/oceanica com cara de anos 2000 - agua turquesa,
 ilhas ao longe, por do sol, barco ancorado. Nada de fantasia medieval.
-Tipografia unica: **VCR OSD Mono**, servida localmente em woff2.
+
+## Mundo e personagem
+
+O jogo nao e uma tela parada: e um cenario lateral que vai da **floresta da ilha**
+ate a **ponta do pier**, com a camera arrastando junto com o Juggler.
+
+| Tecla | Acao |
+| --- | --- |
+| Setas ou `A`/`D` | Andar |
+| `Shift` | Correr |
+| `Espaco`, `W` ou seta pra cima | Pular |
+| `E` | Pescar (perto da vara) |
+| `ESC` | Abrir/fechar o celular |
+
+O Juggler usa as 13 animacoes do kit (parado, andar, correr, pular, pescar,
+sentar e idle de costas), com esquerda e direita separadas. Os quadros de pulo
+vieram com o colete rosa em vez do azul das outras poses; o importador detecta o
+matiz e remapeia, entao a animacao fica consistente.
+
+A pescaria so abre quando o Juggler chega perto da vara fincada no fim do pier.
+Ali o personagem troca para a pose de pesca e o HUD de lancamento aparece.
+
+### O corte do cenario
+
+A cena e um corte transversal, como no sketch: ceu e ilhas no alto, linha d'agua
+com espuma e ondas, e abaixo dela a coluna de agua com raios de luz, corais,
+algas, cardumes, bolhas e a boca de uma caverna no fim. O pier e montado com a
+tabua e o poste do kit **repetidos**, nao esticados.
+
+## Tipografia
+
+**VCR OSD Mono**, servida localmente em woff2. A fonte nao tem descendentes -
+`g`, `p`, `q` e `y` sao desenhados inteiros acima da linha de base, o que faz
+minuscula parecer defeito de renderizacao. Ela foi desenhada para OSD de video,
+ou seja, para caixa alta. Por isso o jogo forca `text-transform: uppercase` em
+tudo.
 
 ## Rodando
 
@@ -58,7 +93,9 @@ upgrades, reliquias e familias).
 | `07_effects` | ondas em parallax, brilho do sol, linha, ondulacao, fuga, bolhas |
 | `02_sprites/boats-and-pier` | barco em duas poses alternadas + sombra |
 | `03_sprites/fishing-gear` | icones dos upgrades (vara, carretel, isca, balde, chumbada) |
-| `01_sprites/environment` | icones de familia, reliquias do Altar e a silhueta da Hydra |
+| `01_sprites/environment` | floresta, cabana, corais, algas, caverna e a silhueta da Hydra |
+| `02_sprites/boats-and-pier` (tabua, poste, escada) | o pier inteiro, montado por repeticao |
+| `11_characters/juggler` | 68 quadros do personagem jogavel |
 | `08_interface` | moldura dos paineis, botoes, selos de raridade, icones do HUD |
 | `09_rewards-and-feedback` | faixa de captura, bau, particulas por raridade, alerta de mordida |
 | `06_backgrounds/ocean` | miniaturas de pesqueiro e fundo do minigame de puxada |
@@ -74,12 +111,20 @@ upgrades, reliquias e familias).
 - O kit traz tres selos de raridade e o jogo tem seis. Comum e Incomum dividem o
   selo comum, Raro fica com o proprio, e Epico/Lendario/Mitico dividem o epico.
 
-## Menu e configuracoes
+## O celular
 
-O jogo abre numa **tela de titulo** com a arte do Fundador. Dali sai para
-COMECAR/CONTINUAR, COMO JOGAR, CONFIGURACOES e CREDITOS. Durante a pescaria, o
-botao MENU (ou `Esc`) abre a **pausa**, que da acesso ao mesmo conjunto de telas
-mais VOLTAR AO TITULO.
+Dentro do jogo, **tudo mora no celular do Juggler**: `ESC` abre o aparelho com
+album, cais, trofeus, ajustes e ajuda em abas. A tela de titulo tem so COMECAR,
+COMO JOGAR e AJUSTES.
+
+Duas regras de interface valendo para qualquer tela nova:
+
+1. **Tamanho fixo.** A janela nunca cresce nem encolhe conforme a aba; o conteudo
+   rola por dentro.
+2. **Moldura repetida, nunca esticada.** As molduras do kit sao pequenas
+   (o botao tem 241x129). Esticar borrava a madeira, entao o `border-image` usa
+   `repeat: round` - as bordas se repetem no tamanho nativo e so o miolo estica.
+   O fundo das telas e azul claro chapado.
 
 As configuracoes ficam num `localStorage` separado do save, entao apagar o
 progresso nao mexe nos ajustes:
@@ -94,6 +139,9 @@ progresso nao mexe nos ajustes:
 | Jogo | Vibracao | `navigator.vibrate` no celular |
 | Jogo | Confirmar gasto de Olhos | Segundo clique antes de gastar moeda de prestigio |
 | Dados | Restaurar configuracoes / Apagar progresso | Reset separado de cada coisa |
+
+O ceu tem nuvens e passaros com tamanho, altura, opacidade e velocidade
+sorteados. Nuvens andam a 30% da velocidade antiga e passaros a 10%.
 
 `Animacoes` e `Tremor de tela` ja nascem desligados se o sistema pedir
 `prefers-reduced-motion`.
@@ -221,6 +269,8 @@ Tudo o mais e SVG ou CSS.
 ## Roadmap curto
 
 - [ ] Aplicar as molduras restantes do kit (barra de forca, tensao, tooltip)
+- [ ] Usar as poses `sit` e `back-idle` em cutscenes e no banco da praia
+- [ ] Os outros personagens do kit (Bombado, Cesar, Chorinho, Sazon, Madrugaras) como NPCs
 - [ ] Trilha e SFX definitivos no lugar do audio procedural
 - [ ] Eventos temporarios / temporada
 - [ ] Cameo do Hydrinho como NPC no cais

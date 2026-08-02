@@ -5,7 +5,6 @@ import { RELICS, UPGRADES, upgradeCost } from '../data/upgrades';
 import { playSfx } from '../engine/audio';
 import { useSettings } from '../state/settings';
 import { buyRelic, buyUpgrade, setRegion, unlockRegion, useGame } from '../state/store';
-import { Panel } from './Panel';
 import { Sprite } from './Sprite';
 import { asset } from '../assets';
 
@@ -54,21 +53,13 @@ function BuyButton({
   );
 }
 
-export function ShopPanel({ onClose }: { onClose: () => void }) {
+export function ShopApp() {
   const s = useGame();
   const settings = useSettings();
   const [tab, setTab] = useState<Tab>('loja');
 
   return (
-    <Panel
-      title="Cais do Clube"
-      onClose={onClose}
-      right={
-        <span style={{ fontSize: 13 }}>
-          {s.sazoncoins.toLocaleString('pt-BR')} SZ &middot; {s.hydraEyes} Olhos
-        </span>
-      }
-    >
+    <>
       <div className="tabs">
         <button className={`tab${tab === 'loja' ? ' active' : ''}`} onClick={() => setTab('loja')}>
           LOJA
@@ -189,6 +180,6 @@ export function ShopPanel({ onClose }: { onClose: () => void }) {
             </div>
           );
         })}
-    </Panel>
+    </>
   );
 }
