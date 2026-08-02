@@ -3,14 +3,18 @@ import { AchievementsPanel } from './components/AchievementsPanel';
 import { AlbumPanel } from './components/AlbumPanel';
 import { CastBar } from './components/CastBar';
 import { CatchPopup } from './components/CatchPopup';
+import { PauseMenu } from './components/PauseMenu';
 import { ReelMinigame } from './components/ReelMinigame';
 import { Scene } from './components/Scene';
 import { ShopPanel } from './components/ShopPanel';
+import { TitleScreen } from './components/TitleScreen';
 import { ACHIEVEMENTS_BY_ID } from './data/achievements';
 import { FAMILIES } from './data/fish';
 import { REGIONS } from './data/regions';
+import { initAudio, playSfx, startAmbience, stopAmbience } from './engine/audio';
 import { SHARDS_FOR_LEGENDARY } from './engine/outcomes';
 import { useFishingLoop, type Outcome } from './hooks/useFishingLoop';
+import { useSettings } from './state/settings';
 import { claimDaily, dailyAvailable, dailyPreview, useGame } from './state/store';
 
 type PanelId = 'album' | 'loja' | 'conquistas' | null;
@@ -23,9 +27,12 @@ interface Toast {
 
 export default function App() {
   const s = useGame();
+  const settings = useSettings();
+  const [view, setView] = useState<'titulo' | 'jogo'>('titulo');
+  const [paused, setPaused] = useState(false);
   const [panel, setPanel] = useState<PanelId>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [showDaily, setShowDaily] = useState(() => dailyAvailable());
+  const [showDaily, setShowDaily] = useState(false);
   const toastId = useRef(0);
 
   const pushToast = useCallback((text: string, kind: Toast['kind'] = 'coin') => {
@@ -46,6 +53,9 @@ export default function App() {
       for (const id of o.unlocks.achievements) {
         pushToast(`Conquista: ${ACHIEVEMENTS_BY_ID[id]?.name ?? id}`, 'ach');
       }
+      if (o.unlocks.achievements.length || o.unlocks.families.length) {
+        window.setTimeout(() => playSfx('unlock'), 420);
+      }
     },
     [pushToast],
   );
@@ -53,10 +63,34 @@ export default function App() {
   const loop = useFishingLoop(handleOutcome);
   const { phase, pending, outcome, startCast, lockPower, hook, finishReel, dismiss, abort } = loop;
 
-  // ------------------------------------------------------------- atalhos
+  // ---------------------------------------------------- ambiencia liga/desliga
   useEffect(() => {
+    if (view !== 'jogo') return;
+    if (settings.muted || settings.music <= 0) {
+      stopAmbience();
+      return;
+    }
+    initAudio();
+    startAmbience();
+  }, [view, settings.muted, settings.music]);
+
+  // -------------------------------------------------------------- atalhos
+  useEffect(() => {
+    if (view !== 'jogo') return;
     const onKey = (e: KeyboardEvent) => {
-      if (panel || showDaily) return;
+      if (e.code === 'Escape') {
+        e.preventDefault();
+        if (panel) {
+          setPanel(null);
+        } else {
+          setPaused((p) => {
+            if (!p) abort();
+            return !p;
+          });
+        }
+        return;
+      }
+      if (panel || paused || showDaily) return;
       if (e.code !== 'Space' && e.code !== 'Enter') return;
       if (phase === 'idle') {
         e.preventDefault();
@@ -72,11 +106,24 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [phase, panel, showDaily, startCast, hook, dismiss]);
+  }, [view, phase, panel, paused, showDaily, startCast, hook, dismiss, abort]);
 
   const openPanel = (id: PanelId) => {
+    playSfx('ui');
     abort();
     setPanel(id);
+  };
+
+  const enterGame = () => {
+    setView('jogo');
+    if (dailyAvailable()) setShowDaily(true);
+  };
+
+  const backToTitle = () => {
+    abort();
+    setPaused(false);
+    setPanel(null);
+    setView('titulo');
   };
 
   const region = REGIONS[s.region];
@@ -94,15 +141,43 @@ export default function App() {
     [region],
   );
 
+  const rootClass = [
+    'app',
+    s.relics.includes('skin_neon') ? 'neon' : '',
+    settings.animations ? '' : 'no-anim',
+    settings.hints ? '' : 'no-hints',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  if (view === 'titulo') {
+    return (
+      <div className={rootClass} style={styleVars}>
+        <TitleScreen onPlay={enterGame} />
+      </div>
+    );
+  }
+
   const shards = s.pity.legendaryShards;
   const daily = dailyPreview(s);
 
   return (
-    <div className={`app${s.relics.includes('skin_neon') ? ' neon' : ''}`} style={styleVars}>
+    <div className={rootClass} style={styleVars}>
       <Scene region={s.region} phase={phase} pending={pending} />
 
       <div className="ui-layer">
         <div className="topbar">
+          <button
+            className="btn ghost small"
+            onClick={() => {
+              playSfx('ui');
+              abort();
+              setPaused(true);
+            }}
+            aria-label="Pausar"
+          >
+            MENU
+          </button>
           <div className="wallet">
             <span className="chip coin">
               <i className="dot" />
@@ -131,7 +206,11 @@ export default function App() {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
           {phase === 'idle' && (
             <>
-              <button className="btn primary" onClick={startCast} style={{ fontSize: 14, padding: '16px 26px' }}>
+              <button
+                className="btn primary"
+                onClick={startCast}
+                style={{ fontSize: 14, padding: '16px 26px' }}
+              >
                 LANCAR
               </button>
               <div className="btn-row">
@@ -150,7 +229,7 @@ export default function App() {
 
           {phase === 'power' && <CastBar onLock={lockPower} />}
 
-          {phase === 'waiting' && (
+          {phase === 'waiting' && settings.hints && (
             <div className="pixel-box" style={{ textAlign: 'center', width: 'min(460px, 92vw)' }}>
               <p className="reel-hint">Linha na agua. Espere a boia mexer...</p>
             </div>
@@ -166,9 +245,7 @@ export default function App() {
             </button>
           )}
 
-          {phase === 'reeling' && pending && (
-            <ReelMinigame target={pending} onDone={finishReel} />
-          )}
+          {phase === 'reeling' && pending && <ReelMinigame target={pending} onDone={finishReel} />}
         </div>
       </div>
 
@@ -185,6 +262,8 @@ export default function App() {
       {panel === 'album' && <AlbumPanel onClose={() => setPanel(null)} />}
       {panel === 'loja' && <ShopPanel onClose={() => setPanel(null)} />}
       {panel === 'conquistas' && <AchievementsPanel onClose={() => setPanel(null)} />}
+
+      {paused && <PauseMenu onResume={() => setPaused(false)} onTitle={backToTitle} />}
 
       {showDaily && (
         <div className="modal-backdrop">
@@ -206,6 +285,7 @@ export default function App() {
               className="btn primary"
               onClick={() => {
                 claimDaily();
+                playSfx('coin');
                 setShowDaily(false);
               }}
             >

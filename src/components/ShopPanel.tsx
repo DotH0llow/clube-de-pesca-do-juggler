@@ -1,13 +1,51 @@
 import { useState } from 'react';
 import { REGION_ORDER, REGIONS } from '../data/regions';
 import { RELICS, UPGRADES, upgradeCost } from '../data/upgrades';
+import { playSfx } from '../engine/audio';
+import { useSettings } from '../state/settings';
 import { buyRelic, buyUpgrade, setRegion, unlockRegion, useGame } from '../state/store';
 import { Panel } from './Panel';
 
 type Tab = 'loja' | 'altar' | 'mapa';
 
+/**
+ * Botao de compra. Gastos em Olhos da Hydra pedem um segundo clique,
+ * se a configuracao "Confirmar gasto de Olhos" estiver ligada.
+ */
+function BuyButton({
+  label,
+  disabled,
+  needsConfirm,
+  onBuy,
+}: {
+  label: string;
+  disabled?: boolean;
+  needsConfirm: boolean;
+  onBuy: () => boolean;
+}) {
+  const [armed, setArmed] = useState(false);
+
+  const click = () => {
+    if (needsConfirm && !armed) {
+      setArmed(true);
+      playSfx('ui');
+      window.setTimeout(() => setArmed(false), 4000);
+      return;
+    }
+    setArmed(false);
+    if (onBuy()) playSfx('coin');
+  };
+
+  return (
+    <button className={`btn small${armed ? ' danger' : ''}`} disabled={disabled} onClick={click}>
+      {armed ? 'CONFIRMAR?' : label}
+    </button>
+  );
+}
+
 export function ShopPanel({ onClose }: { onClose: () => void }) {
   const s = useGame();
+  const settings = useSettings();
   const [tab, setTab] = useState<Tab>('loja');
 
   return (
@@ -54,9 +92,12 @@ export function ShopPanel({ onClose }: { onClose: () => void }) {
                   ))}
                 </div>
               </div>
-              <button className="btn small" disabled={!canBuy} onClick={() => buyUpgrade(u.id)}>
-                {maxed ? 'MAX' : `${cost} ${u.currency === 'sazoncoins' ? 'SZ' : 'OLHOS'}`}
-              </button>
+              <BuyButton
+                label={maxed ? 'MAX' : `${cost} ${u.currency === 'sazoncoins' ? 'SZ' : 'OLHOS'}`}
+                disabled={!canBuy}
+                needsConfirm={settings.confirmEyes && u.currency === 'hydraEyes'}
+                onBuy={() => buyUpgrade(u.id)}
+              />
             </div>
           );
         })}
@@ -77,13 +118,12 @@ export function ShopPanel({ onClose }: { onClose: () => void }) {
                   <div className="title">{r.name}</div>
                   <div className="desc">{r.desc}</div>
                 </div>
-                <button
-                  className="btn small"
+                <BuyButton
+                  label={owned ? 'SEU' : `${r.cost} OLHOS`}
                   disabled={owned || s.hydraEyes < r.cost}
-                  onClick={() => buyRelic(r.id)}
-                >
-                  {owned ? 'SEU' : `${r.cost} OLHOS`}
-                </button>
+                  needsConfirm={settings.confirmEyes}
+                  onBuy={() => buyRelic(r.id)}
+                />
               </div>
             );
           })}
@@ -121,13 +161,23 @@ export function ShopPanel({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
               {unlocked ? (
-                <button className="btn small" disabled={active} onClick={() => setRegion(id)}>
+                <button
+                  className="btn small"
+                  disabled={active}
+                  onClick={() => {
+                    setRegion(id);
+                    playSfx('ui');
+                  }}
+                >
                   {active ? 'AQUI' : 'IR'}
                 </button>
               ) : (
-                <button className="btn small" disabled={!canBuy} onClick={() => unlockRegion(id)}>
-                  {cost?.cost} {cost?.currency === 'sazoncoins' ? 'SZ' : 'OLHOS'}
-                </button>
+                <BuyButton
+                  label={`${cost?.cost} ${cost?.currency === 'sazoncoins' ? 'SZ' : 'OLHOS'}`}
+                  disabled={!canBuy}
+                  needsConfirm={settings.confirmEyes && cost?.currency === 'hydraEyes'}
+                  onBuy={() => unlockRegion(id)}
+                />
               )}
             </div>
           );

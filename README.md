@@ -20,6 +20,45 @@ npm run simulate  # simulador de economia (sem UI)
 
 Node 18+ recomendado. Nao precisa de backend: o save fica em `localStorage`.
 
+## Menu e configuracoes
+
+O jogo abre numa **tela de titulo** com a arte do Fundador. Dali sai para
+COMECAR/CONTINUAR, COMO JOGAR, CONFIGURACOES e CREDITOS. Durante a pescaria, o
+botao MENU (ou `Esc`) abre a **pausa**, que da acesso ao mesmo conjunto de telas
+mais VOLTAR AO TITULO.
+
+As configuracoes ficam num `localStorage` separado do save, entao apagar o
+progresso nao mexe nos ajustes:
+
+| Grupo | Opcao | O que faz |
+|---|---|---|
+| Audio | Silenciar | Corta tudo sem perder os volumes |
+| Audio | Volume geral / Musica / Efeitos | Tres barramentos independentes |
+| Imagem | Animacoes | Liga/desliga toda animacao CSS (classe `no-anim`) |
+| Imagem | Tremor de tela | Sacudida da boia e da tela na mordida |
+| Jogo | Dicas na tela | Textos de ajuda dos minigames (classe `no-hints`) |
+| Jogo | Vibracao | `navigator.vibrate` no celular |
+| Jogo | Confirmar gasto de Olhos | Segundo clique antes de gastar moeda de prestigio |
+| Dados | Restaurar configuracoes / Apagar progresso | Reset separado de cada coisa |
+
+`Animacoes` e `Tremor de tela` ja nascem desligados se o sistema pedir
+`prefers-reduced-motion`.
+
+## Audio
+
+Nao ha nenhum arquivo de som no repositorio. Tudo e sintetizado em tempo real com
+WebAudio em `src/engine/audio.ts`:
+
+- **Ambiencia**: ruido filtrado com envelope lento (0,09 Hz) = quebra de onda, com
+  um pad grave por baixo. Vai para o barramento de musica.
+- **Efeitos**: lancamento, splash, mordida, moeda, bau, falha e cliques de UI.
+- **Fanfarra de captura**: arpejo que cresce com a raridade - uma nota para comum,
+  seis notas e timbre serrilhado para mitico.
+
+O contexto de audio so nasce depois de um gesto do jogador (politica de autoplay
+dos navegadores). Quando entrarem trilha e SFX de verdade, basta trocar o corpo de
+`playSfx` e `playCatch` - o resto do jogo nao muda.
+
 ## Loop de jogo
 
 1. **LANCAR** - barra de forca oscilando. Parar no centro vale lancamento perfeito
@@ -95,11 +134,12 @@ verificado antes de ir pro jogo.
 
 ```
 src/
+  assets/      arte de capa (fundador.webp)
   data/        peixes, lixo, regioes, upgrades, reliquias, conquistas, raridades
-  engine/      rng, modificadores, tabela de pesos + pity, resolucao do lancamento
-  state/       tipos, estado inicial, store com persistencia em localStorage
+  engine/      rng, modificadores, pesos + pity, resolucao do lancamento, audio
+  state/       tipos, estado inicial, store do jogo, store de configuracoes
   hooks/       maquina de estados da pescaria
-  components/  cena SVG, sprites, minigames, HUD e paineis
+  components/  titulo, pausa, cena SVG, sprites, minigames, HUD e paineis
   styles/      css global (paleta vem da regiao via CSS vars)
 scripts/
   simulate.ts  simulador de economia
@@ -118,10 +158,13 @@ resto do jogo nao sabe como o peixe e desenhado.
 A cena de fundo (`src/components/Scene.tsx`) e SVG puro, com a paleta vindo da
 regiao ativa. Trocar por spritesheet depois tambem e isolado ali.
 
+A capa (`src/assets/fundador.webp`, 933x1200, 181 KB) e a unica imagem do projeto.
+Tudo o mais e SVG ou CSS.
+
 ## Roadmap curto
 
 - [ ] Sprites finais de peixe e cena
-- [ ] Som e musica
+- [ ] Trilha e SFX definitivos no lugar do audio procedural
 - [ ] Eventos temporarios / temporada
 - [ ] Cameo do Hydrinho como NPC no cais
 - [ ] Ranking e compartilhamento de captura

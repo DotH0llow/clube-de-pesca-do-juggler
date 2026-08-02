@@ -1,4 +1,5 @@
 import { REGIONS } from '../data/regions';
+import { useSettings } from '../state/settings';
 import type { CastResult, RegionId } from '../state/types';
 import type { Phase } from '../hooks/useFishingLoop';
 import { FishSprite } from './FishSprite';
@@ -14,6 +15,7 @@ interface Props {
  * linha e boia. A paleta vem da regiao selecionada.
  */
 export function Scene({ region, phase, pending }: Props) {
+  const settings = useSettings();
   const p = REGIONS[region].palette;
   const inWater = phase === 'waiting' || phase === 'bite' || phase === 'reeling';
   const biting = phase === 'bite' || phase === 'reeling';
@@ -127,7 +129,7 @@ export function Scene({ region, phase, pending }: Props) {
       {inWater && (
         <g>
           <line x1="232" y1="118" x2="150" y2="126" stroke="#ffffff" strokeWidth="1" opacity="0.75" />
-          <g className={biting ? 'shaking' : 'bobbing'}>
+          <g className={biting && settings.screenShake ? 'shaking' : 'bobbing'}>
             <rect x="146" y="122" width="8" height="4" fill="#ff3b3b" />
             <rect x="146" y="126" width="8" height="4" fill="#f4f4f4" />
             <rect x="149" y="118" width="2" height="4" fill="#2b2b2b" />
