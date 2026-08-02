@@ -1,0 +1,227 @@
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { AchievementsPanel } from './components/AchievementsPanel';
+import { AlbumPanel } from './components/AlbumPanel';
+import { CastBar } from './components/CastBar';
+import { CatchPopup } from './components/CatchPopup';
+import { ReelMinigame } from './components/ReelMinigame';
+import { Scene } from './components/Scene';
+import { ShopPanel } from './components/ShopPanel';
+import { ACHIEVEMENTS_BY_ID } from './data/achievements';
+import { FAMILIES } from './data/fish';
+import { REGIONS } from './data/regions';
+import { SHARDS_FOR_LEGENDARY } from './engine/outcomes';
+import { useFishingLoop, type Outcome } from './hooks/useFishingLoop';
+import { claimDaily, dailyAvailable, dailyPreview, useGame } from './state/store';
+
+type PanelId = 'album' | 'loja' | 'conquistas' | null;
+
+interface Toast {
+  id: number;
+  text: string;
+  kind: 'coin' | 'eye' | 'ach';
+}
+
+export default function App() {
+  const s = useGame();
+  const [panel, setPanel] = useState<PanelId>(null);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [showDaily, setShowDaily] = useState(() => dailyAvailable());
+  const toastId = useRef(0);
+
+  const pushToast = useCallback((text: string, kind: Toast['kind'] = 'coin') => {
+    const id = ++toastId.current;
+    setToasts((t) => [...t.slice(-3), { id, text, kind }]);
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3600);
+  }, []);
+
+  const handleOutcome = useCallback(
+    (o: Outcome) => {
+      if (o.unlocks.newSpecies && o.result.fish) {
+        pushToast(`Nova especie no album: ${o.result.fish.name}`, 'ach');
+      }
+      for (const famId of o.unlocks.families) {
+        const fam = FAMILIES.find((f) => f.id === famId);
+        if (fam) pushToast(`Familia completa: ${fam.name}! +${fam.reward.sazoncoins} SZ`, 'ach');
+      }
+      for (const id of o.unlocks.achievements) {
+        pushToast(`Conquista: ${ACHIEVEMENTS_BY_ID[id]?.name ?? id}`, 'ach');
+      }
+    },
+    [pushToast],
+  );
+
+  const loop = useFishingLoop(handleOutcome);
+  const { phase, pending, outcome, startCast, lockPower, hook, finishReel, dismiss, abort } = loop;
+
+  // ------------------------------------------------------------- atalhos
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (panel || showDaily) return;
+      if (e.code !== 'Space' && e.code !== 'Enter') return;
+      if (phase === 'idle') {
+        e.preventDefault();
+        startCast();
+      } else if (phase === 'bite') {
+        e.preventDefault();
+        hook();
+      } else if (phase === 'result') {
+        e.preventDefault();
+        dismiss();
+        startCast();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [phase, panel, showDaily, startCast, hook, dismiss]);
+
+  const openPanel = (id: PanelId) => {
+    abort();
+    setPanel(id);
+  };
+
+  const region = REGIONS[s.region];
+  const styleVars = useMemo(
+    () =>
+      ({
+        '--sky-top': region.palette.skyTop,
+        '--sky-bottom': region.palette.skyBottom,
+        '--sea-top': region.palette.seaTop,
+        '--sea-bottom': region.palette.seaBottom,
+        '--sun': region.palette.sun,
+        '--island': region.palette.island,
+        '--haze': region.palette.haze,
+      }) as CSSProperties,
+    [region],
+  );
+
+  const shards = s.pity.legendaryShards;
+  const daily = dailyPreview(s);
+
+  return (
+    <div className={`app${s.relics.includes('skin_neon') ? ' neon' : ''}`} style={styleVars}>
+      <Scene region={s.region} phase={phase} pending={pending} />
+
+      <div className="ui-layer">
+        <div className="topbar">
+          <div className="wallet">
+            <span className="chip coin">
+              <i className="dot" />
+              {s.sazoncoins.toLocaleString('pt-BR')}
+            </span>
+            <span className="chip eye">
+              <i className="dot" />
+              {s.hydraEyes}
+            </span>
+          </div>
+          <div className="spacer" />
+          <div className="region-tag">
+            {region.name}
+            <small>{region.subtitle}</small>
+          </div>
+        </div>
+
+        {shards > 0 && (
+          <div className="chip" style={{ alignSelf: 'flex-start', fontSize: 11 }}>
+            Escamas lendarias {shards}/{SHARDS_FOR_LEGENDARY}
+          </div>
+        )}
+
+        <div className="spacer" />
+
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          {phase === 'idle' && (
+            <>
+              <button className="btn primary" onClick={startCast} style={{ fontSize: 14, padding: '16px 26px' }}>
+                LANCAR
+              </button>
+              <div className="btn-row">
+                <button className="btn ghost" onClick={() => openPanel('album')}>
+                  ALBUM
+                </button>
+                <button className="btn ghost" onClick={() => openPanel('loja')}>
+                  CAIS
+                </button>
+                <button className="btn ghost" onClick={() => openPanel('conquistas')}>
+                  CONQUISTAS
+                </button>
+              </div>
+            </>
+          )}
+
+          {phase === 'power' && <CastBar onLock={lockPower} />}
+
+          {phase === 'waiting' && (
+            <div className="pixel-box" style={{ textAlign: 'center', width: 'min(460px, 92vw)' }}>
+              <p className="reel-hint">Linha na agua. Espere a boia mexer...</p>
+            </div>
+          )}
+
+          {phase === 'bite' && (
+            <button
+              className="btn danger"
+              onClick={hook}
+              style={{ fontSize: 16, padding: '18px 30px' }}
+            >
+              FISGAR!
+            </button>
+          )}
+
+          {phase === 'reeling' && pending && (
+            <ReelMinigame target={pending} onDone={finishReel} />
+          )}
+        </div>
+      </div>
+
+      {phase === 'result' && outcome && (
+        <CatchPopup
+          outcome={outcome}
+          onAgain={() => {
+            dismiss();
+            startCast();
+          }}
+        />
+      )}
+
+      {panel === 'album' && <AlbumPanel onClose={() => setPanel(null)} />}
+      {panel === 'loja' && <ShopPanel onClose={() => setPanel(null)} />}
+      {panel === 'conquistas' && <AchievementsPanel onClose={() => setPanel(null)} />}
+
+      {showDaily && (
+        <div className="modal-backdrop">
+          <div className="pixel-box catch-card" style={{ width: 'min(380px, 92vw)' }}>
+            <div className="headline" style={{ color: 'var(--coin)' }}>
+              BOM DIA, PESCADOR
+            </div>
+            <div style={{ fontSize: 46 }}>🌅</div>
+            <div className="flavor">
+              Dia {daily.streak} seguido no cais. O clube guardou uma ajuda pra voce.
+            </div>
+            <div className="reward-line">
+              <span style={{ color: 'var(--coin)' }}>+{daily.sazoncoins} SZ</span>
+              {daily.hydraEyes > 0 && (
+                <span style={{ color: 'var(--eye)' }}>+{daily.hydraEyes} Olhos</span>
+              )}
+            </div>
+            <button
+              className="btn primary"
+              onClick={() => {
+                claimDaily();
+                setShowDaily(false);
+              }}
+            >
+              PEGAR
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="toasts">
+        {toasts.map((t) => (
+          <div key={t.id} className={`toast ${t.kind}`}>
+            {t.text}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
