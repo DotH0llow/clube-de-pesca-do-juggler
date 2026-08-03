@@ -392,10 +392,12 @@ button {
      repetido sozinho nao tem. */
   z-index: 15;
   position: absolute;
-  background-repeat: repeat;
-  background-size: 64px 64px;
-  background-blend-mode: multiply;
-  background-color: #e3c987;
+  /* a primeira camada e o tile (repetido, 64px), a segunda e a rampa de cor
+     (esticada). O `multiply` casa as duas: o tile da a textura, o gradiente da
+     a luz que desce da beira da agua para o fundo da praia. */
+  background-repeat: repeat, no-repeat;
+  background-size: 64px 64px, 100% 100%;
+  background-blend-mode: multiply, normal;
   box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.35);
 }
 

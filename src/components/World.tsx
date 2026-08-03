@@ -188,7 +188,9 @@ export function World({
               width: WORLD_W - w.shoreX + 160,
               top: w.sandY,
               height: w.sandDepth,
-              backgroundImage: `url(${asset('sand/sand_46_11111111')})`,
+              // duas camadas: o tile por cima, a rampa de cor por baixo. Tile
+              // repetido sozinho nao tem variacao de luz nenhuma.
+              backgroundImage: `url(${asset('sand/sand_46_11111111')}), linear-gradient(180deg, #f2dfa8 0%, #e3c987 18%, #cdad6d 60%, #a88750 100%)`,
             }}
           />
           {/* Sobra sob o mundo: duas tiras chapadas na cor com que o fundo do
