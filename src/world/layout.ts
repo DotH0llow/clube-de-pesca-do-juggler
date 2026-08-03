@@ -78,6 +78,15 @@ export const WALK_MIN = PIER_START + 50;
 export const WALK_MAX = FOREST_START + 10;
 
 /**
+ * Onde o Juggler nasce.
+ *
+ * Isto aqui e SEMENTE: quem manda de verdade e a caixa NASCIMENTO da camada
+ * MARCADORES, que o editor arrasta. Este numero so serve para plantar a caixa
+ * na primeira vez e como rede de seguranca se alguem apagar o marcador.
+ */
+export const SPAWN_X = 1780;
+
+/**
  * Altura do chao em cada ponto do mundo.
  *
  * Le do `worldConfig`, nao das constantes: mexer no topo da areia ou no piso do

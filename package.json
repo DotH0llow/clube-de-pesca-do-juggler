@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "simulate": "esbuild scripts/simulate.ts --bundle --platform=node --format=cjs --outfile=node_modules/.cache/sim.cjs --log-level=error && node node_modules/.cache/sim.cjs",
     "test": "vite build --ssr scripts/test-rewards.ts --outDir .testout --logLevel error && node .testout/test-rewards.js",
-    "textos": "node scripts/check-texts.mjs"
+    "textos": "node scripts/check-texts.mjs",
+    "cena": "vite build --ssr scripts/dump-scene.ts --outDir .testout --logLevel error && node .testout/dump-scene.js > .testout/cena.json && python3 scripts/render-scene.py"
   },
   "dependencies": {
     "react": "^18.3.1",

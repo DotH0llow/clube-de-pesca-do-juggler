@@ -67,7 +67,15 @@ function ObjectView({ o }: { o: SceneObject }) {
     );
   }
 
-  // a treeline nao e sprite: e uma massa de mata desenhada em CSS
+  /*
+   * Objeto sem sprite: so a caixa, com a classe de animacao que ele pedir.
+   *
+   * Isto servia a `treeline`, a massa de mata feita de gradiente radial que
+   * saiu do jogo. Continua valendo para quem quiser uma caixa de efeito puro em
+   * CSS - e e o que sobra das pecas de interface do menu (Juggler, titulo,
+   * botoes, vinheta) se elas passarem por aqui, coisa que o filtro logo abaixo
+   * evita.
+   */
   if (!o.sprite) {
     return <div className={`wobj ${o.anim ?? ''}`} data-obj={o.id} style={style} />;
   }

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { asset } from '../assets';
 import { skyPhase, type SkyPhaseId } from '../data/skies';
 import type { CastResult } from '../state/types';
@@ -6,7 +7,15 @@ import { useSettings } from '../state/settings';
 import { rodX, zoneRect } from '../editor/scene';
 import { rodTip, useFx, type StepId } from '../editor/fx';
 import type { FishPose } from '../world/usePlayer';
-import { groundAt, PIER_END, PIER_RAMP, PIER_START, WORLD_W } from '../world/layout';
+import { groundAt, WORLD_W } from '../world/layout';
+
+/**
+ * Lado do tile de areia em unidades de mundo.
+ *
+ * A peca do autotile tem 64 px. Desenhar a 32 dobra a densidade da textura, que
+ * e o que faz a praia parecer areia e nao um tabuleiro.
+ */
+const SAND_TILE = 32;
 import { seaBottom, seaLeft, useWorld, worldBottom } from '../world/worldConfig';
 import { PLAYER_SPRITE_STYLE } from '../world/usePlayer';
 import { SceneLayer } from './SceneLayer';
@@ -37,7 +46,7 @@ interface Props {
 
 /**
  * O mundo inteiro: céu, camadas de parallax, mar aberto, píer, praia, mercado,
- * cabana, treeline e o Juggler. Nada aqui re-renderiza por quadro - câmera e
+ * cabana, mata e o Juggler. Nada aqui re-renderiza por quadro - câmera e
  * personagem sao movidos direto no DOM pelo `usePlayer`.
  *
  * Toda a geometria do cenário (linha d'água, profundidade, largura da água,
@@ -74,6 +83,24 @@ export function World({
   const seaW = w.shoreX - left;
   const fundo = seaBottom();
   const chao = worldBottom();
+
+  /*
+   * A escadinha de areia que entra na agua.
+   *
+   * Doze degraus de um tile cada, descendo para a esquerda a partir da orla.
+   * O ultimo mergulha bem abaixo da linha d'agua, e a agua (que e desenhada
+   * depois, com transparencia) cobre o pe da escada - o que se ve e a praia
+   * afundando, e nao um corte.
+   */
+  const degraus = useMemo(() => {
+    const list: { x: number; y: number; h: number }[] = [];
+    for (let n = 0; n < 12; n++) {
+      const x = w.shoreX - 60 - (n + 1) * SAND_TILE;
+      const y = w.sandY + n * 14;
+      list.push({ x, y, h: Math.max(SAND_TILE, w.sandDepth + n * 22) });
+    }
+    return list;
+  }, [w.shoreX, w.sandY, w.sandDepth]);
 
   // ------------------------------------------------ apetrecho (linha e boia)
   // Ancora da boia e ponta da vara saem da configuracao de mecanicas: e o que o
@@ -135,8 +162,12 @@ export function World({
                 <img className="ray" src={asset('props/light-ray-strip')} alt="" style={{ left: 1300 - left, height: w.seaDepth * 0.46 }} />
               </>
             )}
-            {/* areia do fundo */}
-            <div className="seabed" />
+            {/* Areia do fundo do mar: o mesmo autotile da praia, escurecido
+                pela agua. Era um gradiente bege desbotando para cima. */}
+            <div
+              className="seabed"
+              style={{ backgroundImage: `url(${asset('sand/sand_12_01110110')})` }}
+            />
           </div>
 
           {/* espuma e ondas na linha d agua */}
@@ -178,50 +209,89 @@ export function World({
           </div>
 
           {/* -------------------------------- a terra, da praia para a direita */}
-          {/* A areia ganhou textura: a peca central do autotile de 47 pecas,
-              repetida por cima da rampa de cor. O gradiente continua embaixo
-              para a faixa nao virar um tabuleiro de xadrez. */}
+          {/* A areia e AUTOTILE, e nao mais um gradiente com um tile por cima.
+
+              O pacote tem as 47 pecas de um blob autotile; o que estava em uso
+              era so a peca cheia (`46`), esticada sobre uma rampa de cor que
+              fazia o servico de verdade. Agora a borda de cima usa a peca de
+              BORDA (`12`, sem vizinho ao norte) e o corpo usa a cheia. Nao ha
+              mais gradiente nenhum aqui: a luz da areia e a que veio desenhada
+              no tile. */}
+          <div
+            className="sand-top"
+            style={{
+              left: w.shoreX - 60,
+              width: WORLD_W - w.shoreX + 160,
+              top: w.sandY,
+              backgroundImage: `url(${asset('sand/sand_12_01110110')})`,
+            }}
+          />
           <div
             className="sand"
             style={{
               left: w.shoreX - 60,
               width: WORLD_W - w.shoreX + 160,
-              top: w.sandY,
-              height: w.sandDepth,
-              // duas camadas: o tile por cima, a rampa de cor por baixo. Tile
-              // repetido sozinho nao tem variacao de luz nenhuma.
-              backgroundImage: `url(${asset('sand/sand_46_11111111')}), linear-gradient(180deg, #f2dfa8 0%, #e3c987 18%, #cdad6d 60%, #a88750 100%)`,
+              top: w.sandY + SAND_TILE,
+              height: Math.max(0, w.sandDepth - SAND_TILE),
+              backgroundImage: `url(${asset('sand/sand_46_11111111')})`,
             }}
           />
-          {/* Sobra sob o mundo: duas tiras chapadas na cor com que o fundo do
-              mar e a areia terminam, para nao aparecer faixa preta quando a
-              camera abre. */}
+          {/* Sobra sob o mundo: a agua termina numa tira chapada (nao ha o que
+              desenhar no breu do fundo) e a areia continua com o proprio tile,
+              para nao aparecer faixa lisa quando a camera abre. */}
           <div className="world-spill" style={{ left, width: seaW, top: fundo, background: '#02131f' }} />
           <div
-            className="world-spill"
-            style={{ left: w.shoreX - 60, width: WORLD_W - w.shoreX + 160, top: w.sandY + w.sandDepth, background: '#a88750' }}
-          />
-
-          {/* a areia nao termina num corte reto: desce em rampa para dentro da agua */}
-          <div
-            className="sand-slope"
-            style={{ left: w.shoreX - 460, top: w.sandY, height: Math.max(40, w.sandDepth) }}
-          />
-          <div className="tide-line" style={{ left: w.shoreX - 300, width: 330, top: w.sandY + 18 }} />
-
-          {/* --------------------------------------------------- o pier */}
-          <div
-            className="pier-deck"
+            className="world-spill sand"
             style={{
-              left: PIER_START - 70,
-              width: PIER_END - PIER_START + 80,
-              top: w.pierY,
-              // tabua do pacote novo de pier, repetida - nunca esticada
-              backgroundImage: `url(${asset('pier/deck-long')})`,
+              left: w.shoreX - 60,
+              width: WORLD_W - w.shoreX + 160,
+              top: w.sandY + w.sandDepth,
+              backgroundImage: `url(${asset('sand/sand_46_11111111')})`,
             }}
           />
-          {/* rampinha do deck para a areia */}
-          <div className="pier-ramp" style={{ left: PIER_END, width: PIER_RAMP + 10, top: w.pierY }} />
+
+          {/* A beira da praia desce em DEGRAU, tile por tile.
+
+              Era uma cunha de gradiente cortada em diagonal - a unica coisa no
+              cenario com borda perfeitamente reta, que berrava no meio do
+              pixel art. Cada degrau aqui e a peca de borda em cima e a peca
+              cheia embaixo: a mesma areia do resto da praia, descendo para
+              dentro da agua. */}
+          {degraus.map((d) => (
+            <div key={d.x} className="sand-degrau" style={{ left: d.x, top: d.y, width: SAND_TILE }}>
+              <div
+                className="sand-top"
+                style={{ backgroundImage: `url(${asset('sand/sand_12_01110110')})` }}
+              />
+              <div
+                className="sand"
+                style={{
+                  top: SAND_TILE,
+                  height: d.h,
+                  backgroundImage: `url(${asset('sand/sand_46_11111111')})`,
+                }}
+              />
+            </div>
+          ))}
+          {/* a linha de mare e a espuma do proprio jogo, e nao um degrade */}
+          <div
+            className="tide-line"
+            style={{
+              left: w.shoreX - 380,
+              width: 420,
+              top: w.sandY + 6,
+              backgroundImage: `url(${asset('fx/foam-strip')})`,
+            }}
+          />
+
+          {/* --------------------------------------------------- o pier */}
+          {/* O deck e a rampa saíram daqui.
+
+              Eram uma DIV com a tabua repetida no fundo e uma cunha de
+              gradiente fazendo de rampa. Agora o cais inteiro - tabuado,
+              testeira, viga, estaca, travessa, mao-francesa, corrimao e rampa -
+              e cena de verdade, semeada em `world/pier.ts`, e entra logo abaixo
+              junto com todo o resto. */}
           {/* A cena inteira numa passada so: quem fica na frente de quem sai da
               profundidade de cada objeto, nao da ordem deste arquivo. A vara
               fincada some quando o Juggler pega a dele - a arte da pescaria ja

@@ -15,15 +15,27 @@ import {
   SAND_Y,
   SEAFLOOR,
   SHORE,
+  SPAWN_X,
   UNDERWATER_LIFE,
   WATER_Y,
   WORLD_W,
   type Prop,
 } from '../world/layout';
+import { islandObjects, menuIslandObjects } from '../world/islands';
+import { largura, peca, pierPieces } from '../world/pier';
 import { seaBottom, seaLeft } from '../world/worldConfig';
 import type { LayerId, SceneId, SceneObject, SceneState, ShapeKind, ZoneId } from './types';
 
-const KEY = 'juggler-fishing/cena/v4';
+/*
+ * A v5 refez o CENARIO: o pier virou pacote de pecas de verdade (era uma div
+ * com tabua de fundo), as ilhas viraram sprite por sprite (era uma faixa
+ * repetida), a mata deixou de ser gradiente e apareceu o ponto de nascimento.
+ * Nada disso da para remendar em cima da cena antiga - a v4 dela e jogada fora
+ * e o cenario volta pela semente. O que se salva de verdade e a configuracao
+ * de MUNDO e a de MECANICAS, que moram em outra chave e continuam valendo.
+ */
+const KEY = 'juggler-fishing/cena/v5';
+const KEY_V4 = 'juggler-fishing/cena/v4';
 const KEY_V3 = 'juggler-fishing/cena/v3';
 const KEY_V2 = 'juggler-fishing/cena/v2';
 
@@ -55,9 +67,14 @@ let seq = 0;
  */
 export const SPRITE_HOME: { match: RegExp; layer: LayerId; depth: number }[] = [
   // horizonte: e isso que o BACKGROUND deve conter
-  { match: /^sky\/(distant-mountain|distant-island|horizon-haze|sunset-cloud|night-cloud)/, layer: 'fundo', depth: 0 },
+  { match: /^sky\/(distant-mountain|horizon-haze|sunset-cloud|night-cloud)/, layer: 'fundo', depth: 0 },
+  // as ilhas do pacote novo: horizonte, sempre
+  { match: /^island\//, layer: 'fundo', depth: 0 },
   { match: /^bg\//, layer: 'fundo', depth: 0 },
   { match: /^sky\//, layer: 'fundo', depth: 0 },
+  // o pacote do pier e estrutura, nao tralha
+  { match: /^pier\/(deck|rail|post-cap|cleat)/, layer: 'cenario', depth: 5 },
+  { match: /^pier\//, layer: 'cenario', depth: 4 },
   // fundo do mar e vida submersa sao OBJETOS, nao background
   { match: /^props\/(cave-entrance|seafloor-|sunken-driftwood|kelp-stalk|aquatic-plant|coral-cluster|light-ray)/, layer: 'objetos', depth: 1 },
   { match: /^marine\//, layer: 'objetos', depth: 1 },
@@ -134,7 +151,16 @@ function seedMundo(): SceneObject[] {
 
   // ------------------------------------------------- BACKGROUND (horizonte)
   out.push(strip('horizonte-montanha', 'sky/distant-mountain-strip', WATER_Y - 96, 96, 0.22, 0.55));
-  out.push(strip('horizonte-ilhas', 'sky/distant-island-strip', WATER_Y - 86, 92, 0.52, 0.85));
+  /*
+   * As ilhas nao sao mais faixa.
+   *
+   * `sky/distant-island-strip` era uma tira costurada que se repetia a cada
+   * volta: a mesma ilha, na mesma ordem, ate o fim do mar - e nenhuma delas
+   * dava para mover, esticar ou trocar. Agora sao 17 sprites soltos em duas
+   * distancias de parallax (ver `world/islands.ts`), e cada um e objeto de cena
+   * como qualquer outro.
+   */
+  out.push(...islandObjects());
   out.push(strip('horizonte-neblina', 'sky/horizon-haze-strip', WATER_Y - 26, 40, 0.52, 0.45));
 
   /*
@@ -148,34 +174,16 @@ function seedMundo(): SceneObject[] {
   for (const p of SHORE) out.push(fromProp(p, 'objetos', 3));
 
   // ----------------------------------------------------------- CENARIO
-  const postCount = Math.floor((PIER_END - 60 - (PIER_START - 30)) / 190) + 1;
-  for (let i = 0; i < postCount; i++) {
-    out.push({
-      id: `pier-post-${i}`,
-      layer: 'cenario',
-      kind: 'sprite',
-      // estaca do pacote novo de pier: mais grossa e com a base afundada
-      sprite: 'pier/piling-heavy-round',
-      x: PIER_START - 30 + i * 190,
-      y: PIER_Y + 22,
-      w: Math.round(184 * aspectOf('pier/piling-heavy-round')),
-      h: 184,
-      rot: 0,
-      depth: 4,
-    });
-  }
-  out.push({
-    id: 'pier-ladder',
-    layer: 'cenario',
-    kind: 'sprite',
-    sprite: 'pier/ladder-hanging',
-    x: PIER_START + 280,
-    y: PIER_Y + 16,
-    w: Math.round(96 * aspectOf('pier/ladder-hanging')),
-    h: 96,
-    rot: 0,
-    depth: 4,
-  });
+  /*
+   * O pier inteiro, peca por peca.
+   *
+   * Era uma fileira de estacas iguais mais uma DIV com a tabua repetida no
+   * fundo: de longe passava, de perto nao tinha viga, nem testeira, nem
+   * travessa, nem mao-francesa - e a rampa era um gradiente cortado na
+   * diagonal. `world/pier.ts` monta o cais com o pacote `pier/` e devolve tudo
+   * como objeto de cena editavel.
+   */
+  out.push(...pierPieces());
   out.push({
     id: 'barco-ancorado',
     layer: 'cenario',
@@ -189,20 +197,43 @@ function seedMundo(): SceneObject[] {
     depth: 3,
     anim: 'balanco',
   });
-  out.push({
-    id: 'treeline',
-    layer: 'cenario',
-    kind: 'sprite',
-    sprite: '',
-    x: FOREST_START - 90,
-    y: SAND_Y - 216,
-    w: WORLD_W - FOREST_START + 190,
-    h: 220,
-    rot: 0,
-    depth: 3,
-    anim: 'treeline',
-    locked: true,
-  });
+  /*
+   * A mata do fim do mapa.
+   *
+   * Era uma caixa de gradiente radial: quatro borroes verdes em CSS fazendo as
+   * vezes de floresta, travada para ninguem mexer. Saiu. No lugar entra uma
+   * fileira de arvore de verdade do pacote `nature`, escurecida e empurrada
+   * para tras - massa de mata feita de arvore, e nao de cor.
+   */
+  const matas = [
+    'nature/black-mangrove',
+    'nature/casuarina',
+    'nature/coastal-fig',
+    'nature/red-mangrove',
+    'nature/sea-hibiscus',
+    'nature/white-mangrove',
+    'nature/cashew-tree',
+    'nature/pandanus',
+  ];
+  for (let mx = FOREST_START - 60, n = 0; mx < WORLD_W + 120; mx += 96, n++) {
+    const sprite = matas[n % matas.length];
+    const h = 250 + ((n * 37) % 90);
+    out.push({
+      id: `mata-fundo-${n}`,
+      layer: 'cenario',
+      kind: 'sprite',
+      sprite,
+      x: mx,
+      y: SAND_Y + 14 - h,
+      w: Math.round(h * aspectOf(sprite)),
+      h,
+      rot: 0,
+      depth: 2,
+      flip: n % 3 === 0,
+      opacity: 0.9,
+      anim: 'mata-fundo',
+    });
+  }
   for (const p of BEACH) out.push(fromProp(p, 'cenario', 3));
   for (const p of MARKET) out.push(fromProp(p, 'cenario', 3));
   for (const p of CABANA) out.push(fromProp(p, 'cenario', 3));
@@ -293,13 +324,37 @@ function seedMundo(): SceneObject[] {
    */
   out.push({
     id: 'limiar-do-pier',
-    layer: 'interagiveis',
+    layer: 'marcadores',
     kind: 'zone',
     zone: 'limiar',
     x: PIER_END - 180,
     y: PIER_Y - 260,
     w: 90,
     h: 320,
+    rot: 0,
+    depth: 9,
+  });
+
+  /*
+   * Onde o Juggler nasce.
+   *
+   * Era `x.current = 1780`: um numero no meio do `usePlayer`, invisivel no
+   * editor e impossivel de mudar sem abrir o codigo. Virou caixa, e ganhou
+   * gaveta propria (MARCADORES) para nao se perder no meio de cem coqueiros -
+   * ponto de nascimento nao e cenario nem tralha, e referencia de jogo.
+   *
+   * O botao "Travei!" do celular traz o Juggler de volta exatamente para o meio
+   * dela.
+   */
+  out.push({
+    id: 'nascimento',
+    layer: 'marcadores',
+    kind: 'zone',
+    zone: 'spawn',
+    x: SPAWN_X - 60,
+    y: SAND_Y - 230,
+    w: 120,
+    h: 240,
     rot: 0,
     depth: 9,
   });
@@ -346,34 +401,50 @@ function seedMenu(): SceneObject[] {
   const out: SceneObject[] = [];
 
   out.push(strip('menu-montanha', 'sky/distant-mountain-strip', MENU_SEA_Y - 104, 104, 0.22, 0.5));
-  out.push(strip('menu-ilhas', 'sky/distant-island-strip', MENU_SEA_Y - 92, 96, 0.52, 0.8));
   out.push(strip('menu-neblina', 'sky/horizon-haze-strip', MENU_SEA_Y - 22, 40, 0.52, 0.45));
   for (const s of out) {
     s.x = 0;
     s.w = MENU_W;
   }
 
+  // as ilhas do pacote novo, no lugar da faixa costurada
+  out.push(...menuIslandObjects(MENU_SEA_Y, MENU_W));
+
   out.push(menuSprite('menu-barco', 'props/fishing-boat-idle-side', 120, MENU_SEA_Y + 58, 96, 3, { anim: 'balanco' }));
 
-  // as estacas do deck, em primeiro plano
-  const posts = [40, 232, 424, 616, 808, 1000, 1192];
-  posts.forEach((x, i) => {
-    out.push(menuSprite(`menu-estaca-${i}`, 'props/pier-post-side', x, MENU_H + 40, 190, 8));
+  /*
+   * O deck do menu, com o pacote novo.
+   *
+   * A tabua do menu era `props/pier-board-side` esticada numa faixa e as
+   * estacas eram `props/pier-post-side` repetidas: o menu mostrava um cais que
+   * nao existia mais no jogo. Agora ele usa exatamente as mesmas pecas do cais
+   * jogavel - se o pier mudar, a tela de titulo muda junto.
+   */
+  const deckY = MENU_DECK_Y;
+  const tabuaW = largura('deck-long');
+  for (let x = -20, n = 0; x < MENU_W + 40; x += tabuaW, n++) {
+    out.push(peca(n % 3 === 2 ? 'deck-patched' : 'deck-long', { esq: x, topo: deckY, larg: tabuaW, depth: 9 }));
+  }
+  const fasciaW = largura('deck-fascia');
+  for (let x = -20; x < MENU_W + 40; x += fasciaW) {
+    out.push(peca('deck-fascia', { esq: x, topo: deckY + 9, larg: fasciaW, depth: 9 }));
+  }
+  const estacas = [40, 232, 424, 616, 808, 1000, 1192];
+  estacas.forEach((x, i) => {
+    out.push(peca(i % 2 === 0 ? 'piling-heavy-round' : 'piling-rope-collar', {
+      cx: x,
+      topo: deckY + 22,
+      alt: MENU_H - deckY + 40,
+      depth: 8,
+    }));
+    out.push(peca('knee-brace', { cx: x + 40, topo: deckY + 30, alt: 46, depth: 8 }));
   });
-
-  out.push({
-    id: 'menu-deck',
-    layer: 'cenario',
-    kind: 'strip',
-    sprite: 'props/pier-board-side',
-    x: 0,
-    y: MENU_DECK_Y,
-    w: MENU_W,
-    h: 34,
-    rot: 0,
-    depth: 9,
-    parallax: 1,
-  });
+  const railW = largura('rail-long');
+  for (let x = -20; x < MENU_W + 40; x += railW) {
+    out.push(peca('rail-long', { esq: x, base: deckY + 2, alt: 44, depth: 9, opacity: 0.95 }));
+  }
+  out.push(peca('cleat-wood', { cx: 460, base: deckY + 2, alt: 30, depth: 10 }));
+  out.push(peca('fender-logs', { cx: 152, topo: deckY + 60, alt: 110, depth: 10 }));
 
   out.push(menuSprite('menu-lanterna', 'props/pier-lantern', 300, MENU_DECK_Y + 4, 176, 9));
   out.push(menuSprite('menu-rede', 'props/capture-net', 560, MENU_DECK_Y + 4, 112, 9));
@@ -464,64 +535,36 @@ function seedBook(): Book {
   return { mundo: seedScene('mundo'), menu: seedScene('menu') };
 }
 
-/**
- * Traz a cena da versao anterior.
+/*
+ * As migracoes da v2, v3 e v4 sairam daqui.
  *
- * A v2 nao tinha `depth` nem as faixas do horizonte como objeto. Em vez de
- * jogar fora o que voce ja arrumou, cada objeto salvo ganha camada e
- * profundidade pela familia do sprite e as faixas novas entram na frente.
+ * Elas existiam para nao jogar fora o que voce ja tinha arrumado quando o
+ * mundo mudava de tamanho ou ganhava area nova - o que fazia todo sentido
+ * enquanto as PECAS continuavam as mesmas. Na v5 o cenario foi refeito com
+ * outro conjunto: o pier virou pacote, as ilhas viraram sprite e a mata virou
+ * arvore. Nao ha o que aproveitar de uma lista que so tem peca aposentada, e
+ * carregar codigo de migracao morto e pior do que assumir a virada.
  */
+
 /**
- * Traz a cena da v3.
+ * Garante que as areas UNICAS existam.
  *
- * O que mudou da v3 para a v4 foi o TAMANHO do mundo: o mar ficou seis vezes
- * mais fundo e quatro vezes mais largo, e apareceram tres areas novas (duas
- * paredes e o limiar). Entao nao da para so copiar a lista: o que estava
- * submerso desce junto com o fundo, a faixa do horizonte estica, e as areas
- * novas entram se ainda nao existirem.
+ * Uma cena salva antes de a area existir nao tem como conhece-la: a caixa
+ * NASCIMENTO, por exemplo, so apareceu na v5. Sem isto, quem ja tinha cena
+ * salva abriria o jogo sem ponto de nascimento e o "Travei!" nao teria para
+ * onde levar ninguem. As areas que faltam entram; as que voce ja moveu ficam
+ * exatamente onde estao.
  */
-function migrateV3(old: SceneState): SceneState {
-  const fundo = seaBottom() - 720;
+function garantirZonas(st: SceneState): SceneState {
   const seed = seedMundo();
-  const objects = old.objects.map((o) => {
-    if (o.kind === 'strip') {
-      const s = seed.find((x) => x.id === o.id);
-      return s ? { ...o, x: s.x, w: s.w } : o;
-    }
-    // o que estava desenhado como submerso acompanha o novo fundo do mar
-    return o.under ? { ...o, y: o.y + fundo } : o;
-  });
   const faltando = seed.filter(
-    (s) => s.kind === 'zone' && !objects.some((o) => o.id === s.id || (o.kind === 'zone' && o.zone === s.zone && s.zone !== 'parede')),
+    (s) =>
+      s.kind === 'zone' &&
+      s.zone !== 'parede' &&
+      !st.objects.some((o) => o.kind === 'zone' && o.zone === s.zone),
   );
-  return { objects: [...objects, ...faltando], hidden: old.hidden ?? [] };
-}
-
-/**
- * Traz a cena do MENU.
- *
- * O que apareceu de novo aqui foram as pecas de interface (Juggler, titulo,
- * botoes, vinheta). Elas entram se ainda nao existirem; o resto da cena, que
- * voce ja arrumou, fica exatamente como estava.
- */
-function migrateMenu(old: SceneState): SceneState {
-  const seed = seedMenu();
-  const faltando = seed.filter((s) => s.role && !old.objects.some((o) => o.role === s.role));
-  return { objects: [...old.objects, ...faltando], hidden: old.hidden ?? [] };
-}
-
-function migrateV2(old: SceneState): SceneState {
-  const objects = old.objects.map((o) => {
-    if (o.kind === 'zone') return { ...o, depth: o.depth ?? 9 };
-    const home = homeOf(o.sprite ?? '');
-    return {
-      ...o,
-      layer: o.sprite ? home.layer : o.layer,
-      depth: o.depth ?? (o.sprite ? home.depth : 3),
-    };
-  });
-  const strips = seedMundo().filter((o) => o.kind === 'strip');
-  return { objects: [...strips, ...objects], hidden: old.hidden ?? [] };
+  if (faltando.length === 0) return st;
+  return { ...st, objects: [...st.objects, ...faltando] };
 }
 
 function load(): Book {
@@ -534,28 +577,22 @@ function load(): Book {
       for (const id of ['mundo', 'menu'] as SceneId[]) {
         const s = parsed[id];
         if (s && Array.isArray(s.objects) && s.objects.length > 0) {
-          book[id] = { objects: s.objects, hidden: s.hidden ?? [] };
+          const st = { objects: s.objects, hidden: s.hidden ?? [] };
+          book[id] = id === 'mundo' ? garantirZonas(st) : st;
         }
       }
       return book;
     }
-    const v3 = localStorage.getItem(KEY_V3);
-    if (v3) {
-      const parsed = JSON.parse(v3) as Partial<Book>;
-      for (const id of ['mundo', 'menu'] as SceneId[]) {
-        const st = parsed[id];
-        if (!st || !Array.isArray(st.objects) || st.objects.length === 0) continue;
-        book[id] = id === 'mundo' ? migrateV3(st) : migrateMenu(st);
-      }
-      return book;
-    }
-
-    const old = localStorage.getItem(KEY_V2);
-    if (old) {
-      const parsed = JSON.parse(old) as SceneState;
-      if (parsed && Array.isArray(parsed.objects) && parsed.objects.length > 0) {
-        book.mundo = migrateV3(migrateV2(parsed));
-      }
+    /*
+     * Cena da v4 ou anterior: o cenario volta pela semente.
+     *
+     * Da v4 para a v5 o pier, as ilhas e a mata foram REFEITOS com outro
+     * conjunto de pecas. Copiar a lista velha traria de volta a estaca solta, a
+     * faixa de ilha costurada e a caixa de gradiente da mata - exatamente o que
+     * saiu. Entao aqui a gente joga fora e planta de novo, de proposito.
+     */
+    for (const chave of [KEY_V4, KEY_V3, KEY_V2]) {
+      if (localStorage.getItem(chave)) localStorage.removeItem(chave);
     }
   } catch {
     /* save corrompido: volta para a semente */
@@ -874,6 +911,17 @@ export function blockWalls(from: number, to: number): number {
 export function thresholdX(): number | null {
   const o = book.mundo.objects.find((x) => x.kind === 'zone' && x.zone === 'limiar');
   return o ? o.x + o.w / 2 : null;
+}
+
+/**
+ * Onde o Juggler nasce, agora que isso e uma caixa e nao um numero escondido.
+ *
+ * Se a caixa foi apagada ou desligada, cai na semente do `layout.ts`: o jogo
+ * nunca fica sem lugar para colocar o personagem.
+ */
+export function spawnX(): number {
+  const o = book.mundo.objects.find((x) => x.kind === 'zone' && x.zone === 'spawn' && !x.off);
+  return o ? o.x + o.w / 2 : SPAWN_X;
 }
 
 /** A caixa de uma peca de interface da tela de titulo. */
