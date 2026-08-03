@@ -81,6 +81,12 @@ Todo o visual vem do kit de pixel art do projeto. O pipeline de importacao
 
 Resultado: **217 PNGs (49 MB) viraram 175 webp (2,2 MB)**.
 
+Em 2026 entraram mais tres pacotes, por `scripts/import-pack-2026.py`: os **oito
+ceus** de `bg/sky-0*` (que substituiram os tres antigos, apagados na mesma
+passada), as **30 pecas de pier** em `pier/` e as **47 pecas do autotile de
+areia** em `sand/`. Pier e areia ficam no tamanho nativo de proposito - sao
+tiles, e tile esticado perde o encaixe.
+
 O acesso e por nome, via `src/assets/index.ts`:
 
 ```ts
@@ -191,7 +197,6 @@ antecipacao e decisao, com uma regra que vale para tudo:
 | Peixe Jackpot | Uma especie real do catalogo com tratamento dourado, mais dificil de puxar. Minor x5, Major x15, Grand x50. |
 | Mare da Fortuna | Medidor 0-100 que enche com capturas. Cheio, o proximo encontro elegivel vira Peixe Jackpot. |
 | Multiplicadores escondidos | Prateado x1,5, Dourado x2, Coroado x3 - revelados so depois da fisgada, nunca antes de o jogador assumir o risco. |
-| Roda da Mare | Um giro gratuito a cada 5 capturas. O premio e sorteado ANTES da animacao. |
 | Cartas de Sorte | Nove cartas roguelite de sessao, escolha de 3. |
 | Cartela de Missoes | Bingo 3x3; cada linha paga uma unica vez. |
 | Cardume Bonus | 25s de pescaria acelerada, multiplicador interno ate x3. Falhar consome tempo, nao encerra. |
@@ -250,11 +255,22 @@ minigame de puxada, entao a culpa e sempre do jogador, nunca do dado.
 
 ### O ciclo do dia
 
-Os quatro cenarios deixaram de ser mapas que o jogador compra e escolhe: viraram
-as quatro fases de um mesmo dia. **Um dia dura 24 minutos reais** e cada fase
-fica 6 minutos no ar, virando sozinha. O relogio vem de `Date.now()`
+Os cenarios deixaram de ser mapas que o jogador compra e escolhe: viraram as
+HORAS de um mesmo dia. Com o pacote de ceus novo sao **oito horas**, de
+pre-amanhecer a noite profunda. **Um dia dura 24 minutos reais** e cada hora fica
+3 minutos no ar, virando sozinha. O relogio vem de `Date.now()`
 (`src/world/dayCycle.ts`), entao o mundo continua girando com o jogo fechado -
 ninguem volta ao amanhecer so por reabrir a aba.
+
+Hora e regiao sao coisas separadas de proposito (`src/data/skies.ts`): a **hora**
+manda no visual - ceu, cor da agua, clima - e a **regiao** manda na economia -
+valor, raridade maxima, dificuldade. Cada hora aponta para a regiao que vale
+nela. Sem essa separacao, subir de quatro para oito degraus obrigaria a migrar as
+24 especies, o album e todo save existente para ganhar dois ceus a mais.
+
+A tela de titulo NAO acompanha o relogio: ela fica na hora escolhida na secao
+MUNDO do editor. Apresentacao que muda de cor sozinha enquanto voce olha nao
+apresenta nada.
 
 Cada fase tem um teto de raridade. O peso do que passa do teto **desce para a
 maior raridade permitida ali** - por isso de manha tem muito peixe raro e nenhum
@@ -339,3 +355,58 @@ e segue a fase do dia.
 - [ ] Eventos temporarios / temporada
 - [ ] Cameo do Hydrinho como NPC no cais
 - [ ] Ranking e compartilhamento de captura
+
+## O editor
+
+O modo editor e a mesma engine do jogo com as ferramentas a mostra. Abre pelo
+botao **EDITOR** na barra do topo (dentro do jogo) ou por **EDITOR DO MENU** na
+tela de titulo. Ele pausa o jogo e salva tudo no navegador.
+
+| Secao | O que ela mexe |
+| --- | --- |
+| BIBLIOTECA | todos os sprites do jogo. **Clique poe na cena**; shift+arrastar escolhe o ponto |
+| CENA | a lista de objetos, com busca, cadeado e profundidade |
+| FORMAS | retangulo, elipse, triangulo e losango coloridos - e paredes novas |
+| ANIMACOES | as sequencias de quadro de cada clipe do personagem |
+| MECANICAS | a pescaria passo a passo: pecas, camadas, tempos e audio |
+| MUNDO | a planta do cenario: mar, areia, ondas e enquadramento |
+| FLUTUADORES | o que atravessa o ceu: nuvem, bando, gaivota, neblina |
+
+Duas coisas valem ser ditas em voz alta:
+
+**Camada de trabalho e profundidade sao diferentes.** A camada e a gaveta em que
+o objeto mora; a profundidade (0 a 10) e quem fica na frente de quem. O Juggler
+esta no 7.
+
+**O Ctrl+Z tem duas pilhas.** Dentro da simulacao de mecanica ele desfaz mexida
+de mecanica; fora dela, mexida de cena. Antes era uma pilha so, e desfazer
+dentro da animacao ia comendo mudanca de cenario que voce nem estava olhando.
+
+### As areas de interacao
+
+Tudo o que era regra invisivel virou caixa que se arrasta, na camada
+INTERAGIVEIS:
+
+| Area | O que faz |
+| --- | --- |
+| PESCAR | abre a pescaria; e onde o Juggler para |
+| MERCADO | abre o mercado de peixe |
+| PAREDE | barra o Juggler pelo lado de onde ele vem. Da para criar, mover e apagar |
+| LIMIAR DO PIER | a fronteira dos dois enquadramentos da camera |
+
+O **limiar** e o que faz a tela respirar: a esquerda dele a camera abre e mostra
+o mar fundo; a direita ela fecha e volta para a superficie. Os dois valores de
+zoom estao na secao MUNDO.
+
+### Por que o mar mais fundo nao encolheu o jogo
+
+O mar tem seis vezes a profundidade que tinha (2088 unidades) e quatro vezes a
+largura (7200). Escalar a cena pela altura TOTAL do mundo, como era antes,
+transformaria o jogo num selo.
+
+Entao **enquadramento e altura do mundo sao coisas separadas** agora. `frameH`
+(720) e o tanto de mundo que cabe na tela; a linha d'agua fica ancorada numa
+altura fixa (`waterAnchor`) e o resto do mar existe abaixo, fora de quadro. E por
+isso que abrir a camera no pier faz entrar agua embaixo em vez de escorregar a
+cena inteira - e por isso que a faixa de areia pode cair para 20% da altura sem
+falta nenhuma: esta cena e sobre o que acontece acima da areia.

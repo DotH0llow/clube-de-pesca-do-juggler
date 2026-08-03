@@ -143,12 +143,14 @@ button {
 
 .sky .drifter {
   position: absolute;
-  left: -22%;
+  left: 0;
+  top: 0;
   width: auto;
-  animation-name: drift-across;
+  animation-name: drift-path;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
   pointer-events: none;
+  will-change: transform;
 }
 
 .sky .stars {
@@ -193,12 +195,14 @@ button {
   animation: flash 17s steps(1) infinite;
 }
 
-@keyframes drift-across {
+/* De onde para onde cada flutuador atravessa vem da configuracao, nao do CSS:
+   as quatro pontas chegam em variavel e o quadro-chave so liga uma na outra. */
+@keyframes drift-path {
   from {
-    margin-left: 0;
+    transform: translate3d(var(--from-x, -25vw), var(--from-y, 14vh), 0) scaleX(var(--flip, 1));
   }
   to {
-    margin-left: 145vw;
+    transform: translate3d(var(--to-x, 125vw), var(--to-y, 14vh), 0) scaleX(var(--flip, 1));
   }
 }
 
@@ -382,11 +386,16 @@ button {
 
 .sand {
   /* a praia e massa de terra em primeiro plano: passa na frente do que esta
-     submerso (profundidade 1, z 10) e atras do detalhe de orla (3, z 30) */
+     submerso (profundidade 1, z 10) e atras do detalhe de orla (3, z 30).
+     A imagem de fundo (peca do autotile de areia) e posta em linha pelo React;
+     o gradiente fica por baixo dela, dando a variacao de luz que um tile
+     repetido sozinho nao tem. */
   z-index: 15;
   position: absolute;
-  background:
-    linear-gradient(180deg, #f2dfa8 0%, #e3c987 18%, #cdad6d 60%, #a88750 100%);
+  background-repeat: repeat;
+  background-size: 64px 64px;
+  background-blend-mode: multiply;
+  background-color: #e3c987;
   box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.35);
 }
 
@@ -2496,23 +2505,28 @@ button {
   pointer-events: none;
 }
 
-.editor-sel .h {
+/* As alcas valem para QUALQUER caixa do editor - a de objeto de cena e a de
+   peca de mecanica. Antes so a de cena tinha posicao: as oito alcas da mecanica
+   caiam empilhadas no canto de cima, entao a peca so esticava na horizontal.
+   Por isso a regra e por classe (`.h`), nao por quem e o pai. */
+.editor .h {
   position: absolute;
   width: 12px;
   height: 12px;
   background: #ffd166;
   border: 2px solid #23303a;
   pointer-events: auto;
+  z-index: 2;
 }
 
-.editor-sel .h.nw { left: -7px; top: -7px; cursor: nwse-resize; }
-.editor-sel .h.ne { right: -7px; top: -7px; cursor: nesw-resize; }
-.editor-sel .h.sw { left: -7px; bottom: -7px; cursor: nesw-resize; }
-.editor-sel .h.se { right: -7px; bottom: -7px; cursor: nwse-resize; }
-.editor-sel .h.n { left: 50%; top: -7px; margin-left: -6px; cursor: ns-resize; }
-.editor-sel .h.s { left: 50%; bottom: -7px; margin-left: -6px; cursor: ns-resize; }
-.editor-sel .h.e { right: -7px; top: 50%; margin-top: -6px; cursor: ew-resize; }
-.editor-sel .h.w { left: -7px; top: 50%; margin-top: -6px; cursor: ew-resize; }
+.editor .h.nw { left: -7px; top: -7px; cursor: nwse-resize; }
+.editor .h.ne { right: -7px; top: -7px; cursor: nesw-resize; }
+.editor .h.sw { left: -7px; bottom: -7px; cursor: nesw-resize; }
+.editor .h.se { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.editor .h.n { left: 50%; top: -7px; margin-left: -6px; cursor: ns-resize; }
+.editor .h.s { left: 50%; bottom: -7px; margin-left: -6px; cursor: ns-resize; }
+.editor .h.e { right: -7px; top: 50%; margin-top: -6px; cursor: ew-resize; }
+.editor .h.w { left: -7px; top: 50%; margin-top: -6px; cursor: ew-resize; }
 
 .editor-sel .rot {
   position: absolute;
@@ -3226,11 +3240,8 @@ button {
 }
 
 .editor-fx .h {
-  position: absolute;
-  width: 12px;
-  height: 12px;
   background: #fff;
-  border: 2px solid #10222d;
+  border-color: #10222d;
 }
 
 .editor-fxpoint {
@@ -3474,4 +3485,254 @@ button {
   font-size: 9px;
   letter-spacing: 1px;
   opacity: 0.75;
+}
+
+
+/* ==========================================================================
+   EDITOR · PECAS NOVAS DE 2026
+   ========================================================================== */
+
+/* forma geometrica colorida: objeto de cena sem sprite */
+.wobj-shape {
+  pointer-events: none;
+}
+
+/* campos dos paineis */
+.efield.ecolor .ecolor-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.efield.ecolor input[type='color'] {
+  width: 38px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid var(--panel-line);
+  background: none;
+  cursor: pointer;
+}
+
+.efield.ecolor input[type='text'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.efield.echeck {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.efield.echeck > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.efield input[type='range'] {
+  width: 100%;
+}
+
+/* lista de horas do dia / de etapas: botoes que ligam e desligam */
+.ehours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0 6px;
+}
+
+.ehours .ebtn {
+  font-size: 10px;
+  padding: 4px 6px;
+}
+
+/* um som da mecanica */
+.esound {
+  border: 2px solid var(--panel-line);
+  padding: 8px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.esound.off {
+  opacity: 0.45;
+}
+
+.esound-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.esound-name {
+  flex: 1;
+  min-width: 0;
+}
+
+/* menu de formas geometricas, no topo do editor */
+.eshapes {
+  position: absolute;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: #10222d;
+  border: 3px solid var(--panel-line);
+}
+
+.eshapes button {
+  padding: 7px 14px;
+  text-align: left;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.eshapes button:hover {
+  background: rgba(255, 209, 102, 0.18);
+}
+
+/* area de interacao: cada tipo tem a sua cor, para nao confundir parede com
+   limiar no meio de uma cena cheia */
+.editor-zone.parede {
+  border-color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.12);
+}
+
+.editor-zone.parede span {
+  background: #ff6b6b;
+}
+
+.editor-zone.limiar {
+  border-color: #9b7bff;
+  background: rgba(155, 123, 255, 0.14);
+}
+
+.editor-zone.limiar span {
+  background: #9b7bff;
+}
+
+/* ------------------------------------------------ animacoes das pecas de fx */
+
+.rig-item.pulsing {
+  animation: fx-pulse 1s ease-in-out infinite;
+}
+
+.rig-item.bobbing {
+  animation: fx-bob 0.9s ease-in-out infinite;
+}
+
+.rig-item.spinning {
+  animation: fx-spin 3.4s linear infinite;
+}
+
+.rig-item.fading {
+  animation: fx-fade 1.3s ease-in-out infinite;
+}
+
+@keyframes fx-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.14); }
+}
+
+@keyframes fx-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+@keyframes fx-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fx-fade {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+/* ==========================================================================
+   BOTOES DE TOQUE · SO ONDE NAO HA TECLADO
+   ========================================================================== */
+
+/* O tutorial do rodape saiu e os botoes de andar e pular ficaram so no celular.
+   `pointer: coarse` e a pergunta certa: nao e "a tela e pequena", e "o dedo e o
+   ponteiro". Notebook com tela sensivel ao toque e mouse continua sem eles. */
+.touch-pad {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .touch-pad {
+    display: flex;
+  }
+}
+
+
+/* ==========================================================================
+   TELA DE TITULO · PECAS EDITAVEIS
+   ========================================================================== */
+
+/* A interface do menu virou objeto de cena: cada peca mora numa caixa que o
+   editor arrasta. Aqui so ha o encaixe - a caixa e posicao absoluta dentro do
+   desenho de 1280x720, e o conteudo se vira dentro dela. */
+.menu-ui {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.menu-slot {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.menu-slot.title-brand,
+.menu-slot.title-menu {
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-slot.title-menu {
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+/* o Juggler e a vinheta preenchem a caixa inteira */
+.menu-slot .title-art,
+.menu-slot .title-vignette {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.menu-slot .title-art {
+  object-fit: contain;
+  object-position: 50% 100%;
+  pointer-events: none;
+}
+
+.eshape-wrap {
+  position: relative;
+}
+
+/* a vinheta escurece, nao clica: sem isso ela cobriria a tela inteira e
+   engoliria o clique de qualquer coisa que estivesse embaixo dela */
+.menu-slot > .title-vignette {
+  pointer-events: none;
+}
+
+/* o rodape saiu de dentro do bloco de conteudo e agora e filho da tela:
+   precisa dizer onde fica */
+.title-screen > .title-foot {
+  position: absolute;
+  left: max(18px, 4vw);
+  bottom: max(14px, 3vh);
+  z-index: 4;
+  opacity: 0.75;
+  font-size: 12px;
 }
