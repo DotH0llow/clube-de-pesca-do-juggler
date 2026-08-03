@@ -1,45 +1,21 @@
 import { useMemo } from 'react';
 import { asset } from '../assets';
+import { skyPhase, type SkyPhaseId } from '../data/skies';
+import { floatersAt, useFloaters, type Floater } from '../editor/floaters';
 import { useDevFlags } from '../state/dev';
-import type { RegionId } from '../state/types';
 
 /**
- * Céu de fundo com nuvens e passaros.
+ * Ceu de fundo com o que passa flutuando nele.
  *
- * Cada nuvem e cada bando sorteia tamanho, altura, opacidade, velocidade e
- * atraso inicial - o atraso negativo espalha todo mundo pelo céu ja no primeiro
- * quadro, em vez de fazer fila entrando pela esquerda.
+ * O ceu em si e a pintura da hora do dia (`src/data/skies.ts`). O que atravessa
+ * a tela - nuvem, bando, gaivota, neblina - vem da lista de flutuadores
+ * (`src/editor/floaters.ts`), que a secao FLUTUADORES do editor edita: quantos
+ * sao, de onde para onde vao, em quanto tempo e em que horas aparecem.
  *
- * Velocidades: nuvens a 30% do que era antes, passaros a 10%.
+ * Cada copia sorteia altura, tamanho, opacidade e atraso dentro da faixa que
+ * voce configurou. O atraso e negativo de proposito: assim todo mundo ja esta
+ * espalhado pelo ceu no primeiro quadro, em vez de entrar em fila pela esquerda.
  */
-
-export interface SkyConfig {
-  bg: string;
-  cloud: string;
-  storm: boolean;
-  night: boolean;
-}
-
-export const SKY: Record<RegionId, SkyConfig> = {
-  enseada: { bg: 'bg/sky-day', cloud: 'sky/large-cloud', storm: false, night: false },
-  recife: { bg: 'bg/sky-sunset', cloud: 'sky/sunset-cloud-strip', storm: false, night: false },
-  naufragio: { bg: 'bg/sky-day', cloud: 'sky/storm-cloud', storm: true, night: false },
-  fossa: { bg: 'bg/sky-night', cloud: 'sky/night-cloud-strip', storm: false, night: true },
-};
-
-/** Base das duracoes, ja com o corte de velocidade aplicado. */
-const CLOUD_BASE_S = 100 / 0.3; // 70% mais lentas
-const BIRD_BASE_S = 200 / 0.1; // 90% mais lentos
-
-interface Drifter {
-  sprite: string;
-  top: number;
-  height: number;
-  opacity: number;
-  duration: number;
-  delay: number;
-  flip: boolean;
-}
 
 /** RNG com semente, para o ceu nao remontar a cada render. */
 function seeded(seed: number) {
@@ -50,86 +26,90 @@ function seeded(seed: number) {
   };
 }
 
-export function Sky({ region }: { region: RegionId }) {
-  const base = SKY[region];
+function hashOf(text: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+interface Copy {
+  key: string;
+  sprite: string;
+  fromX: number;
+  toX: number;
+  fromY: number;
+  toY: number;
+  height: number;
+  opacity: number;
+  duration: number;
+  delay: number;
+  flip: boolean;
+}
+
+function copiesOf(it: Floater): Copy[] {
+  const rnd = seeded(hashOf(it.id) + it.count * 7919);
+  const n = Math.max(0, Math.min(24, Math.round(it.count)));
+  return Array.from({ length: n }, (_, i) => {
+    const jitter = (it.spreadY || 0) * (rnd() - 0.5) * 2;
+    const dur = Math.max(2, it.seconds * (1 + (rnd() - 0.5) * 2 * (it.secondsVar || 0)));
+    return {
+      key: `${it.id}-${i}`,
+      sprite: it.sprite,
+      fromX: it.fromX,
+      toX: it.toX,
+      fromY: it.fromY + jitter,
+      toY: it.toY + jitter,
+      height: Math.max(0.2, it.size * (1 + (rnd() - 0.5) * 2 * (it.sizeVar || 0))),
+      opacity: Math.min(1, Math.max(0.02, it.opacity * (1 + (rnd() - 0.5) * 2 * (it.opacityVar || 0)))),
+      duration: dur,
+      delay: -dur * rnd(),
+      flip: it.flip !== rnd() > 0.82,
+    };
+  });
+}
+
+export function Sky({ hour }: { hour: SkyPhaseId }) {
+  const cfg = skyPhase(hour);
+  const floaters = useFloaters();
   const dev = useDevFlags();
-  // o interruptor de teste manda na chuva; sem ele, quem decide e a fase do dia
-  const cfg = dev.rain === null ? base : { ...base, storm: dev.rain };
+  // o interruptor de teste manda na chuva; sem ele, quem decide e a hora do dia
+  const storm = dev.rain === null ? cfg.storm : dev.rain;
 
-  const clouds = useMemo<Drifter[]>(() => {
-    const rnd = seeded(region.length * 7919 + 13);
-    const small = 'sky/small-cloud';
-    return Array.from({ length: 6 }, () => {
-      const big = rnd() > 0.45;
-      const dur = CLOUD_BASE_S * (0.75 + rnd() * 0.9);
-      return {
-        sprite: cfg.night ? cfg.cloud : big ? cfg.cloud : small,
-        top: 2 + rnd() * 30,
-        height: (big ? 9 : 5.5) * (0.7 + rnd() * 0.8),
-        opacity: 0.45 + rnd() * 0.45,
-        duration: dur,
-        delay: -dur * rnd(),
-        flip: rnd() > 0.5,
-      };
-    });
-  }, [region, cfg.cloud, cfg.night]);
-
-  const birds = useMemo<Drifter[]>(() => {
-    const rnd = seeded(region.length * 104729 + 7);
-    return Array.from({ length: 3 }, () => {
-      const dur = BIRD_BASE_S * (0.8 + rnd() * 0.6);
-      return {
-        sprite: rnd() > 0.5 ? 'sky/distant-bird-flock' : 'sky/seagull',
-        top: 8 + rnd() * 26,
-        height: 2.2 + rnd() * 3.6,
-        opacity: 0.5 + rnd() * 0.4,
-        duration: dur,
-        delay: -dur * rnd(),
-        flip: rnd() > 0.6,
-      };
-    });
-  }, [region]);
+  const copies = useMemo(() => {
+    void floaters;
+    return floatersAt(hour).flatMap(copiesOf);
+  }, [hour, floaters]);
 
   return (
     <div className="sky" style={{ backgroundImage: `url(${asset(cfg.bg)})` }}>
       {cfg.night && <img className="stars" src={asset('sky/star-cluster')} alt="" />}
 
-      {clouds.map((c, i) => (
+      {copies.map((c) => (
         <img
-          key={`c${i}`}
+          key={c.key}
           className="drifter"
           src={asset(c.sprite)}
           alt=""
-          style={{
-            top: `${c.top}%`,
-            height: `${c.height}%`,
-            opacity: c.opacity,
-            animationDuration: `${c.duration}s`,
-            animationDelay: `${c.delay}s`,
-            transform: c.flip ? 'scaleX(-1)' : undefined,
-          }}
+          style={
+            {
+              height: `${c.height}%`,
+              opacity: c.opacity,
+              animationDuration: `${c.duration}s`,
+              animationDelay: `${c.delay}s`,
+              '--from-x': `${c.fromX}vw`,
+              '--to-x': `${c.toX}vw`,
+              '--from-y': `${c.fromY}vh`,
+              '--to-y': `${c.toY}vh`,
+              '--flip': c.flip ? -1 : 1,
+            } as React.CSSProperties
+          }
         />
       ))}
 
-      {!cfg.night &&
-        birds.map((b, i) => (
-          <img
-            key={`b${i}`}
-            className="drifter"
-            src={asset(b.sprite)}
-            alt=""
-            style={{
-              top: `${b.top}%`,
-              height: `${b.height}%`,
-              opacity: b.opacity,
-              animationDuration: `${b.duration}s`,
-              animationDelay: `${b.delay}s`,
-              transform: b.flip ? 'scaleX(-1)' : undefined,
-            }}
-          />
-        ))}
-
-      {cfg.storm && (
+      {storm && (
         <>
           <div className="storm-tint" />
           <img className="rain" src={asset('sky/rain-streaks')} alt="" />
