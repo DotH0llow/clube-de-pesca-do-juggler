@@ -1650,3 +1650,409 @@ button {
   background: var(--screen-line);
   border: 2px solid var(--screen-2);
 }
+
+/* ==========================================================================
+   MECANICAS DE RISCO E RECOMPENSA
+   ========================================================================== */
+
+.casino-hud {
+  position: absolute;
+  right: 10px;
+  top: 92px;
+  z-index: 3;
+  width: min(240px, 46vw);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  pointer-events: auto;
+}
+
+.casino-hud > div {
+  background: rgba(4, 22, 33, 0.85);
+  border: 3px solid var(--panel-line);
+  padding: 6px 8px;
+}
+
+/* o que esta em risco tem cor propria, nunca a cor do saldo garantido */
+.hud-pending {
+  border-color: var(--eye) !important;
+  color: #ffd7e0;
+  text-align: center;
+}
+
+.hud-pending strong {
+  color: var(--eye);
+  font-size: 16px;
+}
+
+.hud-streak.hot {
+  border-color: var(--coin) !important;
+  box-shadow: 0 0 14px rgba(255, 204, 51, 0.35);
+}
+
+.hud-mult {
+  font-size: 20px;
+  color: var(--coin);
+  margin-right: 8px;
+}
+
+.hud-bar {
+  height: 8px;
+  background: #04202e;
+  border: 2px solid #041b28;
+  margin: 4px 0 2px;
+  overflow: hidden;
+}
+
+.hud-bar .fill {
+  height: 100%;
+  background: linear-gradient(90deg, #33f0d0, #2fa8d8);
+}
+
+.hud-bar .fill.gold {
+  background: linear-gradient(90deg, #ffd166, #ff8a3c);
+}
+
+.hud-meter.ready {
+  border-color: var(--coin) !important;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.hud-school {
+  border-color: #33f0d0 !important;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hud-school strong {
+  font-size: 20px;
+  color: #33f0d0;
+}
+
+.hud-toggle {
+  align-self: flex-end;
+  font-size: 11px;
+  padding: 3px 8px;
+  background: rgba(4, 22, 33, 0.85);
+  border: 2px solid var(--panel-line);
+}
+
+.hud-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hud-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.hud-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 2px 5px;
+  background: rgba(51, 240, 208, 0.15);
+  border: 2px solid #33f0d0;
+}
+
+/* ---------------------------------------------------------- modais de risco */
+
+.risk-sheet {
+  width: min(400px, 94vw);
+  height: auto;
+  max-height: 88vh;
+}
+
+.risk-lines {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.risk-lines b {
+  float: right;
+}
+
+.risk-lines .at-risk {
+  color: #a3301f;
+}
+
+/* ------------------------------------------------------------------- roda */
+
+.wheel-sheet {
+  width: min(420px, 94vw);
+  height: min(640px, 90vh);
+}
+
+.wheel-wrap {
+  position: relative;
+  width: 210px;
+  height: 210px;
+}
+
+.wheel {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 6px solid #6b4a1e;
+  box-shadow: inset 0 0 0 4px #d8bd77;
+  background: #0d3346;
+}
+
+.wheel-slice {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 50%;
+  height: 50%;
+  transform-origin: 0% 100%;
+}
+
+.wheel-slice.s0 { background: #2fa8d8; }
+.wheel-slice.s1 { background: #ffd166; }
+.wheel-slice.s2 { background: #33f0d0; }
+.wheel-slice.s3 { background: #ff8a3c; }
+
+.wheel-pin {
+  position: absolute;
+  left: 50%;
+  top: -12px;
+  margin-left: -8px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 18px solid var(--eye);
+  z-index: 2;
+}
+
+.wheel-legend {
+  width: 100%;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.legend-line {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px dashed var(--screen-line);
+}
+
+/* ------------------------------------------------------------------ cartas */
+
+.cards-sheet {
+  width: min(700px, 96vw);
+  height: min(540px, 88vh);
+}
+
+.card-row {
+  flex-direction: row !important;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.lucky-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  text-align: center;
+  color: var(--screen-ink);
+  background: rgba(255, 255, 255, 0.55);
+  border: 3px solid var(--screen-line);
+  transition: transform 0.08s steps(2);
+}
+
+.lucky-card:hover {
+  transform: translateY(-4px);
+}
+
+.lucky-card.rare {
+  border-color: #b06a1e;
+  box-shadow: inset 0 0 0 2px rgba(255, 209, 102, 0.6);
+}
+
+.lucky-card .title {
+  font-size: 14px;
+}
+
+.lucky-card .desc {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.card-tag {
+  margin-top: auto;
+  font-size: 11px;
+  padding: 2px 6px;
+  background: var(--screen-ink);
+  color: var(--screen);
+}
+
+/* ------------------------------------------------------------------ escada */
+
+.ladder-sheet {
+  width: min(440px, 94vw);
+  height: auto;
+  max-height: 90vh;
+}
+
+.ladder-track {
+  position: relative;
+  width: 100%;
+  height: 34px;
+  background: #04202e;
+  border: 3px solid #041b28;
+  cursor: pointer;
+}
+
+.ladder-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(90deg, rgba(94, 242, 168, 0.9) 0 6px, rgba(46, 196, 130, 0.9) 6px 12px);
+}
+
+.ladder-marker {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 6px;
+  margin-left: -3px;
+  background: var(--cream);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+}
+
+/* ----------------------------------------------------------------- cartela */
+
+.mission-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+.mission-tile {
+  background: rgba(255, 255, 255, 0.5);
+  border: 2px solid var(--screen-line);
+  padding: 6px;
+  min-height: 84px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.mission-tile.done {
+  background: rgba(94, 242, 168, 0.45);
+  border-color: #17a06a;
+}
+
+.mission-tile.in-line {
+  box-shadow: inset 0 0 0 3px var(--coin);
+}
+
+.mission-desc {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.mission-progress {
+  font-size: 11px;
+  text-align: right;
+  opacity: 0.8;
+}
+
+.row.odds .desc {
+  font-size: 12px;
+}
+
+/* ------------------------------------------------------------------ radio */
+
+.now-playing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: var(--screen-2);
+  border: 2px solid var(--screen-line);
+}
+
+.player-controls {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.row.track {
+  width: 100%;
+  color: var(--screen-ink);
+  text-align: left;
+}
+
+.row.track.active {
+  background: rgba(51, 240, 208, 0.35);
+  border-color: #17a06a;
+}
+
+.row.locked-track {
+  opacity: 0.5;
+}
+
+.track-num {
+  width: 24px;
+  text-align: center;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+/* ------------------------------------------------------------------ debug */
+
+.debug-panel {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 9;
+  width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background: rgba(4, 22, 33, 0.95);
+  border: 3px solid var(--eye);
+}
+
+.debug-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--eye);
+}
+
+@media (max-width: 620px) {
+  .casino-hud {
+    width: 44vw;
+    top: 84px;
+    font-size: 11px;
+  }
+  .casino-hud .hud-extra {
+    display: none;
+  }
+  .card-row {
+    flex-direction: column !important;
+  }
+}

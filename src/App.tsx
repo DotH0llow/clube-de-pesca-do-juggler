@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { CastBar } from './components/CastBar';
+import { CasinoHud } from './components/casino/CasinoHud';
+import {
+  BonusSchoolSummary,
+  CashOutModal,
+  LuckyCardPicker,
+  PrizeLadderModal,
+  TideWheelModal,
+  DebugPanel,
+} from './components/casino/CasinoModals';
 import { CatchPopup } from './components/CatchPopup';
 import { Phone } from './components/Phone';
 import { ReelMinigame } from './components/ReelMinigame';
@@ -12,6 +21,14 @@ import { REGIONS } from './data/regions';
 import { initAudio, playSfx, startAmbience, stopAmbience } from './engine/audio';
 import { SHARDS_FOR_LEGENDARY } from './engine/outcomes';
 import { useFishingLoop, type Outcome } from './hooks/useFishingLoop';
+import {
+  bonusSchoolActive,
+  debugActions,
+  endBonusSchool,
+  resetSession,
+  useSession,
+} from './state/casino';
+import { debugEnabled } from './game/balance';
 import { useSettings } from './state/settings';
 import { claimDaily, dailyAvailable, dailyPreview, useGame } from './state/store';
 import { usePlayer } from './world/usePlayer';
@@ -30,7 +47,15 @@ export default function App() {
   const [fishing, setFishing] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [showDaily, setShowDaily] = useState(false);
+  const [showCashOut, setShowCashOut] = useState(false);
+  const [showWheel, setShowWheel] = useState(false);
+  const [ladderBase, setLadderBase] = useState<number | null>(null);
+  const [schoolSummary, setSchoolSummary] = useState<
+    { catches: number; coinsSecured: number; coinsBonus: number; bestMultiplier: number } | null
+  >(null);
+  const [showDebug, setShowDebug] = useState(false);
   const toastId = useRef(0);
+  const session = useSession();
 
   const pushToast = useCallback((text: string, kind: Toast['kind'] = 'coin') => {
     const id = ++toastId.current;
@@ -53,6 +78,17 @@ export default function App() {
       if (o.unlocks.achievements.length || o.unlocks.families.length) {
         window.setTimeout(() => playSfx('unlock'), 420);
       }
+
+      // ------------------------------------------- mecanicas de sequencia
+      if (o.casino?.gotSpin) pushToast('GIRO NA RODA DA MARE DISPONIVEL', 'ach');
+      if (o.casino?.tierUp) {
+        pushToast(`MULTIPLICADOR X${o.casino.multiplier}`, 'coin');
+        window.setTimeout(() => playSfx('unlock'), 200);
+      }
+      if (o.pendingLost && o.pendingLost > 0) {
+        pushToast(`BONUS PENDENTE PERDIDO: ${o.pendingLost.toLocaleString('pt-BR')} SZ`, 'eye');
+      }
+      if (o.result.jackpot) pushToast(`PEIXE JACKPOT ${o.result.jackpot.toUpperCase()}`, 'ach');
     },
     [pushToast],
   );
@@ -60,7 +96,7 @@ export default function App() {
   const loop = useFishingLoop(handleOutcome);
   const { phase, pending, outcome, startCast, lockPower, hook, finishReel, dismiss, abort } = loop;
 
-  const busy = phoneOpen || showDaily;
+  const busy = phoneOpen || showDaily || showCashOut || showWheel || ladderBase !== null || Boolean(session.cardOffer);
   const player = usePlayer({ active: view === 'mundo' && !busy, fishing });
 
   // ---------------------------------------------------- ambiencia liga/desliga
@@ -74,6 +110,18 @@ export default function App() {
     startAmbience();
   }, [view, settings.muted, settings.music]);
 
+  // o cardume tem cronometro real: nao congela com painel aberto
+  useEffect(() => {
+    if (!session.bonusSchool.active) return;
+    const id = window.setInterval(() => {
+      if (!bonusSchoolActive()) {
+        setSchoolSummary(endBonusSchool());
+        window.clearInterval(id);
+      }
+    }, 300);
+    return () => window.clearInterval(id);
+  }, [session.bonusSchool.active]);
+
   const startFishing = useCallback(() => {
     playSfx('ui');
     setFishing(true);
@@ -82,6 +130,7 @@ export default function App() {
   const stopFishing = useCallback(() => {
     abort();
     setFishing(false);
+    resetSession();
     playSfx('ui');
   }, [abort]);
 
@@ -89,6 +138,11 @@ export default function App() {
   useEffect(() => {
     if (view !== 'mundo') return;
     const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'F9' && debugEnabled()) {
+        e.preventDefault();
+        setShowDebug((d) => !d);
+        return;
+      }
       if (e.code === 'Escape') {
         e.preventDefault();
         setPhoneOpen((p) => {
@@ -203,6 +257,8 @@ export default function App() {
           </div>
         </div>
 
+        <CasinoHud fishing={fishing} />
+
         {shards > 0 && fishing && (
           <div className="chip" style={{ alignSelf: 'flex-start', fontSize: 13 }}>
             Escamas lendarias {shards}/{SHARDS_FOR_LEGENDARY}
@@ -266,9 +322,21 @@ export default function App() {
                 >
                   LANCAR
                 </button>
-                <button className="btn ghost small" onClick={stopFishing}>
-                  GUARDAR A VARA
-                </button>
+                <div className="btn-row">
+                  {s.casino.streak.pendingCoins > 0 && (
+                    <button className="btn danger small" onClick={() => setShowCashOut(true)}>
+                      SACAR {s.casino.streak.pendingCoins.toLocaleString('pt-BR')}
+                    </button>
+                  )}
+                  {s.casino.tideWheel.availableSpins > 0 && (
+                    <button className="btn small" onClick={() => setShowWheel(true)}>
+                      RODA DA MARE ({s.casino.tideWheel.availableSpins})
+                    </button>
+                  )}
+                  <button className="btn ghost small" onClick={stopFishing}>
+                    GUARDAR A VARA
+                  </button>
+                </div>
               </>
             )}
 
@@ -293,13 +361,49 @@ export default function App() {
         <CatchPopup
           outcome={outcome}
           onAgain={() => {
+            const o = outcome;
             dismiss();
+            if (o.casino?.offerLadder && o.result.value > 0) {
+              setLadderBase(o.result.value);
+              return;
+            }
+            if (o.casino?.offerCashOut) {
+              setShowCashOut(true);
+              return;
+            }
             startCast();
           }}
         />
       )}
 
       {phoneOpen && <Phone onClose={() => setPhoneOpen(false)} />}
+
+      {showCashOut && <CashOutModal onClose={() => setShowCashOut(false)} />}
+      {showWheel && <TideWheelModal onClose={() => setShowWheel(false)} />}
+      {session.cardOffer && <LuckyCardPicker cards={session.cardOffer} />}
+      {ladderBase !== null && (
+        <PrizeLadderModal baseValue={ladderBase} onClose={() => setLadderBase(null)} />
+      )}
+      {schoolSummary && (
+        <BonusSchoolSummary summary={schoolSummary} onClose={() => setSchoolSummary(null)} />
+      )}
+      {showDebug && (
+        <DebugPanel
+          onClose={() => setShowDebug(false)}
+          actions={{
+            'SEQUENCIA 8': () => debugActions.setStreak(8),
+            '+500 PENDENTE': () => debugActions.addPending(500),
+            'MEDIDOR CHEIO': debugActions.fillMeter,
+            'GANHAR GIRO': debugActions.grantSpin,
+            'ABRIR RODA': () => setShowWheel(true),
+            'DAR CARTA': debugActions.grantCard,
+            'CARDUME': debugActions.startSchool,
+            'COMPLETAR LINHA': debugActions.completeLine,
+            'ESCADA': () => setLadderBase(500),
+            'SIMULAR FALHA': debugActions.simulateFail,
+          }}
+        />
+      )}
 
       {showDaily && (
         <div className="modal-backdrop">

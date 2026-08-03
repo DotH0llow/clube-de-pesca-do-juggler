@@ -7,12 +7,16 @@ import { AlbumApp } from './AlbumPanel';
 import { ControlsApp } from './ControlsPanel';
 import { SettingsApp } from './SettingsPanel';
 import { ShopApp } from './ShopPanel';
+import { MissionApp } from './casino/MissionApp';
+import { PlaylistApp } from './PlaylistApp';
 import { Sprite } from './Sprite';
 
-type AppId = 'album' | 'cais' | 'conquistas' | 'ajustes' | 'ajuda';
+type AppId = 'album' | 'cartela' | 'radio' | 'cais' | 'conquistas' | 'ajustes' | 'ajuda';
 
 const APPS: { id: AppId; label: string; icon: string }[] = [
   { id: 'album', label: 'ALBUM', icon: 'ui/fish-album-icon' },
+  { id: 'cartela', label: 'CARTELA', icon: 'ui/rarity-rare' },
+  { id: 'radio', label: 'RADIO', icon: 'ui/depth-indicator' },
   { id: 'cais', label: 'CAIS', icon: 'ui/upgrade-icon' },
   { id: 'conquistas', label: 'TROFEUS', icon: 'ui/ranking-icon' },
   { id: 'ajustes', label: 'AJUSTES', icon: 'ui/settings-icon' },
@@ -21,6 +25,8 @@ const APPS: { id: AppId; label: string; icon: string }[] = [
 
 const TITLE: Record<AppId, string> = {
   album: 'ALBUM DO PESCADOR',
+  cartela: 'CARTELA E ODDS',
+  radio: 'RADIO DO CLUBE',
   cais: 'CAIS DO CLUBE',
   conquistas: 'CONQUISTAS',
   ajustes: 'AJUSTES',
@@ -66,6 +72,8 @@ export function Phone({ onClose }: { onClose: () => void }) {
 
             <div className="phone-content">
               {app === 'album' && <AlbumApp />}
+              {app === 'cartela' && <MissionApp />}
+              {app === 'radio' && <PlaylistApp />}
               {app === 'cais' && <ShopApp />}
               {app === 'conquistas' && <AchievementsApp />}
               {app === 'ajustes' && <SettingsApp />}

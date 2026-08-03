@@ -2,6 +2,13 @@ import { fishByRarity } from '../data/fish';
 import { CHEST_LOOT, JUNK } from '../data/junk';
 import { REGIONS } from '../data/regions';
 import type { CastResult, GameState, Modifiers, OutcomeCategory, Rarity } from '../state/types';
+import {
+  CROWN_CARD_CHANCE_MULTIPLIER,
+  JACKPOT_DIFFICULTY_BONUS,
+  JACKPOT_RANDOM_CHANCE,
+  JACKPOT_TIERS,
+} from '../game/balance';
+import { rollHiddenModifier, rollJackpotTier } from '../game/systems/RewardCalculator';
 import { computeModifiers } from './modifiers';
 import { buildWeights, rollCategory, type CastQuality } from './outcomes';
 import { chance, clamp, pick, randFloat, randInt, roundTo, skewedRoll } from './rng';
@@ -48,7 +55,26 @@ export interface ResolvedCast {
  * e calcula valor, Olhos da Hydra e dificuldade da puxada.
  * NAO altera o estado - quem aplica isso e o store.
  */
-export function resolveCast(s: GameState, quality: CastQuality): ResolvedCast {
+/**
+ * Contexto extra vindo das mecanicas de risco/recompensa.
+ * Fica fora do GameState para a engine continuar sendo pura.
+ */
+export interface CasinoContext {
+  /** medidor cheio: o proximo encontro elegivel vira Peixe Jackpot */
+  jackpotReady: boolean;
+  /** carta Coroa do Mar ativa */
+  crownCard: boolean;
+  /** carta/premio de isca rara ativo */
+  rareBait: boolean;
+  /** cardume bonus rolando: comuns ficam mais faceis */
+  bonusSchool: boolean;
+}
+
+export function resolveCast(
+  s: GameState,
+  quality: CastQuality,
+  ctx: CasinoContext = { jackpotReady: false, crownCard: false, rareBait: false, bonusSchool: false },
+): ResolvedCast {
   const mods = computeModifiers(s);
   const region = REGIONS[s.region];
   const breakdown = buildWeights(s, mods, quality);
@@ -99,6 +125,26 @@ export function resolveCast(s: GameState, quality: CastQuality): ResolvedCast {
     );
     result.eyes = rollEyes(rarity, mods);
     result.headline = headlineFor(rarity, mythic);
+
+    // ------------------------------------------------- Peixe Jackpot
+    // So peixe de verdade vira jackpot, e so se o jogador conseguir puxar:
+    // dificuldade sobe, mas nunca passa do teto do minigame.
+    const jackpotByMeter = ctx.jackpotReady;
+    const jackpotByLuck = chance(JACKPOT_RANDOM_CHANCE);
+    if (jackpotByMeter || jackpotByLuck) {
+      result.jackpot = rollJackpotTier();
+      result.difficulty = clamp(result.difficulty + JACKPOT_DIFFICULTY_BONUS, 0.05, 0.9);
+      result.headline = `JACKPOT ${JACKPOT_TIERS[result.jackpot].multiplier}X`;
+    } else {
+      // ------------------------------------------ modificador escondido
+      // Nunca em lixo, nada, bau ou evento - e nunca sobre um jackpot.
+      result.hidden = rollHiddenModifier(ctx.crownCard ? CROWN_CARD_CHANCE_MULTIPLIER : 1);
+    }
+
+    if (ctx.bonusSchool && (rarity === 'comum' || rarity === 'incomum')) {
+      result.difficulty = clamp(result.difficulty * 0.6, 0.04, 0.9);
+    }
+
     if (mythic) result.category = 'evento';
     return { result, mods };
   }
@@ -192,6 +238,6 @@ export function escapeLine(): string {
 }
 
 /** Tempo de espera aleatorio ate a mordida (ms). */
-export function biteDelay(): number {
-  return randFloat(700, 2600);
+export function biteDelay(fast = false): number {
+  return fast ? randFloat(250, 900) : randFloat(700, 2600);
 }

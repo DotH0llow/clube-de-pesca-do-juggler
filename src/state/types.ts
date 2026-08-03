@@ -2,6 +2,7 @@
  * Tipos centrais do Clube de Pesca do Juggler.
  * Universo Hydra - pegada tropical/oceanica anos 2000, pixel art.
  */
+import type { CasinoMechanicsState } from './casinoTypes';
 
 export type Rarity = 'comum' | 'incomum' | 'raro' | 'epico' | 'lendario' | 'mitico';
 
@@ -183,6 +184,10 @@ export interface GameState {
   lastDailyClaim: string | null;
   dayStreak: number;
   createdAt: number;
+  /** total ja ganho na vida do save, usado por ranking futuro */
+  lifetimeValue: number;
+  /** mecanicas de risco/recompensa */
+  casino: CasinoMechanicsState;
 }
 
 /** Resultado completo de um lancamento, produzido pela engine. */
@@ -204,6 +209,10 @@ export interface CastResult {
   headline: string;
   /** ativou soft pity neste lancamento */
   pityTriggered: boolean;
+  /** categoria do Peixe Jackpot, quando o encontro for um */
+  jackpot?: 'minor' | 'major' | 'grand' | null;
+  /** modificador escondido, revelado so depois da fisgada */
+  hidden?: 'silver' | 'gold' | 'crowned' | null;
 }
 
 /** Modificadores derivados de upgrades, reliquias e regiao. */

@@ -161,6 +161,49 @@ O contexto de audio so nasce depois de um gesto do jogador (politica de autoplay
 dos navegadores). Quando entrarem trilha e SFX de verdade, basta trocar o corpo de
 `playSfx` e `playCatch` - o resto do jogo nao muda.
 
+## Risco e recompensa
+
+O jogo continua sendo de habilidade: quem decide se o peixe entra no balde e o
+minigame de puxada, nunca o dado. Por cima disso existe uma camada de
+antecipacao e decisao, com uma regra que vale para tudo:
+
+> **Sazoncoins que ja entraram no save nunca saem.** O unico valor que pode ser
+> perdido e o *bonus pendente* de uma sequencia, e a interface sempre diz quanto
+> esta em risco.
+
+| Mecanica | O que faz |
+| --- | --- |
+| Multiplicador de sequencia | 3/5/8/12 capturas seguidas viram x1,2 / x1,5 / x2 / x3. So o bonus fica pendente; o valor-base entra garantido. |
+| Pescar ou Sacar | A partir de 3 capturas, oferece sacar o bonus ou seguir arriscando. O botao de sacar e sempre o primeiro e o maior. |
+| Peixe Jackpot | Uma especie real do catalogo com tratamento dourado, mais dificil de puxar. Minor x5, Major x15, Grand x50. |
+| Mare da Fortuna | Medidor 0-100 que enche com capturas. Cheio, o proximo encontro elegivel vira Peixe Jackpot. |
+| Multiplicadores escondidos | Prateado x1,5, Dourado x2, Coroado x3 - revelados so depois da fisgada, nunca antes de o jogador assumir o risco. |
+| Roda da Mare | Um giro gratuito a cada 5 capturas. O premio e sorteado ANTES da animacao. |
+| Cartas de Sorte | Nove cartas roguelite de sessao, escolha de 3. |
+| Cartela de Missoes | Bingo 3x3; cada linha paga uma unica vez. |
+| Cardume Bonus | 25s de pescaria acelerada, multiplicador interno ate x3. Falhar consome tempo, nao encerra. |
+| Escada de Premios | Depois de um raro, um minigame de timing de verdade: +20%, +50%, +100%, +200%. So o bonus da escada esta em risco. |
+
+Toda a matematica vive em [`src/game/systems/RewardCalculator.ts`](src/game/systems/RewardCalculator.ts)
+e todo numero sorteavel em [`src/game/balance.ts`](src/game/balance.ts). A ordem
+dos multiplicadores e fixa e os tetos sao 10x normal, 25x em evento e 50x em
+jackpot.
+
+`npm test` roda 37 asserts do calculador, incluindo um fuzz de 2000 sorteios que
+verifica que o valor garantido nunca fica abaixo do valor-base.
+
+A aba CARTELA do celular mostra a cartela e uma **tela de probabilidades** com
+todos os pesos. Nao existe dinheiro real, compra de giro nem item negociavel.
+
+Debug: `localStorage.setItem('juggler-debug','1')` e `F9` no jogo.
+
+## Radio
+
+O celular tem um app de playlist com as sete faixas de pescaria. O volume usa o
+mesmo barramento de musica das configuracoes. As faixas de restaurante ficam
+guardadas em [`music-restaurante/`](music-restaurante/README.md) e aparecem no
+app como "EM BREVE" ate a area existir.
+
 ## Loop de jogo
 
 1. **LANCAR** - barra de forca oscilando. Parar no centro vale lancamento perfeito

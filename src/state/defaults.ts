@@ -1,6 +1,8 @@
+import { generateBoard } from '../data/missions';
+import type { CasinoMechanicsState } from './casinoTypes';
 import type { GameState, GameStats, PityState } from './types';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 export const SAVE_KEY = 'juggler-fishing/save/v1';
 
 export const emptyStats = (): GameStats => ({
@@ -38,6 +40,24 @@ export const emptyPity = (): PityState => ({
   legendaryShards: 0,
 });
 
+export const emptyCasino = (): CasinoMechanicsState => ({
+  streak: { current: 0, best: 0, pendingCoins: 0, multiplier: 1, lastOfferAt: 0 },
+  jackpotMeter: { value: 0, jackpotReady: false },
+  tideWheel: { availableSpins: 0, catchesUntilNextSpin: 5 },
+  missionBoard: generateBoard(),
+  activeCards: [],
+  statistics: {
+    totalPendingCoinsCashedOut: 0,
+    totalPendingCoinsLost: 0,
+    highestStreakMultiplier: 1,
+    jackpotFishCaught: 0,
+    tideWheelSpins: 0,
+    prizeLadderBestStep: 0,
+    bonusSchoolsCompleted: 0,
+    missionBoardsCompleted: 0,
+  },
+});
+
 export const createInitialState = (): GameState => ({
   version: SAVE_VERSION,
   sazoncoins: 0,
@@ -54,4 +74,6 @@ export const createInitialState = (): GameState => ({
   lastDailyClaim: null,
   dayStreak: 0,
   createdAt: Date.now(),
+  lifetimeValue: 0,
+  casino: emptyCasino(),
 });

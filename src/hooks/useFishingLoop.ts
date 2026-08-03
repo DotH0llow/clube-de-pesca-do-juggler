@@ -4,6 +4,19 @@ import { biteDelay, escapeLine, resolveCast } from '../engine/fishing';
 import type { CastQuality } from '../engine/outcomes';
 import { buzz } from '../state/settings';
 import { applyCast, getState, type Unlocks } from '../state/store';
+import {
+  bonusSchoolActive,
+  bonusSchoolPenalty,
+  casino,
+  getSession,
+  hasCard,
+  loseStreak,
+  registerCast,
+  registerCatch,
+  registerJunk,
+  type CatchOutcome,
+} from '../state/casino';
+import { consumeJackpotReady } from '../state/casino';
 import type { CastResult } from '../state/types';
 
 export type Phase = 'idle' | 'power' | 'waiting' | 'bite' | 'reeling' | 'result';
@@ -13,6 +26,10 @@ export interface Outcome {
   landed: boolean;
   unlocks: Unlocks;
   escapeText?: string;
+  /** presente quando a captura passou pelas mecanicas de sequencia */
+  casino?: CatchOutcome;
+  /** quanto de bonus pendente foi perdido nesta falha */
+  pendingLost?: number;
 }
 
 /** Janela de reacao para fisgar, em ms. */
@@ -47,7 +64,32 @@ export function useFishingLoop(onOutcome?: (o: Outcome) => void) {
     clearTimer();
     const result = pendingRef.current;
     if (!result) return;
-    const unlocks = applyCast(result, landed, qualityRef.current);
+    // ---------------------------------------------- mecanicas de sequencia
+    let casinoOutcome: CatchOutcome | undefined;
+    let pendingLost: number | undefined;
+
+    if (result.fish && landed) {
+      const prevBest = getState().album[result.fish.id]?.bestWeight ?? 0;
+      casinoOutcome = registerCatch({
+        rarity: result.fish.rarity,
+        baseValue: result.value,
+        weightKg: result.weight,
+        perfect: qualityRef.current === 'perfeito',
+        newRecord: result.weight > prevBest,
+        jackpot: result.jackpot ?? null,
+        hidden: result.hidden ?? null,
+      });
+    } else if (result.fish && !landed) {
+      pendingLost = loseStreak('peixe escapou');
+      bonusSchoolPenalty();
+    } else if (result.category === 'nada') {
+      pendingLost = loseStreak('lancamento vazio');
+      bonusSchoolPenalty();
+    } else if (result.category === 'lixo') {
+      registerJunk();
+    }
+
+    const unlocks = applyCast(result, landed, qualityRef.current, casinoOutcome?.breakdown.guaranteed);
 
     if (result.fish && landed) {
       playCatch(result.fish.rarity);
@@ -70,6 +112,8 @@ export function useFishingLoop(onOutcome?: (o: Outcome) => void) {
       landed,
       unlocks,
       escapeText: !landed && result.fish ? escapeLine() : undefined,
+      casino: casinoOutcome,
+      pendingLost,
     };
     setOutcome(o);
     setPhase('result');
@@ -89,7 +133,18 @@ export function useFishingLoop(onOutcome?: (o: Outcome) => void) {
       qualityRef.current = quality;
       playSfx('splash');
       if (quality === 'perfeito') playPerfect();
-      const { result } = resolveCast(getState(), quality);
+
+      const c = casino();
+      const jackpotReady = c.jackpotMeter.jackpotReady;
+      const { result } = resolveCast(getState(), quality, {
+        jackpotReady,
+        crownCard: hasCard('coroa-do-mar'),
+        rareBait: hasCard('isca-dourada') || getSession().rareBaitCasts > 0,
+        bonusSchool: bonusSchoolActive(),
+      });
+      // o medidor so zera quando gera de fato um encontro jackpot valido
+      if (jackpotReady && result.jackpot) consumeJackpotReady();
+      registerCast();
       pendingRef.current = result;
       setPending(result);
       setPhase('waiting');
@@ -105,7 +160,7 @@ export function useFishingLoop(onOutcome?: (o: Outcome) => void) {
         playSfx('bite');
         buzz([10, 40, 10]);
         timerRef.current = window.setTimeout(() => complete(false), BITE_WINDOW);
-      }, biteDelay());
+      }, biteDelay(bonusSchoolActive()));
     },
     [complete],
   );

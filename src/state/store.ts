@@ -18,21 +18,58 @@ import type {
 
 // ---------------------------------------------------------------- persistencia
 
+/**
+ * Carrega e MIGRA o save.
+ *
+ * Nunca descartamos um save valido so porque a versao subiu: campos novos
+ * entram com o padrao e o resto e preservado. O save v1 (antes das mecanicas
+ * de risco/recompensa) vira v2 sem perder uma moeda.
+ */
 function load(): GameState {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return createInitialState();
-    const parsed = JSON.parse(raw) as GameState;
-    if (parsed.version !== SAVE_VERSION) return createInitialState();
-    // merge defensivo: campos novos entram com valor padrao
+    const parsed = JSON.parse(raw) as Partial<GameState> & { version?: number };
+    if (typeof parsed !== 'object' || parsed === null) return createInitialState();
+
     const base = createInitialState();
-    return {
+    const casino = parsed.casino;
+
+    const migrated: GameState = {
       ...base,
       ...parsed,
+      version: SAVE_VERSION,
       upgrades: { ...base.upgrades, ...parsed.upgrades },
-      stats: { ...base.stats, ...parsed.stats, rarityCounts: { ...base.stats.rarityCounts, ...parsed.stats?.rarityCounts } },
+      stats: {
+        ...base.stats,
+        ...parsed.stats,
+        rarityCounts: { ...base.stats.rarityCounts, ...parsed.stats?.rarityCounts },
+      },
       pity: { ...base.pity, ...parsed.pity },
+      lifetimeValue: parsed.lifetimeValue ?? parsed.stats?.totalEarned ?? 0,
+      casino: {
+        ...base.casino,
+        ...casino,
+        streak: { ...base.casino.streak, ...casino?.streak },
+        jackpotMeter: { ...base.casino.jackpotMeter, ...casino?.jackpotMeter },
+        tideWheel: { ...base.casino.tideWheel, ...casino?.tideWheel },
+        statistics: { ...base.casino.statistics, ...casino?.statistics },
+        activeCards: casino?.activeCards ?? [],
+        missionBoard:
+          casino?.missionBoard && Array.isArray(casino.missionBoard.tiles) && casino.missionBoard.tiles.length === 9
+            ? casino.missionBoard
+            : base.casino.missionBoard,
+      },
     };
+
+    // bonus pendente nao sobrevive ao fechamento do jogo: ou foi sacado, ou
+    // era risco assumido. Zerar aqui evita "moeda fantasma" no save.
+    migrated.casino.streak.pendingCoins = 0;
+    migrated.casino.streak.current = 0;
+    migrated.casino.streak.multiplier = 1;
+    migrated.casino.activeCards = [];
+
+    return migrated;
   } catch {
     return createInitialState();
   }
@@ -62,6 +99,11 @@ function emit() {
 function set(next: GameState) {
   state = next;
   emit();
+}
+
+/** Atualiza o estado a partir de um patch. Usado pelo modulo de cassino. */
+export function updateState(fn: (s: GameState) => GameState): void {
+  set(fn(state));
 }
 
 export function getState(): GameState {
@@ -143,7 +185,17 @@ function grantFamilies(s: GameState): { state: GameState; unlocked: FamilyId[] }
  * Aplica o resultado de um lancamento ja resolvido pela engine.
  * `landed` = o jogador venceu o minigame de puxada.
  */
-export function applyCast(result: CastResult, landed: boolean, quality: CastQuality): Unlocks {
+export function applyCast(
+  result: CastResult,
+  landed: boolean,
+  quality: CastQuality,
+  /**
+   * Quanto creditar de fato. Vem do RewardCalculator quando a captura passa
+   * pelas mecanicas de sequencia: so a parcela GARANTIDA entra aqui. O bonus
+   * pendente vive em `casino.streak.pendingCoins` ate o jogador sacar.
+   */
+  guaranteedOverride?: number,
+): Unlocks {
   const s = state;
   const stats = { ...s.stats, rarityCounts: { ...s.stats.rarityCounts } };
   const pity = { ...s.pity };
@@ -233,15 +285,25 @@ export function applyCast(result: CastResult, landed: boolean, quality: CastQual
     stats.hydraEvents += 1;
   }
 
+  let credited = 0;
   if (won || result.category === 'lixo') {
-    sazoncoins += result.value;
-    stats.totalEarned += result.value;
-    stats.bestSingleSale = Math.max(stats.bestSingleSale, result.value);
+    credited = guaranteedOverride ?? result.value;
+    sazoncoins += credited;
+    stats.totalEarned += credited;
+    stats.bestSingleSale = Math.max(stats.bestSingleSale, credited);
     hydraEyes += result.eyes;
     stats.eyesEarned += result.eyes;
   }
 
-  let next: GameState = { ...s, sazoncoins, hydraEyes, album, stats, pity };
+  let next: GameState = {
+    ...s,
+    sazoncoins,
+    hydraEyes,
+    album,
+    stats,
+    pity,
+    lifetimeValue: s.lifetimeValue + credited,
+  };
 
   const fam = grantFamilies(next);
   next = fam.state;

@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "simulate": "esbuild scripts/simulate.ts --bundle --platform=node --format=cjs --outfile=node_modules/.cache/sim.cjs --log-level=error && node node_modules/.cache/sim.cjs"
+    "simulate": "esbuild scripts/simulate.ts --bundle --platform=node --format=cjs --outfile=node_modules/.cache/sim.cjs --log-level=error && node node_modules/.cache/sim.cjs",
+    "test": "vite build --ssr scripts/test-rewards.ts --outDir .testout --logLevel error && node .testout/test-rewards.js"
   },
   "dependencies": {
     "react": "^18.3.1",
