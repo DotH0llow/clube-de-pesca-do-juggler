@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { ACHIEVEMENTS, ACHIEVEMENTS_BY_ID } from '../data/achievements';
-import { FAMILIES, FAMILY_MEMBERS } from '../data/fish';
+import { FAMILIES, FAMILY_MEMBERS, FISH } from '../data/fish';
 import { matchesOrder, orderForDay, type MarketOrder } from '../data/market';
 import { RELICS_BY_ID, UPGRADES_BY_ID, upgradeCost } from '../data/upgrades';
 import { shardGain } from '../engine/fishing';
@@ -480,6 +480,45 @@ export function grantCheat(sazoncoins: number, hydraEyes: number): void {
     },
     lifetimeValue: state.lifetimeValue + sazoncoins,
   });
+}
+
+/**
+ * Cheat: preenche o Album do Pescador inteiro.
+ *
+ * Marca as 24 especies como pescadas, com um peso e um comprimento no meio da
+ * faixa de cada uma - assim as fichas do album ficam com numero plausivel em
+ * vez de zero. As recompensas de FAMILIA sao entregues logo em seguida, pela
+ * mesma funcao que o jogo usa quando voce completa uma de verdade, entao o
+ * estado nao fica torto.
+ *
+ * Chamar de novo com o album cheio nao faz nada.
+ */
+export function unlockAlbum(): number {
+  const album = { ...state.album };
+  const agora = Date.now();
+  let novas = 0;
+
+  for (const f of FISH) {
+    if (album[f.id]) continue;
+    novas += 1;
+    album[f.id] = {
+      count: 1,
+      bestWeight: (f.weight[0] + f.weight[1]) / 2,
+      bestLength: (f.length[0] + f.length[1]) / 2,
+      firstCaughtAt: agora,
+    };
+  }
+  if (novas === 0) return 0;
+
+  const comAlbum = { ...state, album };
+  const { state: comFamilias } = grantFamilies(comAlbum);
+  set(comFamilias);
+  return novas;
+}
+
+/** Cheat: zera o album, para testar o preenchimento de novo. */
+export function clearAlbum(): void {
+  set({ ...state, album: {}, claimedFamilies: [] });
 }
 
 export function resetGame(): void {

@@ -7,6 +7,8 @@ import { FishSprite, JunkSprite, Sprite } from './Sprite';
 interface Props {
   outcome: Outcome;
   onAgain: () => void;
+  /** guardar a vara: sai da pescaria e devolve o controle do Juggler */
+  onStop: () => void;
 }
 
 /** Efeito de fundo por raridade: quanto mais raro, mais escandaloso. */
@@ -19,7 +21,7 @@ const BURST: Record<Rarity, string | null> = {
   mitico: 'fx/reward-glow',
 };
 
-export function CatchPopup({ outcome, onAgain }: Props) {
+export function CatchPopup({ outcome, onAgain, onStop }: Props) {
   const { result, landed, escapeText } = outcome;
   const fish = result.fish;
   const rarity = fish ? RARITIES[fish.rarity] : null;
@@ -29,7 +31,7 @@ export function CatchPopup({ outcome, onAgain }: Props) {
   const accent = failed ? '#ff5f7e' : rarity ? rarity.color : '#cfe8f5';
 
   return (
-    <div className="catch-popup" onClick={onAgain}>
+    <div className="catch-popup">
       <div className="catch-card" onClick={(e) => e.stopPropagation()}>
         <div className="catch-banner">
           <img src={asset('fx/capture-banner')} alt="" />
@@ -104,9 +106,15 @@ export function CatchPopup({ outcome, onAgain }: Props) {
           </div>
         )}
 
+        {/* Duas saidas, nao uma. Antes o unico caminho era LANCAR DE NOVO -
+            para parar de pescar era preciso lancar mais uma vez e so entao
+            achar o botao de guardar. */}
         <div className="btn-row">
           <button className="btn primary" onClick={onAgain} autoFocus>
             LANÇAR DE NOVO
+          </button>
+          <button className="btn ghost" onClick={onStop}>
+            GUARDAR A VARA
           </button>
         </div>
       </div>

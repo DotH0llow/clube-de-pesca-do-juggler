@@ -6,13 +6,12 @@ import {
   CashOutModal,
   LuckyCardPicker,
   PrizeLadderModal,
-  TideWheelModal,
   DebugPanel,
 } from './components/casino/CasinoModals';
 import { CatchPopup } from './components/CatchPopup';
 import { DevPanel } from './components/DevPanel';
 import { EditorOverlay } from './editor/EditorOverlay';
-import { getFx } from './editor/fx';
+import { getFx, type StepId } from './editor/fx';
 import { currentStep, usePreview } from './editor/preview';
 import { MarketApp } from './components/MarketPanel';
 import { Sheet } from './components/Sheet';
@@ -25,7 +24,9 @@ import { ACHIEVEMENTS_BY_ID } from './data/achievements';
 import { FAMILIES } from './data/fish';
 import { FISH } from './data/fish';
 import { REGIONS } from './data/regions';
+import { skyPhase } from './data/skies';
 import { initAudio, playSfx, startAmbience, stopAmbience } from './engine/audio';
+import { fireStep, stopMechanicAudio } from './engine/fxAudio';
 import { autoStartRadio } from './engine/music';
 import { SHARDS_FOR_LEGENDARY } from './engine/outcomes';
 import { useFishingLoop, type Outcome, type Phase } from './hooks/useFishingLoop';
@@ -41,7 +42,7 @@ import { setFreeCam, useDevFlags } from './state/dev';
 import { useSettings } from './state/settings';
 import { claimDaily, dailyAvailable, dailyPreview, syncRegion, useGame } from './state/store';
 import { usePlayer, type FishPose } from './world/usePlayer';
-import { clockLabel, useDayPhase, useGameClock } from './world/dayCycle';
+import { clockLabel, useDayPhase, useGameClock, useSkyPhase } from './world/dayCycle';
 
 /** Peixe de mentira: so a simulacao do editor usa, para ter o que desenhar. */
 const DEMO_CAST = {
@@ -72,7 +73,6 @@ export default function App() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [showDaily, setShowDaily] = useState(false);
   const [showCashOut, setShowCashOut] = useState(false);
-  const [showWheel, setShowWheel] = useState(false);
   const [ladderBase, setLadderBase] = useState<number | null>(null);
   const [schoolSummary, setSchoolSummary] = useState<
     { catches: number; coinsSecured: number; coinsBonus: number; bestMultiplier: number } | null
@@ -97,6 +97,7 @@ export default function App() {
 
   // o dia anda sozinho: o save so acompanha a fase que esta no ar
   const dayPhase = useDayPhase();
+  const hora = useSkyPhase();
   const clock = useGameClock();
   const firstPhase = useRef(true);
   useEffect(() => {
@@ -127,7 +128,6 @@ export default function App() {
       }
 
       // ------------------------------------------- mecanicas de sequencia
-      if (o.casino?.gotSpin) pushToast('GIRO NA RODA DA MARÉ DISPONÍVEL', 'ach');
       if (o.casino?.tierUp) {
         pushToast(`MULTIPLICADOR X${o.casino.multiplier}`, 'coin');
         window.setTimeout(() => playSfx('unlock'), 200);
@@ -148,7 +148,6 @@ export default function App() {
     phoneOpen ||
     showDaily ||
     showCashOut ||
-    showWheel ||
     showMarket ||
     ladderBase !== null ||
     Boolean(session.cardOffer);
@@ -218,6 +217,36 @@ export default function App() {
     }, 300);
     return () => window.clearInterval(id);
   }, [session.bonusSchool.active]);
+
+  /*
+   * Os sons das mecanicas.
+   *
+   * Cada etapa do lance avisa quando entra e quando sai; a lista de sons da
+   * configuracao de mecanicas decide o que toca em cada uma. Sair da pescaria
+   * corta o que ficou em loop.
+   */
+  const etapaAnterior = useRef<StepId | null>(null);
+  useEffect(() => {
+    /*
+     * A etapa do SOM e a mesma que o mundo desenha, nao a fase crua da maquina
+     * de estados. A diferenca importa: `cast` (o quadro do arremesso) nao e uma
+     * fase - e o comecinho da espera. Disparar pela fase deixaria o zunido do
+     * lance sem tocar nunca.
+     */
+    const etapa: StepId = phase === 'result' ? 'result' : fishPose;
+    if (!fishing) {
+      if (etapaAnterior.current) fireStep(etapaAnterior.current, 'sair');
+      etapaAnterior.current = null;
+      stopMechanicAudio();
+      return;
+    }
+    if (etapaAnterior.current === etapa) return;
+    if (etapaAnterior.current) fireStep(etapaAnterior.current, 'sair');
+    fireStep(etapa, 'entrar');
+    etapaAnterior.current = etapa;
+  }, [phase, fishPose, fishing]);
+
+  useEffect(() => stopMechanicAudio, []);
 
   const startFishing = useCallback(() => {
     playSfx('ui');
@@ -317,15 +346,20 @@ export default function App() {
   };
 
   const region = REGIONS[dayPhase];
+  /*
+   * A cor do mar segue a HORA, nao a regiao: sao oito ceus e quatro regioes, e
+   * duas horas seguidas na mesma regiao precisam de agua de tom diferente.
+   */
+  const paleta = skyPhase(hora).palette;
   const styleVars = useMemo(
     () =>
       ({
-        '--sea-top': region.palette.seaTop,
-        '--sea-bottom': region.palette.seaBottom,
-        '--sun': region.palette.sun,
-        '--haze': region.palette.haze,
+        '--sea-top': paleta.seaTop,
+        '--sea-bottom': paleta.seaBottom,
+        '--sun': paleta.sun,
+        '--haze': paleta.haze,
       }) as CSSProperties,
-    [region],
+    [paleta],
   );
 
   const rootClass = [
@@ -352,7 +386,7 @@ export default function App() {
   return (
     <div className={rootClass} style={styleVars}>
       <World
-        region={dayPhase}
+        hour={hora}
         phase={shownPhase}
         pose={fishPose}
         pending={shownPending}
@@ -401,6 +435,20 @@ export default function App() {
             </span>
           </div>
           <div className="spacer" />
+          {/* O editor era um botão dentro do painel de cheat: dois cliques e um
+              painel na frente para chegar na ferramenta que mais se usa. */}
+          <button
+            className="dev-chip"
+            onClick={() => {
+              abort();
+              setFishing(false);
+              setPhoneOpen(false);
+              setEditor(true);
+            }}
+            title="Modo editor: pausa o jogo e deixa mexer na cena"
+          >
+            EDITOR
+          </button>
           <button className="dev-chip" onClick={() => setShowDev(true)} title="Painel de dev (F8)">
             DEV
           </button>
@@ -433,14 +481,10 @@ export default function App() {
               <button className="btn primary" onClick={openMarket} style={{ fontSize: 20 }}>
                 MERCADO &nbsp;<span className="key">E</span>
               </button>
-            ) : (
-              settings.hints && (
-                <div className="hint-strip">
-                  SETAS OU A/D PARA ANDAR &middot; SHIFT CORRE &middot; ESPAÇO PULA &middot;
-                  CTRL+RODA DÁ ZOOM &middot; ESC ABRE O CELULAR
-                </div>
-              )
-            )}
+            ) : null}
+            {/* A faixa de tutorial saiu do rodapé: quem quiser a lista de
+                controles abre COMO JOGAR no menu ou no celular. Os botões
+                abaixo só existem onde o ponteiro é dedo (ver `.touch-pad`). */}
             <div className="touch-pad">
               <button
                 className="btn ghost small"
@@ -488,11 +532,6 @@ export default function App() {
                       SACAR {s.casino.streak.pendingCoins.toLocaleString('pt-BR')}
                     </button>
                   )}
-                  {s.casino.tideWheel.availableSpins > 0 && (
-                    <button className="btn small" onClick={() => setShowWheel(true)}>
-                      RODA DA MARÉ ({s.casino.tideWheel.availableSpins})
-                    </button>
-                  )}
                   <button className="btn ghost small" onClick={stopFishing}>
                     GUARDAR A VARA
                   </button>
@@ -521,6 +560,10 @@ export default function App() {
       {phase === 'result' && outcome && (
         <CatchPopup
           outcome={outcome}
+          onStop={() => {
+            dismiss();
+            stopFishing();
+          }}
           onAgain={() => {
             const o = outcome;
             dismiss();
@@ -552,7 +595,6 @@ export default function App() {
       )}
 
       {showCashOut && <CashOutModal onClose={() => setShowCashOut(false)} />}
-      {showWheel && <TideWheelModal onClose={() => setShowWheel(false)} />}
       {session.cardOffer && <LuckyCardPicker cards={session.cardOffer} />}
       {ladderBase !== null && (
         <PrizeLadderModal baseValue={ladderBase} onClose={() => setLadderBase(null)} />
@@ -560,17 +602,7 @@ export default function App() {
       {schoolSummary && (
         <BonusSchoolSummary summary={schoolSummary} onClose={() => setSchoolSummary(null)} />
       )}
-      {showDev && (
-        <DevPanel
-          onClose={() => setShowDev(false)}
-          onEditor={() => {
-            abort();
-            setFishing(false);
-            setShowDev(false);
-            setEditor(true);
-          }}
-        />
-      )}
+      {showDev && <DevPanel onClose={() => setShowDev(false)} />}
 
       {editor && (
         <EditorOverlay
@@ -591,8 +623,6 @@ export default function App() {
             'SEQUÊNCIA 8': () => debugActions.setStreak(8),
             '+500 PENDENTE': () => debugActions.addPending(500),
             'MEDIDOR CHEIO': debugActions.fillMeter,
-            'GANHAR GIRO': debugActions.grantSpin,
-            'ABRIR RODA': () => setShowWheel(true),
             'DAR CARTA': debugActions.grantCard,
             'CARDUME': debugActions.startSchool,
             'COMPLETAR LINHA': debugActions.completeLine,

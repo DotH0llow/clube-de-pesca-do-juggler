@@ -1,31 +1,31 @@
 import { playSfx } from '../engine/audio';
 import { cycleRain, RAIN_LABEL, rainMode, toggleFreeCam, useDevFlags } from '../state/dev';
-import { REGIONS } from '../data/regions';
-import { grantCheat, useGame } from '../state/store';
+import { FISH } from '../data/fish';
+import { SKY_PHASES } from '../data/skies';
+import { clearAlbum, grantCheat, unlockAlbum, useGame } from '../state/store';
 import {
-  DAY_ORDER,
-  jumpToPhase,
+  jumpToSky,
   resetClock,
   shiftClock,
-  useDayPhase,
   useGameClock,
+  useSkyPhase,
 } from '../world/dayCycle';
 
 interface Props {
   onClose: () => void;
-  onEditor: () => void;
 }
 
 /**
  * Painel de dev. Abre com F8 (ou pelo chip DEV no topo) e nao aparece para
  * jogador nenhum sem querer: e ferramenta de teste, entao pode ser direto.
  */
-export function DevPanel({ onClose, onEditor }: Props) {
+export function DevPanel({ onClose }: Props) {
   const s = useGame();
   const dev = useDevFlags();
   const rain = rainMode(dev);
-  const phase = useDayPhase();
+  const hora = useSkyPhase();
   const clock = useGameClock();
+  const noAlbum = Object.keys(s.album).length;
 
   const pay = (coins: number, eyes: number) => {
     grantCheat(coins, eyes);
@@ -60,20 +60,50 @@ export function DevPanel({ onClose, onEditor }: Props) {
       </div>
 
       <div className="dev-sep">
+        ÁLBUM &middot; <b>{noAlbum}/{FISH.length}</b>
+      </div>
+      <div className="dev-grid">
+        <button
+          className="ebtn primary"
+          style={{ gridColumn: '1 / -1' }}
+          disabled={noAlbum >= FISH.length}
+          onClick={() => {
+            const novas = unlockAlbum();
+            playSfx(novas > 0 ? 'unlock' : 'ui');
+          }}
+          title="Marca as 24 espécies como pescadas e entrega as recompensas de família"
+        >
+          DESBLOQUEAR O ÁLBUM INTEIRO
+        </button>
+        <button
+          className="ebtn danger"
+          style={{ gridColumn: '1 / -1' }}
+          disabled={noAlbum === 0}
+          onClick={() => {
+            if (!confirm('Esvaziar o álbum? As famílias voltam a poder ser reivindicadas.')) return;
+            clearAlbum();
+            playSfx('ui');
+          }}
+        >
+          ESVAZIAR O ÁLBUM
+        </button>
+      </div>
+
+      <div className="dev-sep">
         HORA DO DIA &middot; <b>{clock}</b>
       </div>
       <div className="dev-grid">
-        {DAY_ORDER.map((id) => (
+        {SKY_PHASES.map((p) => (
           <button
-            key={id}
-            className={`ebtn${phase === id ? ' primary' : ''}`}
+            key={p.id}
+            className={`ebtn${hora === p.id ? ' primary' : ''}`}
             onClick={() => {
-              jumpToPhase(id);
+              jumpToSky(p.id);
               playSfx('ui');
             }}
-            title={REGIONS[id].subtitle}
+            title={`${p.name} · vale a região ${p.region}`}
           >
-            {REGIONS[id].name.toUpperCase()}
+            {p.name.toUpperCase()}
           </button>
         ))}
       </div>
@@ -116,11 +146,9 @@ export function DevPanel({ onClose, onEditor }: Props) {
         </button>
       </div>
 
-      <button className="ebtn primary wide" onClick={onEditor}>
-        ABRIR MODO EDITOR
-      </button>
       <div className="dev-hint">
-        O editor pausa o jogo, deixa mover e apagar asset e guarda a cena no navegador.
+        O modo editor saiu daqui: agora ele é o botão EDITOR na barra do topo, sem precisar abrir
+        este painel antes.
       </div>
     </div>
   );
