@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../assets';
 import {
+  addShape,
   addSprite,
+  addWall,
   beginBatch,
   canRedo,
   canUndo,
@@ -30,13 +32,29 @@ import {
   DEPTH_MIN,
   LAYERS,
   PLAYER_DEPTH,
+  SHAPES,
+  ZONE_LABEL,
   type LayerId,
   type SceneObject,
+  type ShapeKind,
 } from './types';
 import { LibraryPanel } from './LibraryPanel';
 import { AnimationsPanel, MechanicsPanel } from './AnimationsPanel';
-import { updateFx, useFx, type FxItem } from './fx';
-import { currentStep, stopPreview, usePreview } from './preview';
+import { WorldPanel } from './WorldPanel';
+import { FloatersPanel } from './FloatersPanel';
+import { ColorField, SliderField } from './fields';
+import {
+  beginFxBatch,
+  canRedoFx,
+  canUndoFx,
+  endFxBatch,
+  redoFx,
+  undoFx,
+  updateFx,
+  useFx,
+  type FxItem,
+} from './fx';
+import { currentStep, getPreview, stopPreview, usePreview } from './preview';
 import { zoneRect } from './scene';
 import { groundAt } from '../world/layout';
 
@@ -101,9 +119,11 @@ export function EditorOverlay({
   const [layer, setLayer] = useState<WorkLayer>('todas');
   const [selected, setSelected] = useState<string | null>(null);
   const [fxSel, setFxSel] = useState<string | null>(null);
-  const [panel, setPanel] = useState<'biblioteca' | 'cena' | 'animacoes' | 'mecanicas' | null>(
-    'biblioteca',
-  );
+  const [panel, setPanel] = useState<
+    'biblioteca' | 'cena' | 'animacoes' | 'mecanicas' | 'mundo' | 'flutuadores' | null
+  >('biblioteca');
+  /** menu de formas geometricas aberto no topo */
+  const [formas, setFormas] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   /** filtro da lista da cena, por nome do sprite / da area / do id */
   const [busca, setBusca] = useState('');
@@ -182,7 +202,8 @@ export function EditorOverlay({
   );
 
   const step = preview.mechanic ? currentStep() : null;
-  const stepItems = step ? fx.items.filter((i) => i.steps.includes(step.id)) : [];
+  // peca escondida continua na lista do painel, mas some da area de trabalho
+  const stepItems = step ? fx.items.filter((i) => i.steps.includes(step.id) && !i.off) : [];
   const fxItem = fxSel ? stepItems.find((i) => i.id === fxSel) ?? null : null;
 
   /**
@@ -210,12 +231,26 @@ export function EditorOverlay({
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
 
-      // desfazer / refazer valem mesmo sem nada selecionado
+      /*
+       * Desfazer / refazer, na pilha certa.
+       *
+       * Com a simulacao de mecanica ligada voce esta mexendo em PECA DE
+       * MECANICA, nao em cena - e o Ctrl+Z tem de desfazer isso. Antes havia
+       * uma pilha so, entao desfazer dentro da animacao ia comendo mudanca de
+       * cenario que voce nem estava olhando. Sao duas pilhas separadas agora.
+       */
       if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyZ' || e.code === 'KeyY')) {
         e.preventDefault();
         const wantRedo = e.code === 'KeyY' || e.shiftKey;
-        if (wantRedo) redo();
-        else undo();
+        const naMecanica = getPreview().mechanic !== null;
+        if (naMecanica) {
+          if (wantRedo) redoFx();
+          else undoFx();
+        } else if (wantRedo) {
+          redo();
+        } else {
+          undo();
+        }
         return;
       }
 
@@ -288,6 +323,7 @@ export function EditorOverlay({
         if (w.x >= r.x - pad && w.x <= r.x + r.w + pad && w.y >= r.y - pad && w.y <= r.y + r.h + pad) {
           setFxSel(it.id);
           setSelected(null);
+          beginFxBatch();
           drag.current = { mode: 'fx-move', id: it.id, ox: it.x, oy: it.y, px, py };
           return;
         }
@@ -413,6 +449,7 @@ export function EditorOverlay({
     const onUp = (ev: PointerEvent) => {
       drag.current = null;
       endBatch();
+      endFxBatch();
       if (!dragAsset) return;
       const el = host();
       const rect = el?.getBoundingClientRect();
@@ -461,6 +498,7 @@ export function EditorOverlay({
   const startFxHandle = (e: React.PointerEvent, handle: Handle) => {
     if (!fxItem || e.button !== 0) return;
     e.stopPropagation();
+    beginFxBatch();
     const host = (e.currentTarget as HTMLElement).closest('.editor-canvas') as HTMLElement;
     const rect = host.getBoundingClientRect();
     drag.current = {
@@ -492,6 +530,41 @@ export function EditorOverlay({
     };
   };
 
+  /**
+   * O centro da area de trabalho, em unidades de mundo.
+   *
+   * E onde cai tudo o que voce cria com um clique - asset da biblioteca, forma
+   * geometrica, parede. Antes so dava para criar arrastando, e no editor do
+   * MENU o arrasto nao chegava a lugar nenhum: era esse o motivo de "o editor
+   * do menu nao me deixa adicionar objeto".
+   */
+  const centro = useCallback(() => {
+    if (sceneId === 'menu') return { x: MENU_W / 2, y: MENU_H / 2 };
+    return { x: cam + window.innerWidth / scale / 2, y: 320 };
+  }, [sceneId, cam, scale]);
+
+  /** Poe um asset da biblioteca na cena e o deixa selecionado. */
+  const soltarAsset = useCallback(
+    (path: string) => {
+      const c = centro();
+      const obj = addSprite(path, layer === 'todas' ? 'objetos' : layer, c.x, c.y, 120);
+      setLayer('todas');
+      setSelected(obj.id);
+    },
+    [centro, layer],
+  );
+
+  const criarForma = useCallback(
+    (shape: ShapeKind) => {
+      const c = centro();
+      const obj = addShape(shape, c.x, c.y, layer === 'todas' ? 'objetos' : layer);
+      setLayer('todas');
+      setSelected(obj.id);
+      setFormas(false);
+    },
+    [centro, layer],
+  );
+
   // ------------------------------------------------------------- export
   const doExport = () => {
     const blob = new Blob([exportScene()], { type: 'application/json' });
@@ -513,7 +586,9 @@ export function EditorOverlay({
     input.click();
   };
 
-  const zones = scene.objects.filter((o) => o.kind === 'zone' && !scene.hidden.includes(o.layer));
+  const zones = scene.objects.filter(
+    (o) => o.kind === 'zone' && !o.off && !scene.hidden.includes(o.layer),
+  );
   const selBox = sel ? toScreen(sel.x, sel.y) : null;
 
   return (
@@ -530,10 +605,10 @@ export function EditorOverlay({
           return (
             <div
               key={z.id}
-              className={`editor-zone${selected === z.id ? ' on' : ''}`}
+              className={`editor-zone ${z.zone ?? ''}${selected === z.id ? ' on' : ''}`}
               style={{ left: p.x, top: p.y, width: z.w * scale, height: z.h * scale }}
             >
-              <span>{z.zone === 'vara' ? 'PESCAR' : 'MERCADO'}</span>
+              <span>{ZONE_LABEL[z.zone ?? 'vara']}</span>
             </div>
           );
         })}
@@ -598,10 +673,22 @@ export function EditorOverlay({
       {/* ------------------------------------------------------------ topo */}
       <div className="editor-bar">
         <span className="editor-badge">{sceneId === 'menu' ? 'EDITOR DO MENU' : 'MODO EDITOR'}</span>
-        <button className="ebtn" disabled={!canUndo()} onClick={() => undo()} title="Ctrl+Z">
-          DESFAZER
+        {/* Na simulacao de mecanica os botoes desfazem MECANICA; fora dela,
+            CENA. E a mesma regra do Ctrl+Z, so que visivel. */}
+        <button
+          className="ebtn"
+          disabled={preview.mechanic ? !canUndoFx() : !canUndo()}
+          onClick={() => (preview.mechanic ? undoFx() : undo())}
+          title={preview.mechanic ? 'Ctrl+Z · desfaz na mecânica' : 'Ctrl+Z · desfaz na cena'}
+        >
+          DESFAZER{preview.mechanic ? ' (MEC.)' : ''}
         </button>
-        <button className="ebtn" disabled={!canRedo()} onClick={() => redo()} title="Ctrl+Shift+Z">
+        <button
+          className="ebtn"
+          disabled={preview.mechanic ? !canRedoFx() : !canRedo()}
+          onClick={() => (preview.mechanic ? redoFx() : redo())}
+          title="Ctrl+Shift+Z"
+        >
           REFAZER
         </button>
         <button
@@ -631,6 +718,51 @@ export function EditorOverlay({
         >
           ANIMAÇÕES
         </button>
+        <button
+          className="ebtn"
+          onClick={() => {
+            stopPreview();
+            setPanel(panel === 'mundo' ? null : 'mundo');
+          }}
+          title="Altura do mar, profundidade, largura, areia, ondas e enquadramento"
+        >
+          MUNDO
+        </button>
+        <button
+          className="ebtn"
+          onClick={() => {
+            stopPreview();
+            setPanel(panel === 'flutuadores' ? null : 'flutuadores');
+          }}
+          title="Nuvens, pássaros e o que mais atravessa o céu"
+        >
+          FLUTUADORES
+        </button>
+        <div className="eshape-wrap">
+          <button className="ebtn" onClick={() => setFormas((v) => !v)} title="Criar uma forma geométrica colorida">
+            FORMAS ▾
+          </button>
+          {formas && (
+            <div className="eshapes">
+              {SHAPES.map((f) => (
+                <button key={f.id} onClick={() => criarForma(f.id)}>
+                  {f.label}
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  const c = centro();
+                  const w = addWall(c.x, c.y);
+                  setLayer('todas');
+                  setSelected(w.id);
+                  setFormas(false);
+                }}
+              >
+                PAREDE NOVA
+              </button>
+            </div>
+          )}
+        </div>
         {hasMechanics && (
           <button
             className="ebtn"
@@ -774,6 +906,117 @@ export function EditorOverlay({
                 ZERAR GIRO
               </button>
             </div>
+
+            {/* Opacidade vale para TUDO: sprite, faixa e forma. Era o que
+                faltava para enfiar um vulto no fundo do mar sem ele gritar. */}
+            <SliderField
+              label="OPACIDADE"
+              value={sel.opacity ?? 1}
+              onChange={(v) => updateObject(sel.id, { opacity: v })}
+            />
+
+            {/* ------------------------------------------- forma geométrica */}
+            {sel.kind === 'forma' && (
+              <>
+                <div className="etitle" style={{ marginTop: 8 }}>
+                  FORMA
+                </div>
+                <label className="efield">
+                  DESENHO
+                  <select
+                    value={sel.shape ?? 'retangulo'}
+                    onChange={(e) => updateObject(sel.id, { shape: e.target.value as ShapeKind })}
+                  >
+                    {SHAPES.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <ColorField
+                  label="COR DE DENTRO"
+                  value={sel.fill ?? '#2fd6c9'}
+                  onChange={(v) => updateObject(sel.id, { fill: v })}
+                />
+                <ColorField
+                  label="COR DA BORDA"
+                  value={sel.stroke ?? ''}
+                  allowEmpty
+                  onChange={(v) => updateObject(sel.id, { stroke: v })}
+                />
+                {sel.stroke && (
+                  <label className="efield">
+                    GROSSURA DA BORDA
+                    <input
+                      type="number"
+                      min={1}
+                      value={sel.strokeW ?? 4}
+                      onChange={(e) => updateObject(sel.id, { strokeW: Math.max(1, Number(e.target.value)) })}
+                    />
+                  </label>
+                )}
+                {sel.shape === 'retangulo' && (
+                  <label className="efield">
+                    CANTO ARREDONDADO
+                    <input
+                      type="number"
+                      min={0}
+                      value={sel.radius ?? 0}
+                      onChange={(e) => updateObject(sel.id, { radius: Math.max(0, Number(e.target.value)) })}
+                    />
+                  </label>
+                )}
+              </>
+            )}
+
+            {/* --------------------------------------- área de interação */}
+            {sel.kind === 'zone' && (
+              <>
+                <div className="etitle" style={{ marginTop: 8 }}>
+                  {ZONE_LABEL[sel.zone ?? 'vara']}
+                </div>
+                <div className="ehint">
+                  {sel.zone === 'parede'
+                    ? 'Barra o Juggler pelo lado de onde ele vem. Arraste para abrir ou fechar o mapa; apague para tirar o limite.'
+                    : sel.zone === 'limiar'
+                      ? 'A fronteira dos dois enquadramentos: à esquerda a câmera abre para o mar, à direita ela fecha na superfície. Ajuste o zoom de cada lado na seção MUNDO.'
+                      : sel.zone === 'vara'
+                        ? 'Onde a pescaria abre. O Juggler para no meio dela.'
+                        : 'Onde o mercado de peixe abre.'}
+                </div>
+                {sel.zone === 'parede' && (
+                  <div className="erow">
+                    <button className="ebtn" onClick={() => updateObject(sel.id, { off: !sel.off })}>
+                      {sel.off ? 'LIGAR PAREDE' : 'DESLIGAR PAREDE'}
+                    </button>
+                    <button
+                      className="ebtn danger"
+                      onClick={() => {
+                        removeObject(sel.id);
+                        setSelected(null);
+                      }}
+                    >
+                      APAGAR
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ---------------------- peça de interface da tela de título */}
+            {sel.role && sel.role !== 'vara' && (
+              <div className="ehint">
+                Peça da interface do menu. A caixa é onde ela é desenhada - arraste e estique para
+                recolocar o Juggler, o título, os botões ou a vinheta.
+              </div>
+            )}
+
+            <div className="erow">
+              <button className="ebtn" onClick={() => updateObject(sel.id, { off: !sel.off })}>
+                {sel.off ? 'MOSTRAR' : 'ESCONDER'}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -781,6 +1024,7 @@ export function EditorOverlay({
       {/* ------------------------------------------------------- biblioteca */}
       {panel === 'biblioteca' && (
         <LibraryPanel
+          onAddAsset={soltarAsset}
           onDragAsset={(path, x, y) => {
             setDragAsset(path);
             setGhost({ x, y });
@@ -863,6 +1107,10 @@ export function EditorOverlay({
       )}
 
       {panel === 'animacoes' && <AnimationsPanel />}
+
+      {panel === 'mundo' && <WorldPanel />}
+
+      {panel === 'flutuadores' && <FloatersPanel />}
 
       {panel === 'mecanicas' && hasMechanics && (
         <MechanicsPanel selected={fxSel} onSelect={setFxSel} />

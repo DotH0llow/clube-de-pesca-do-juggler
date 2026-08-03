@@ -38,6 +38,35 @@ function ObjectView({ o }: { o: SceneObject }) {
     );
   }
 
+  /*
+   * Forma geometrica: nao tem sprite, e cor.
+   *
+   * Retangulo e elipse saem no proprio CSS (borda arredondada); triangulo e
+   * losango saem de `clip-path`, que corta o mesmo retangulo. Assim a forma
+   * continua sendo uma caixa comum para o editor arrastar e redimensionar.
+   */
+  if (o.kind === 'forma') {
+    const clip =
+      o.shape === 'triangulo'
+        ? 'polygon(50% 0%, 100% 100%, 0% 100%)'
+        : o.shape === 'losango'
+          ? 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)'
+          : undefined;
+    return (
+      <div
+        className="wobj wobj-shape"
+        data-obj={o.id}
+        style={{
+          ...style,
+          background: o.fill || '#2fd6c9',
+          border: o.stroke ? `${o.strokeW ?? 4}px solid ${o.stroke}` : undefined,
+          borderRadius: o.shape === 'elipse' ? '50%' : o.radius ? `${o.radius}px` : undefined,
+          clipPath: clip,
+        }}
+      />
+    );
+  }
+
   // a treeline nao e sprite: e uma massa de mata desenhada em CSS
   if (!o.sprite) {
     return <div className={`wobj ${o.anim ?? ''}`} data-obj={o.id} style={style} />;
@@ -54,6 +83,9 @@ function ObjectView({ o }: { o: SceneObject }) {
     </div>
   );
 }
+
+/** Papeis desenhados por outro componente, nao por esta camada. */
+const UI_ROLES = ['juggler', 'titulo', 'botoes', 'vinheta'];
 
 interface Props {
   scene: SceneId;
@@ -77,6 +109,11 @@ export const SceneLayer = memo(function SceneLayer({ scene, band = 'perto', hide
     <>
       {state.objects
         .filter((o) => o.kind !== 'zone')
+        .filter((o) => !o.off)
+        // peca de interface da tela de titulo: quem desenha e a tela de titulo,
+        // que sabe o que vai dentro da caixa. Aqui ela sairia como um retangulo
+        // vazio por cima do menu.
+        .filter((o) => !UI_ROLES.includes(o.role ?? ''))
         .filter((o) => !state.hidden.includes(o.layer))
         .filter((o) => bandOf(o) === band)
         .filter((o) => !(hideRod && o.role === 'vara'))

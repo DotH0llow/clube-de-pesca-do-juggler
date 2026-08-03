@@ -20,9 +20,11 @@ import {
   WORLD_W,
   type Prop,
 } from '../world/layout';
-import type { LayerId, SceneId, SceneObject, SceneState, ZoneId } from './types';
+import { seaBottom, seaLeft } from '../world/worldConfig';
+import type { LayerId, SceneId, SceneObject, SceneState, ShapeKind, ZoneId } from './types';
 
-const KEY = 'juggler-fishing/cena/v3';
+const KEY = 'juggler-fishing/cena/v4';
+const KEY_V3 = 'juggler-fishing/cena/v3';
 const KEY_V2 = 'juggler-fishing/cena/v2';
 
 /** Tamanho de desenho da tela de menu. */
@@ -113,9 +115,11 @@ function strip(
     layer: 'fundo',
     kind: 'strip',
     sprite,
-    x: -400,
+    // a faixa cobre a agua inteira mais uma folga: o mar ficou quatro vezes
+    // mais largo e o horizonte nao pode terminar no meio da tela
+    x: seaLeft() - 400,
     y,
-    w: 5000,
+    w: WORLD_W - seaLeft() + 800,
     h,
     rot: 0,
     depth: 0,
@@ -133,9 +137,14 @@ function seedMundo(): SceneObject[] {
   out.push(strip('horizonte-ilhas', 'sky/distant-island-strip', WATER_Y - 86, 92, 0.52, 0.85));
   out.push(strip('horizonte-neblina', 'sky/horizon-haze-strip', WATER_Y - 26, 40, 0.52, 0.45));
 
-  // ---------------------------------------------------- OBJETOS submersos
-  for (const p of SEAFLOOR) out.push(fromProp(p, 'objetos', 1, true));
-  for (const p of UNDERWATER_LIFE) out.push(fromProp(p, 'objetos', 1, true));
+  /*
+   * O fundo do mar e a vida submersa foram desenhados quando o mar tinha 348
+   * unidades de profundidade. Com 2088 eles ficariam boiando no meio da agua,
+   * entao descem junto - a distancia deles para o fundo continua a mesma.
+   */
+  const fundo = seaBottom() - 720;
+  for (const p of SEAFLOOR) out.push(fromProp({ ...p, y: p.y + fundo }, 'objetos', 1, true));
+  for (const p of UNDERWATER_LIFE) out.push(fromProp({ ...p, y: p.y + fundo }, 'objetos', 1, true));
   for (const p of SHORE) out.push(fromProp(p, 'objetos', 3));
 
   // ----------------------------------------------------------- CENARIO
@@ -145,10 +154,11 @@ function seedMundo(): SceneObject[] {
       id: `pier-post-${i}`,
       layer: 'cenario',
       kind: 'sprite',
-      sprite: 'props/pier-post-side',
+      // estaca do pacote novo de pier: mais grossa e com a base afundada
+      sprite: 'pier/piling-heavy-round',
       x: PIER_START - 30 + i * 190,
       y: PIER_Y + 22,
-      w: Math.round(184 * aspectOf('props/pier-post-side')),
+      w: Math.round(184 * aspectOf('pier/piling-heavy-round')),
       h: 184,
       rot: 0,
       depth: 4,
@@ -158,10 +168,10 @@ function seedMundo(): SceneObject[] {
     id: 'pier-ladder',
     layer: 'cenario',
     kind: 'sprite',
-    sprite: 'props/pier-ladder-side',
+    sprite: 'pier/ladder-hanging',
     x: PIER_START + 280,
     y: PIER_Y + 16,
-    w: Math.round(96 * aspectOf('props/pier-ladder-side')),
+    w: Math.round(96 * aspectOf('pier/ladder-hanging')),
     h: 96,
     rot: 0,
     depth: 4,
@@ -237,6 +247,59 @@ function seedMundo(): SceneObject[] {
     y: SAND_Y - 205,
     w: 280,
     h: 215,
+    rot: 0,
+    depth: 9,
+  });
+
+  /*
+   * As paredes que seguram o Juggler.
+   *
+   * Isso era `WALK_MIN` e `WALK_MAX`: duas constantes invisiveis que so davam
+   * para mudar no codigo. Agora sao caixas de verdade, que aparecem no editor,
+   * se arrastam, se redimensionam, se duplicam e se apagam como qualquer outra
+   * area. Quem quiser abrir o mapa e so arrastar a parede para longe.
+   */
+  out.push({
+    id: 'parede-oeste',
+    layer: 'interagiveis',
+    kind: 'zone',
+    zone: 'parede',
+    x: PIER_START - 10,
+    y: PIER_Y - 240,
+    w: 60,
+    h: 300,
+    rot: 0,
+    depth: 9,
+  });
+  out.push({
+    id: 'parede-leste',
+    layer: 'interagiveis',
+    kind: 'zone',
+    zone: 'parede',
+    x: FOREST_START + 10,
+    y: SAND_Y - 240,
+    w: 60,
+    h: 300,
+    rot: 0,
+    depth: 9,
+  });
+
+  /*
+   * O limiar do pier: a fronteira entre dois enquadramentos.
+   *
+   * A esquerda dele a camera abre e mostra o mar fundo; a direita ela fecha e
+   * volta para a superficie. E uma caixa como as outras, entao da para decidir
+   * onde exatamente essa virada acontece.
+   */
+  out.push({
+    id: 'limiar-do-pier',
+    layer: 'interagiveis',
+    kind: 'zone',
+    zone: 'limiar',
+    x: PIER_END - 180,
+    y: PIER_Y - 260,
+    w: 90,
+    h: 320,
     rot: 0,
     depth: 9,
   });
@@ -320,6 +383,72 @@ function seedMenu(): SceneObject[] {
   out.push(menuSprite('menu-coqueiro', 'nature/coconut-palm', -40, MENU_H + 30, 470, 10, { flip: true }));
   out.push(menuSprite('menu-palmeira', 'nature/royal-palm', 1130, MENU_H + 30, 500, 10));
 
+  /*
+   * As pecas de INTERFACE da tela de titulo.
+   *
+   * O Juggler posando, o bloco do logo, a coluna de botoes e a vinheta das
+   * bordas eram HTML solto, posicionado em porcentagem: davam para admirar e
+   * nao para mexer. Agora sao objetos de cena com caixa propria - a tela de
+   * titulo le a caixa e desenha dentro dela.
+   *
+   * O ganho e que eles obedecem o editor inteiro: arrastar, esticar, girar,
+   * mudar de profundidade, baixar a opacidade e esconder. A vinheta em cima do
+   * Juggler ou atras dele e so uma questao de profundidade agora.
+   */
+  out.push({
+    id: 'menu-vinheta',
+    layer: 'objetos',
+    kind: 'sprite',
+    sprite: '',
+    role: 'vinheta',
+    x: 0,
+    y: 0,
+    w: MENU_W,
+    h: MENU_H,
+    rot: 0,
+    depth: 9,
+    opacity: 1,
+  });
+  out.push({
+    id: 'menu-juggler',
+    layer: 'objetos',
+    kind: 'sprite',
+    sprite: '',
+    role: 'juggler',
+    x: 726,
+    y: 40,
+    w: 560,
+    h: 680,
+    rot: 0,
+    depth: 10,
+  });
+  out.push({
+    id: 'menu-titulo',
+    layer: 'objetos',
+    kind: 'sprite',
+    sprite: '',
+    role: 'titulo',
+    x: 72,
+    y: 96,
+    w: 560,
+    h: 250,
+    rot: 0,
+    depth: 10,
+  });
+  out.push({
+    id: 'menu-botoes',
+    layer: 'objetos',
+    kind: 'sprite',
+    sprite: '',
+    role: 'botoes',
+    x: 72,
+    y: 370,
+    w: 330,
+    h: 290,
+    rot: 0,
+    depth: 10,
+  });
+
   return out;
 }
 
@@ -342,6 +471,45 @@ function seedBook(): Book {
  * jogar fora o que voce ja arrumou, cada objeto salvo ganha camada e
  * profundidade pela familia do sprite e as faixas novas entram na frente.
  */
+/**
+ * Traz a cena da v3.
+ *
+ * O que mudou da v3 para a v4 foi o TAMANHO do mundo: o mar ficou seis vezes
+ * mais fundo e quatro vezes mais largo, e apareceram tres areas novas (duas
+ * paredes e o limiar). Entao nao da para so copiar a lista: o que estava
+ * submerso desce junto com o fundo, a faixa do horizonte estica, e as areas
+ * novas entram se ainda nao existirem.
+ */
+function migrateV3(old: SceneState): SceneState {
+  const fundo = seaBottom() - 720;
+  const seed = seedMundo();
+  const objects = old.objects.map((o) => {
+    if (o.kind === 'strip') {
+      const s = seed.find((x) => x.id === o.id);
+      return s ? { ...o, x: s.x, w: s.w } : o;
+    }
+    // o que estava desenhado como submerso acompanha o novo fundo do mar
+    return o.under ? { ...o, y: o.y + fundo } : o;
+  });
+  const faltando = seed.filter(
+    (s) => s.kind === 'zone' && !objects.some((o) => o.id === s.id || (o.kind === 'zone' && o.zone === s.zone && s.zone !== 'parede')),
+  );
+  return { objects: [...objects, ...faltando], hidden: old.hidden ?? [] };
+}
+
+/**
+ * Traz a cena do MENU.
+ *
+ * O que apareceu de novo aqui foram as pecas de interface (Juggler, titulo,
+ * botoes, vinheta). Elas entram se ainda nao existirem; o resto da cena, que
+ * voce ja arrumou, fica exatamente como estava.
+ */
+function migrateMenu(old: SceneState): SceneState {
+  const seed = seedMenu();
+  const faltando = seed.filter((s) => s.role && !old.objects.some((o) => o.role === s.role));
+  return { objects: [...old.objects, ...faltando], hidden: old.hidden ?? [] };
+}
+
 function migrateV2(old: SceneState): SceneState {
   const objects = old.objects.map((o) => {
     if (o.kind === 'zone') return { ...o, depth: o.depth ?? 9 };
@@ -371,11 +539,22 @@ function load(): Book {
       }
       return book;
     }
+    const v3 = localStorage.getItem(KEY_V3);
+    if (v3) {
+      const parsed = JSON.parse(v3) as Partial<Book>;
+      for (const id of ['mundo', 'menu'] as SceneId[]) {
+        const st = parsed[id];
+        if (!st || !Array.isArray(st.objects) || st.objects.length === 0) continue;
+        book[id] = id === 'mundo' ? migrateV3(st) : migrateMenu(st);
+      }
+      return book;
+    }
+
     const old = localStorage.getItem(KEY_V2);
     if (old) {
       const parsed = JSON.parse(old) as SceneState;
       if (parsed && Array.isArray(parsed.objects) && parsed.objects.length > 0) {
-        book.mundo = migrateV2(parsed);
+        book.mundo = migrateV3(migrateV2(parsed));
       }
     }
   } catch {
@@ -505,10 +684,18 @@ export function updateObject(id: string, patch: Partial<SceneObject>): void {
   set({ ...s, objects: s.objects.map((o) => (o.id === id ? { ...o, ...patch } : o)) });
 }
 
+/**
+ * Apaga um objeto.
+ *
+ * Area de interacao unica (vara, mercado, limiar) nao sai: o jogo depende dela
+ * para saber onde pescar, onde vender e onde a camera vira. Parede sai - o
+ * mapa pode muito bem nao ter parede nenhuma.
+ */
 export function removeObject(id: string): void {
   const s = book[active];
   const o = s.objects.find((x) => x.id === id);
-  if (!o || o.locked || o.kind === 'zone') return;
+  if (!o || o.locked) return;
+  if (o.kind === 'zone' && o.zone !== 'parede') return;
   set({ ...s, objects: s.objects.filter((x) => x.id !== id) });
 }
 
@@ -531,10 +718,60 @@ export function addSprite(sprite: string, layer: LayerId, x: number, y: number, 
   return obj;
 }
 
+/**
+ * Cria uma forma geometrica colorida.
+ *
+ * Serve para o que nao tem sprite: um bloco de sombra, uma faixa de cor sobre a
+ * agua, um vulto no fundo, uma marcacao de trabalho. Como qualquer objeto, ela
+ * tem camada, profundidade, giro e opacidade.
+ */
+export function addShape(shape: ShapeKind, x: number, y: number, layer: LayerId = 'objetos'): SceneObject {
+  const s = book[active];
+  const obj: SceneObject = {
+    id: `${shape}-${Date.now().toString(36)}`,
+    layer,
+    kind: 'forma',
+    shape,
+    x: Math.round(x - 90),
+    y: Math.round(y - 60),
+    w: 180,
+    h: 120,
+    rot: 0,
+    depth: 6,
+    opacity: 0.9,
+    fill: '#2fd6c9',
+    stroke: '',
+    strokeW: 4,
+    radius: 0,
+  };
+  set({ ...s, objects: [...s.objects, obj] });
+  return obj;
+}
+
+/** Cria uma parede nova onde a tela estiver. */
+export function addWall(x: number, y: number): SceneObject {
+  const s = book[active];
+  const obj: SceneObject = {
+    id: `parede-${Date.now().toString(36)}`,
+    layer: 'interagiveis',
+    kind: 'zone',
+    zone: 'parede',
+    x: Math.round(x - 30),
+    y: Math.round(y - 150),
+    w: 60,
+    h: 300,
+    rot: 0,
+    depth: 9,
+  };
+  set({ ...s, objects: [...s.objects, obj] });
+  return obj;
+}
+
 export function duplicateObject(id: string): SceneObject | null {
   const s = book[active];
   const o = s.objects.find((x) => x.id === id);
   if (!o) return null;
+  if (o.kind === 'zone' && o.zone !== 'parede') return null;
   const copy: SceneObject = { ...o, id: `${o.id}-copia-${Date.now().toString(36)}`, x: o.x + 40, locked: false };
   set({ ...s, objects: [...s.objects, copy] });
   return copy;
@@ -603,6 +840,45 @@ export function zoneRect(zone: ZoneId): { x: number; y: number; w: number; h: nu
 export function inZone(zone: ZoneId, x: number): boolean {
   const r = zoneRect(zone);
   return r ? x >= r.x && x <= r.x + r.w : false;
+}
+
+/** Todas as paredes da cena do mundo. */
+export function wallRects(): { x: number; w: number }[] {
+  return book.mundo.objects
+    .filter((o) => o.kind === 'zone' && o.zone === 'parede' && !o.off)
+    .map((o) => ({ x: o.x, w: o.w }));
+}
+
+/**
+ * Onde o Juggler para de andar.
+ *
+ * Uma parede barra pelo lado de onde ele vem: se ele ja esta a esquerda dela,
+ * nao passa da borda esquerda; se ja esta a direita, nao passa da direita.
+ * Assim uma parede no meio do mapa funciona nos dois sentidos, e uma parede na
+ * ponta funciona como o limite antigo do mapa.
+ */
+export function blockWalls(from: number, to: number): number {
+  let x = to;
+  for (const w of wallRects()) {
+    const meio = w.x + w.w / 2;
+    if (from <= meio) x = Math.min(x, w.x);
+    else x = Math.max(x, w.x + w.w);
+  }
+  return x;
+}
+
+/**
+ * O X do limiar do pier: a esquerda dele a camera abre para o mar, a direita
+ * ela fecha na superficie. `null` quando nao ha limiar na cena.
+ */
+export function thresholdX(): number | null {
+  const o = book.mundo.objects.find((x) => x.kind === 'zone' && x.zone === 'limiar');
+  return o ? o.x + o.w / 2 : null;
+}
+
+/** A caixa de uma peca de interface da tela de titulo. */
+export function menuSlot(role: SceneObject['role']): SceneObject | null {
+  return book.menu.objects.find((o) => o.role === role && !o.off) ?? null;
 }
 
 /** Onde esta a vara agora: usado pela camera e pela boia. */

@@ -22,8 +22,11 @@ import {
  */
 export function LibraryPanel({
   onDragAsset,
+  onAddAsset,
 }: {
   onDragAsset: (path: string, clientX: number, clientY: number) => void;
+  /** clique simples: joga o asset no meio da tela, sem arrastar nada */
+  onAddAsset: (path: string) => void;
 }) {
   const lib = useLibraryState();
   const folders = foldersOf(lib);
@@ -126,14 +129,15 @@ export function LibraryPanel({
                       setHeld(null);
                       setOver(null);
                     }}
+                    onClick={() => onAddAsset(path)}
                     onPointerDown={(e) => {
-                      // arrastar para a CENA e ponteiro; para outra PASTA e o
-                      // drag-and-drop nativo. Segurar shift manda para a cena.
+                      // CLIQUE simples ja poe na cena (`onClick`). Segurar shift
+                      // e arrastar deixa escolher o lugar; arrastar sem shift e o
+                      // drag nativo, que serve para trocar de pasta.
                       if (e.button !== 0 || !e.shiftKey) return;
                       e.preventDefault();
                       onDragAsset(path, e.clientX, e.clientY);
                     }}
-                    onDoubleClick={(e) => onDragAsset(path, e.clientX, e.clientY)}
                   >
                     <img src={asset(path)} alt="" />
                   </button>
@@ -146,8 +150,9 @@ export function LibraryPanel({
       </div>
 
       <div className="ehint">
-        Duplo clique (ou shift+arrastar) joga o asset na cena. Arrastar um item para outra pasta só
-        muda onde ele aparece aqui.
+        <strong>Clique põe o asset na cena</strong>, no meio da tela e já selecionado. Shift +
+        arrastar deixa escolher o ponto na mão. Arrastar um item para outra pasta só muda onde ele
+        aparece aqui - não mexe em arquivo.
       </div>
     </div>
   );

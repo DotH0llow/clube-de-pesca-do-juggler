@@ -57,7 +57,34 @@ export function depthZ(depth: number): number {
   return Math.round(Math.min(DEPTH_MAX, Math.max(DEPTH_MIN, depth)) * 10);
 }
 
-export type ZoneId = 'vara' | 'mercado';
+/**
+ * As areas de interacao do mundo.
+ *
+ *   vara    - abre a pescaria
+ *   mercado - abre o mercado de peixe
+ *   parede  - barra o Juggler (as antigas paredes invisiveis, agora moveis)
+ *   limiar  - troca o enquadramento da camera entre mar e praia
+ *
+ * Pode existir mais de uma parede na cena. As outras sao unicas.
+ */
+export type ZoneId = 'vara' | 'mercado' | 'parede' | 'limiar';
+
+export const ZONE_LABEL: Record<ZoneId, string> = {
+  vara: 'PESCAR',
+  mercado: 'MERCADO',
+  parede: 'PAREDE',
+  limiar: 'LIMIAR DO PÍER',
+};
+
+/** Formas geometricas que da para criar direto no editor, sem sprite. */
+export type ShapeKind = 'retangulo' | 'elipse' | 'triangulo' | 'losango';
+
+export const SHAPES: { id: ShapeKind; label: string }[] = [
+  { id: 'retangulo', label: 'RETÂNGULO' },
+  { id: 'elipse', label: 'ELIPSE' },
+  { id: 'triangulo', label: 'TRIÂNGULO' },
+  { id: 'losango', label: 'LOSANGO' },
+];
 
 /** Cada tela editável é uma cena própria, com lista e histórico separados. */
 export type SceneId = 'mundo' | 'menu';
@@ -65,8 +92,8 @@ export type SceneId = 'mundo' | 'menu';
 export interface SceneObject {
   id: string;
   layer: LayerId;
-  /** sprite comum, faixa que se repete no horizonte, ou area de interacao */
-  kind: 'sprite' | 'zone' | 'strip';
+  /** sprite, faixa repetida, area de interacao ou forma geometrica */
+  kind: 'sprite' | 'zone' | 'strip' | 'forma';
   /** caminho no registro de assets (kind = sprite | strip) */
   sprite?: string;
   /** qual interacao esta area dispara (kind = zone) */
@@ -84,17 +111,42 @@ export interface SceneObject {
   opacity?: number;
   /** true = nao pode ser selecionado nem apagado */
   locked?: boolean;
+  /** true = desligado: nao aparece no jogo e nao vale como parede, mas continua na lista */
+  off?: boolean;
   /** tratamento visual de coisa submersa */
   under?: boolean;
   /** classe extra de animacao (drift, rise...) */
   anim?: string;
-  /** papel especial no jogo: a vara some quando o Juggler pega a dele */
-  role?: 'vara';
+  /**
+   * Papel especial da peca.
+   *
+   *   vara    - a vara fincada no deck; some quando o Juggler pega a dele
+   *   juggler - a arte do Juggler posando na tela de titulo
+   *   titulo  - o bloco do logo e do subtitulo
+   *   botoes  - a coluna de botoes do menu
+   *   vinheta - o escurecido das bordas da tela de titulo
+   *
+   * Peca com papel e desenhada por quem sabe desenha-la (a tela de titulo, por
+   * exemplo), mas continua sendo objeto de cena: da para arrastar, esticar,
+   * mudar de profundidade e de opacidade no editor como qualquer outra.
+   */
+  role?: 'vara' | 'juggler' | 'titulo' | 'botoes' | 'vinheta';
   /**
    * Quanto a faixa anda em relacao a camera (kind = strip).
    * 0,22 = bem longe; 0,52 = meio termo; 1 = anda junto com o mundo.
    */
   parallax?: number;
+
+  // ------------------------------------------------- forma geometrica (kind = forma)
+  shape?: ShapeKind;
+  /** cor de dentro, em hexadecimal */
+  fill?: string;
+  /** cor da borda; vazio = sem borda */
+  stroke?: string;
+  /** espessura da borda, em unidades de mundo */
+  strokeW?: number;
+  /** canto arredondado do retangulo, em unidades de mundo */
+  radius?: number;
 }
 
 export interface SceneState {
