@@ -1,13 +1,19 @@
 import { useSyncExternalStore } from 'react';
+import { SKY_BY_ID, SKY_ORDER, type SkyPhaseId } from '../data/skies';
 import type { RegionId } from '../state/types';
 
 /**
  * O relogio do jogo.
  *
- * Os quatro cenarios deixaram de ser "mapas" que o jogador compra e escolhe:
- * agora sao as quatro fases de um mesmo dia, que anda sozinho. Um dia inteiro
- * dura 24 minutos reais, entao cada fase fica 6 minutos no ar e o ciclo volta
- * ao comeco sem pedir licenca.
+ * Os cenarios deixaram de ser "mapas" que o jogador compra e escolhe: agora
+ * sao as HORAS de um mesmo dia, que anda sozinho. Com o pacote de ceus novo o
+ * dia passou a ter oito horas em vez de quatro: um dia inteiro continua durando
+ * 24 minutos reais, entao cada hora fica 3 minutos no ar e o ciclo volta ao
+ * comeco sem pedir licenca.
+ *
+ * Hora e REGIAO sao coisas diferentes: a hora manda no visual (ceu, cor do mar,
+ * clima) e aponta para a regiao que vale nela; a regiao manda na economia. Ver
+ * `src/data/skies.ts`.
  *
  * O tempo vem do relogio da maquina (`Date.now()`), nao de um contador que
  * comeca do zero a cada partida. Assim o mundo continua girando com o jogo
@@ -32,31 +38,54 @@ export function clockOffset(): number {
 
 export const DAY_LENGTH_MS = 24 * 60 * 1000;
 
-/** A ordem em que o dia passa. Os ids continuam os mesmos por compatibilidade. */
+/** As oito horas do dia, na ordem em que entram no ar. */
+export const HOUR_ORDER: SkyPhaseId[] = SKY_ORDER;
+
+/**
+ * A ordem das REGIOES no dia, sem repetir.
+ *
+ * Sobrou para nao quebrar quem so quer listar as quatro regioes (loja, painel
+ * de dev, album). O ciclo de verdade e o de `HOUR_ORDER`.
+ */
 export const DAY_ORDER: RegionId[] = ['enseada', 'naufragio', 'recife', 'fossa'];
 
-export const PHASE_MS = DAY_LENGTH_MS / DAY_ORDER.length;
+export const PHASE_MS = DAY_LENGTH_MS / HOUR_ORDER.length;
 
 export interface DayPhase {
+  /** a regiao que vale nesta hora (economia) */
   id: RegionId;
-  /** 0..3 */
+  /** a hora do dia (visual) */
+  sky: SkyPhaseId;
+  /** 0..7 */
   index: number;
-  /** quanto ja andou dentro da fase, de 0 a 1 */
+  /** quanto ja andou dentro da hora, de 0 a 1 */
   progress: number;
-  /** ms que faltam para a proxima fase */
+  /** ms que faltam para a proxima hora */
   msLeft: number;
 }
 
 export function dayPhaseAt(now = gameNow()): DayPhase {
   const t = ((now % DAY_LENGTH_MS) + DAY_LENGTH_MS) % DAY_LENGTH_MS;
-  const index = Math.min(DAY_ORDER.length - 1, Math.floor(t / PHASE_MS));
+  const index = Math.min(HOUR_ORDER.length - 1, Math.floor(t / PHASE_MS));
   const into = t - index * PHASE_MS;
-  return { id: DAY_ORDER[index], index, progress: into / PHASE_MS, msLeft: PHASE_MS - into };
+  const sky = HOUR_ORDER[index];
+  return {
+    id: SKY_BY_ID[sky].region,
+    sky,
+    index,
+    progress: into / PHASE_MS,
+    msLeft: PHASE_MS - into,
+  };
 }
 
-/** Qual fase esta valendo agora - para quem nao e componente React. */
+/** Qual regiao esta valendo agora - para quem nao e componente React. */
 export function currentPhase(): RegionId {
   return dayPhaseAt().id;
+}
+
+/** Que hora do dia esta no ar agora. */
+export function currentSky(): SkyPhaseId {
+  return dayPhaseAt().sky;
 }
 
 /** Hora ficticia do mundo, em formato 24h, so para mostrar na tela. */
@@ -76,11 +105,11 @@ export function clockLabel(now = gameNow()): string {
  * fase realmente vira - nao adianta re-renderizar o mundo a cada segundo.
  */
 const listeners = new Set<() => void>();
-let snapshot: RegionId = currentPhase();
+let snapshot: SkyPhaseId = currentSky();
 let timer: ReturnType<typeof setInterval> | undefined;
 
 function tick(force = false) {
-  const next = currentPhase();
+  const next = currentSky();
   if (next === snapshot && !force) return;
   snapshot = next;
   for (const l of listeners) l();
@@ -99,14 +128,20 @@ export function shiftClock(ms: number): void {
   clockTick();
 }
 
-/** Leva o relogio para o comeco de uma fase, sem passar pelas outras. */
-export function jumpToPhase(id: RegionId): void {
-  const target = DAY_ORDER.indexOf(id);
+/** Leva o relogio para o comeco de uma hora, sem passar pelas outras. */
+export function jumpToSky(id: SkyPhaseId): void {
+  const target = HOUR_ORDER.indexOf(id);
   if (target < 0) return;
   const t = ((gameNow() % DAY_LENGTH_MS) + DAY_LENGTH_MS) % DAY_LENGTH_MS;
   // meio da fase, e nao a borda: parar em cima da virada troca de fase sozinho
   const want = target * PHASE_MS + PHASE_MS * 0.15;
   shiftClock(want - t);
+}
+
+/** Leva o relogio para a primeira hora em que a regiao pedida vale. */
+export function jumpToPhase(id: RegionId): void {
+  const hour = HOUR_ORDER.find((h) => SKY_BY_ID[h].region === id);
+  if (hour) jumpToSky(hour);
 }
 
 /** Devolve o relogio para a hora de verdade. */
@@ -128,13 +163,18 @@ function subscribe(fn: () => void): () => void {
   };
 }
 
-/** A fase do dia que esta valendo, re-renderizando so quando ela troca. */
-export function useDayPhase(): RegionId {
+/** A hora do dia que esta valendo, re-renderizando so quando ela troca. */
+export function useSkyPhase(): SkyPhaseId {
   return useSyncExternalStore(
     subscribe,
     () => snapshot,
     () => snapshot,
   );
+}
+
+/** A regiao que esta valendo, derivada da hora. */
+export function useDayPhase(): RegionId {
+  return SKY_BY_ID[useSkyPhase()].region;
 }
 
 /**

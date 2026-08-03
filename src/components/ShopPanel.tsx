@@ -11,12 +11,17 @@ import { asset } from '../assets';
 
 type Tab = 'loja' | 'altar' | 'dia';
 
-/** Miniatura do ceu de cada fase do dia. */
+/**
+ * Miniatura do ceu de cada regiao.
+ *
+ * Uma regiao vale em mais de uma hora do dia, entao aqui a miniatura e a
+ * PRIMEIRA hora em que ela entra no ar - a que melhor a representa.
+ */
 const REGION_SKY: Record<RegionId, string> = {
-  enseada: 'bg/sky-day',
-  recife: 'bg/sky-sunset',
-  naufragio: 'bg/reef-deep',
-  fossa: 'bg/sky-night',
+  enseada: 'bg/sky-02-nascer-do-sol-transicao',
+  recife: 'bg/sky-06-por-do-sol',
+  naufragio: 'bg/sky-05-tarde-dourada-transicao',
+  fossa: 'bg/sky-08-noite-profunda',
 };
 
 /**
