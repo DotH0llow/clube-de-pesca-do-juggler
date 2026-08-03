@@ -17,22 +17,36 @@ import {
   toggleLayer,
   toggleLock,
   undo,
+  rodX,
   updateObject,
   useScene,
 } from './scene';
 import { LAYERS, type LayerId, type SceneObject } from './types';
+import { AnimationsPanel, MechanicsPanel } from './AnimationsPanel';
+import { updateFx, useFx, type FxItem } from './fx';
+import { currentStep, stopPreview, usePreview } from './preview';
+import { zoneRect } from './scene';
+import { groundAt } from '../world/layout';
 
 type Handle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w';
 type Drag =
   | { mode: 'move'; id: string; ox: number; oy: number; px: number; py: number }
   | { mode: 'scale'; id: string; handle: Handle; start: SceneObject; px: number; py: number }
   | { mode: 'rot'; id: string; cx: number; cy: number; start: number; base: number }
+  | { mode: 'fx-move'; id: string; ox: number; oy: number; px: number; py: number }
+  | { mode: 'fx-scale'; id: string; handle: Handle; start: FxItem; px: number; py: number }
   | { mode: 'pan'; px: number; cam: number }
   | null;
 
 interface Props {
   camXRef: React.MutableRefObject<number>;
   scale: number;
+  /** deslocamento vertical da cena quando o zoom passa da altura da tela */
+  viewY: number;
+  zoom: number;
+  onResetZoom: () => void;
+  /** onde o Juggler esta: ancora das pecas presas nele (ponta da vara) */
+  playerXRef: React.MutableRefObject<number>;
   onExit: () => void;
 }
 
@@ -63,13 +77,26 @@ function useLibrary() {
  *     como um passo so;
  *   - tudo o que muda vai direto para a cena, que e a mesma que o jogo desenha.
  */
-export function EditorOverlay({ camXRef, scale, onExit }: Props) {
+export function EditorOverlay({
+  camXRef,
+  scale,
+  viewY,
+  zoom,
+  onResetZoom,
+  playerXRef,
+  onExit,
+}: Props) {
   const scene = useScene();
   const library = useLibrary();
+  const fx = useFx();
+  const preview = usePreview();
 
   const [layer, setLayer] = useState<LayerId>('cenario');
   const [selected, setSelected] = useState<string | null>(null);
-  const [panel, setPanel] = useState<'biblioteca' | 'cena' | null>('biblioteca');
+  const [fxSel, setFxSel] = useState<string | null>(null);
+  const [panel, setPanel] = useState<'biblioteca' | 'cena' | 'animacoes' | 'mecanicas' | null>(
+    'biblioteca',
+  );
   const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [cam, setCam] = useState(() => camXRef.current);
   const [dragAsset, setDragAsset] = useState<string | null>(null);
@@ -80,13 +107,55 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
     camXRef.current = cam;
   }, [cam, camXRef]);
 
+  // fechar o editor nunca deixa o jogo preso numa etapa de simulacao
+  useEffect(() => stopPreview, []);
+
+  /**
+   * Ligar a simulacao leva o Juggler para o ponto de pesca e enquadra a camera
+   * la. Sem isso a mecanica rodava onde o editor tinha parado - normalmente na
+   * praia, longe do apetrecho, e nao dava para ver nada.
+   */
+  useEffect(() => {
+    if (!preview.mechanic) return;
+    const z = zoneRect('vara');
+    playerXRef.current = z ? z.x + z.w / 2 : rodX();
+    const view = window.innerWidth / scale;
+    setCam(Math.max(0, rodX() - view * 0.45));
+    setSelected(null);
+  }, [preview.mechanic, playerXRef, scale]);
+
   const sel = selected ? scene.objects.find((o) => o.id === selected) ?? null : null;
 
-  const toScreen = useCallback((x: number, y: number) => ({ x: (x - cam) * scale, y: y * scale }), [cam, scale]);
-  const toWorld = useCallback(
-    (px: number, py: number) => ({ x: px / scale + cam, y: py / scale }),
-    [cam, scale],
+  const toScreen = useCallback(
+    (x: number, y: number) => ({ x: (x - cam) * scale, y: y * scale + viewY }),
+    [cam, scale, viewY],
   );
+  const toWorld = useCallback(
+    (px: number, py: number) => ({ x: px / scale + cam, y: (py - viewY) / scale }),
+    [cam, scale, viewY],
+  );
+
+  /**
+   * Onde uma peca de mecanica esta, em unidades de mundo.
+   *
+   * Peca de apetrecho mede a partir do ponto onde a boia cai; peca presa no
+   * Juggler (a ponta da vara) mede a partir dos pes dele. Assim o editor mostra
+   * a peca exatamente onde o jogo vai desenhar.
+   */
+  const fxRect = useCallback(
+    (it: FxItem) => {
+      const base =
+        it.anchor === 'jogador'
+          ? { x: playerXRef.current, y: groundAt(playerXRef.current) }
+          : { x: rodX() + fx.timings.bobberDx, y: fx.timings.bobberY };
+      return { x: base.x + it.x, y: base.y + it.y, w: it.w, h: it.h };
+    },
+    [fx.timings.bobberDx, fx.timings.bobberY, playerXRef],
+  );
+
+  const step = preview.mechanic ? currentStep() : null;
+  const stepItems = step ? fx.items.filter((i) => i.steps.includes(step.id)) : [];
+  const fxItem = fxSel ? stepItems.find((i) => i.id === fxSel) ?? null : null;
 
   /** Objeto mais a frente sob o ponto, respeitando camada ativa e cadeado. */
   const hit = useCallback(
@@ -175,6 +244,23 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
     // daqui para baixo e so o botao esquerdo
     if (e.button !== 0) return;
 
+    // com a simulacao ligada, as pecas da mecanica pegam o clique primeiro:
+    // elas estao por cima de tudo e sao o que voce veio ajustar
+    if (step) {
+      for (let i = stepItems.length - 1; i >= 0; i--) {
+        const it = stepItems[i];
+        const r = fxRect(it);
+        const pad = it.point ? 14 : 0;
+        if (w.x >= r.x - pad && w.x <= r.x + r.w + pad && w.y >= r.y - pad && w.y <= r.y + r.h + pad) {
+          setFxSel(it.id);
+          setSelected(null);
+          drag.current = { mode: 'fx-move', id: it.id, ox: it.x, oy: it.y, px, py };
+          return;
+        }
+      }
+      setFxSel(null);
+    }
+
     const found = hit(w.x, w.y);
     if (found) {
       setSelected(found.id);
@@ -213,6 +299,42 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
         updateObject(d.id, {
           x: Math.round(d.ox + (px - d.px) / scale),
           y: Math.round(d.oy + (py - d.py) / scale),
+        });
+        return;
+      }
+      if (d.mode === 'fx-move') {
+        updateFx(d.id, {
+          x: Math.round(d.ox + (px - d.px) / scale),
+          y: Math.round(d.oy + (py - d.py) / scale),
+        });
+        return;
+      }
+      if (d.mode === 'fx-scale') {
+        const dx = (px - d.px) / scale;
+        const dy = (py - d.py) / scale;
+        const st = d.start;
+        let { x, y, w, h } = st;
+        const ratio = st.w / st.h;
+        const corner = d.handle.length === 2;
+        if (d.handle.includes('e')) w = st.w + dx;
+        if (d.handle.includes('w')) {
+          w = st.w - dx;
+          x = st.x + dx;
+        }
+        if (d.handle.includes('s')) h = st.h + dy;
+        if (d.handle.includes('n')) {
+          h = st.h - dy;
+          y = st.y + dy;
+        }
+        if (corner) {
+          h = Math.max(4, w / ratio);
+          if (d.handle.includes('n')) y = st.y + (st.h - h);
+        }
+        updateFx(d.id, {
+          x: Math.round(x),
+          y: Math.round(y),
+          w: Math.max(4, Math.round(w)),
+          h: Math.max(4, Math.round(h)),
         });
         return;
       }
@@ -295,6 +417,21 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
       id: sel.id,
       handle,
       start: { ...sel },
+      px: e.clientX - rect.left,
+      py: e.clientY - rect.top,
+    };
+  };
+
+  const startFxHandle = (e: React.PointerEvent, handle: Handle) => {
+    if (!fxItem || e.button !== 0) return;
+    e.stopPropagation();
+    const host = (e.currentTarget as HTMLElement).closest('.editor-canvas') as HTMLElement;
+    const rect = host.getBoundingClientRect();
+    drag.current = {
+      mode: 'fx-scale',
+      id: fxItem.id,
+      handle,
+      start: { ...fxItem },
       px: e.clientX - rect.left,
       py: e.clientY - rect.top,
     };
@@ -384,6 +521,38 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
           </div>
         )}
 
+        {/* pecas da mecanica em simulacao: caixa por cima do efeito de verdade */}
+        {step &&
+          stepItems.map((it) => {
+            const r = fxRect(it);
+            const p = toScreen(r.x, r.y);
+            if (it.point) {
+              return (
+                <div
+                  key={it.id}
+                  className={`editor-fxpoint${fxSel === it.id ? ' on' : ''}`}
+                  style={{ left: p.x, top: p.y }}
+                  title={it.label}
+                >
+                  <span>{it.label}</span>
+                </div>
+              );
+            }
+            return (
+              <div
+                key={it.id}
+                className={`editor-fx${fxSel === it.id ? ' on' : ''}`}
+                style={{ left: p.x, top: p.y, width: r.w * scale, height: r.h * scale }}
+              >
+                <b>{it.label}</b>
+                {fxSel === it.id &&
+                  HANDLES.map((h) => (
+                    <i key={h} className={`h ${h}`} onPointerDown={(e) => startFxHandle(e, h)} />
+                  ))}
+              </div>
+            );
+          })}
+
         {ghost && dragAsset && (
           <img className="editor-ghost" src={asset(dragAsset)} alt="" style={{ left: ghost.x, top: ghost.y }} />
         )}
@@ -398,11 +567,45 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
         <button className="ebtn" disabled={!canRedo()} onClick={() => redo()} title="Ctrl+Shift+Z">
           REFAZER
         </button>
-        <button className="ebtn" onClick={() => setPanel(panel === 'biblioteca' ? null : 'biblioteca')}>
+        <button
+          className="ebtn"
+          onClick={() => {
+            stopPreview();
+            setPanel(panel === 'biblioteca' ? null : 'biblioteca');
+          }}
+        >
           BIBLIOTECA
         </button>
-        <button className="ebtn" onClick={() => setPanel(panel === 'cena' ? null : 'cena')}>
+        <button
+          className="ebtn"
+          onClick={() => {
+            stopPreview();
+            setPanel(panel === 'cena' ? null : 'cena');
+          }}
+        >
           CENA ({scene.objects.length})
+        </button>
+        <button
+          className="ebtn"
+          onClick={() => {
+            stopPreview();
+            setPanel(panel === 'animacoes' ? null : 'animacoes');
+          }}
+        >
+          ANIMAÇÕES
+        </button>
+        <button
+          className="ebtn"
+          onClick={() => {
+            const next = panel === 'mecanicas' ? null : 'mecanicas';
+            setPanel(next);
+            if (next === null) stopPreview();
+          }}
+        >
+          MECÂNICAS
+        </button>
+        <button className="ebtn" onClick={onResetZoom} title="Ctrl + roda do mouse dá zoom">
+          ZOOM {Math.round(zoom * 100)}%
         </button>
         <button className="ebtn" onClick={doExport}>
           EXPORTAR
@@ -413,7 +616,7 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
         <button
           className="ebtn danger"
           onClick={() => {
-            if (confirm('Voltar a cena original? Tudo que voce moveu se perde.')) {
+            if (confirm('Voltar à cena original? Tudo que você moveu se perde.')) {
               resetScene();
               setSelected(null);
             }
@@ -426,7 +629,13 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
           CLIQUE ESQUERDO SELECIONA E ARRASTA &middot; ALÇAS REDIMENSIONAM &middot; BOTÃO DIREITO
           ABRE O MENU &middot; CTRL+Z DESFAZ &middot; DEL APAGA
         </span>
-        <button className="ebtn primary" onClick={onExit}>
+        <button
+          className="ebtn primary"
+          onClick={() => {
+            stopPreview();
+            onExit();
+          }}
+        >
           SAIR DO EDITOR
         </button>
       </div>
@@ -550,6 +759,10 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
           </div>
         </div>
       )}
+
+      {panel === 'animacoes' && <AnimationsPanel />}
+
+      {panel === 'mecanicas' && <MechanicsPanel selected={fxSel} onSelect={setFxSel} />}
 
       {/* ---------------------------------------------------- menu do direito */}
       {menu && (

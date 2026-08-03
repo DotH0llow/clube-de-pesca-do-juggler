@@ -4,8 +4,10 @@ import type { CastResult, RegionId } from '../state/types';
 import type { Phase } from '../hooks/useFishingLoop';
 import { useSettings } from '../state/settings';
 import { rodX, zoneRect } from '../editor/scene';
+import { rodTip, useFx, type StepId } from '../editor/fx';
+import type { FishPose } from '../world/usePlayer';
 import {
-  BOBBER_Y,
+  groundAt,
   PIER_END,
   PIER_RAMP,
   PIER_START,
@@ -24,14 +26,20 @@ import { Sky } from './Sky';
 interface Props {
   region: RegionId;
   phase: Phase;
+  /** momento do lance ja resolvido pelo App (inclui o quadro de arremesso) */
+  pose: FishPose;
   pending: CastResult | null;
   fishing: boolean;
+  /** onde o Juggler esta: a linha de pesca sai da ponta da vara dele */
+  playerXRef: React.MutableRefObject<number>;
   cameraRef: React.MutableRefObject<HTMLDivElement | null>;
   farRef: React.MutableRefObject<HTMLDivElement | null>;
   midRef: React.MutableRefObject<HTMLDivElement | null>;
   playerRef: React.MutableRefObject<HTMLDivElement | null>;
   spriteRef: React.MutableRefObject<HTMLImageElement | null>;
   scale: number;
+  /** deslocamento vertical da cena quando o zoom passa da altura da tela */
+  viewY: number;
 }
 
 /**
@@ -42,21 +50,37 @@ interface Props {
 export function World({
   region,
   phase,
+  pose,
   pending,
   fishing,
+  playerXRef,
   cameraRef,
   farRef,
   midRef,
   playerRef,
   spriteRef,
   scale,
+  viewY,
 }: Props) {
   const settings = useSettings();
+  const fx = useFx();
   const p = REGIONS[region].palette;
   const inWater = fishing && (phase === 'waiting' || phase === 'bite' || phase === 'reeling');
   const biting = phase === 'bite';
-  const reeling = phase === 'reeling';
-  const bobberX = rodX() - 215;
+  const step: StepId = phase === 'result' ? 'result' : pose;
+
+  // ------------------------------------------------ apetrecho (linha e boia)
+  // Ancora da boia e ponta da vara saem da configuracao de mecanicas: e o que o
+  // editor edita na secao MECANICAS, entao o jogo desenha o que voce ajustou.
+  const bobberX = rodX() + fx.timings.bobberDx;
+  const bobberY = fx.timings.bobberY;
+  const tip = rodTip(pose);
+  const px = playerXRef.current;
+  const tipX = px + tip.x;
+  const tipY = groundAt(px) + tip.y;
+  const sag = phase === 'reeling' ? 0 : fx.timings.lineSag;
+  const rigItems = fx.items.filter((i) => !i.point && i.steps.includes(step));
+
   const mercado = zoneRect('mercado');
   const marketMark = mercado ? mercado.x + mercado.w / 2 : null;
 
@@ -64,8 +88,13 @@ export function World({
     <div className="stage">
       <Sky region={region} />
 
-      {/* escala tudo pela altura da tela: o mundo tem sempre 720 de altura */}
-      <div className="world-scale" style={{ transform: `scale(${scale})` }}>
+      {/* escala tudo pela altura da tela: o mundo tem sempre 720 de altura.
+          Com o zoom de ctrl+roda a cena passa da altura da viewport, entao ela
+          tambem e centralizada em vez de ficar colada no topo. */}
+      <div
+        className="world-scale"
+        style={{ transform: `translate3d(0,${viewY}px,0) scale(${scale})` }}
+      >
         {/* ------------------------------------------------ fundo distante */}
         <div className="layer" ref={farRef}>
           <div
@@ -148,6 +177,18 @@ export function World({
             className="sand"
             style={{ left: SHORE_X - 60, width: WORLD_W - SHORE_X + 160, top: SAND_Y, height: WORLD_H - SAND_Y }}
           />
+          {/* Sobra sob o mundo. Com o zoom afastado a cena fica menor que a
+              viewport e sem isso aparecia uma faixa preta embaixo; sao duas
+              tiras chapadas na cor com que o fundo do mar e a areia terminam. */}
+          <div
+            className="world-spill"
+            style={{ left: -400, width: SHORE_X + 400, top: WORLD_H, background: '#b8a878' }}
+          />
+          <div
+            className="world-spill"
+            style={{ left: SHORE_X - 60, width: WORLD_W - SHORE_X + 160, top: WORLD_H, background: '#a88750' }}
+          />
+
           {/* a areia nao termina num corte reto: desce em rampa para dentro da agua */}
           <div className="sand-slope" style={{ left: SHORE_X - 460, top: SAND_Y }} />
           <div className="tide-line" style={{ left: SHORE_X - 300, width: 330, top: SAND_Y + 18 }} />
@@ -173,25 +214,50 @@ export function World({
 
           {/* ------------------------------------------- linha, boia, peixe */}
           {inWater && (
-            <div className="rig" style={{ left: bobberX, top: BOBBER_Y }}>
-              <img className="rig-line" src={asset(reeling ? 'fx/taut-fishing-line' : 'fx/line-across-surface')} alt="" />
-              <img
-                className={`ripple${biting && settings.screenShake ? ' shaking' : ''}`}
-                src={asset('fx/circular-ripple')}
-                alt=""
-              />
-              {biting && (
-                <>
-                  <img className="bite-ring" src={asset('fx/bite-alert-ring')} alt="" />
-                  <img className="bang" src={asset('fx/exclamation-mark')} alt="" />
-                </>
-              )}
-              {reeling && pending?.fish && (
-                <div className="hooked">
-                  <FishSprite fish={pending.fish} size={70} />
-                </div>
-              )}
-            </div>
+            <>
+              {/* A linha e desenhada, nao e sprite: assim ela sai EXATAMENTE da
+                  ponta da vara e chega EXATAMENTE na boia, com o comprimento e
+                  a direcao que a pose pede. Antes era um PNG de tamanho fixo
+                  solto perto da agua, que nunca batia com a vara. */}
+              <svg className="rig-line-svg" viewBox={`0 0 ${WORLD_W} ${WORLD_H}`} preserveAspectRatio="none">
+                <path
+                  d={`M ${tipX} ${tipY} Q ${(tipX + bobberX) / 2} ${(tipY + bobberY) / 2 + sag} ${bobberX} ${bobberY}`}
+                  fill="none"
+                  stroke="rgba(255,255,255,0.75)"
+                  strokeWidth={fx.timings.lineWidth}
+                />
+              </svg>
+
+              {rigItems.map((it) => {
+                const style: React.CSSProperties = {
+                  left: bobberX + it.x,
+                  top: bobberY + it.y,
+                  width: it.w,
+                  height: it.h,
+                  opacity: it.opacity,
+                  transform: it.rot ? `rotate(${it.rot}deg)` : undefined,
+                };
+                if (it.id === 'peixe-fisgado') {
+                  return pending?.fish ? (
+                    <div key={it.id} className="rig-item hooked" style={style}>
+                      <FishSprite fish={pending.fish} size={Math.min(it.w, it.h)} />
+                    </div>
+                  ) : null;
+                }
+                const shake = it.id === 'ondinha' && biting && settings.screenShake ? ' shaking' : '';
+                const pulse = it.id === 'anel-mordida' ? ' pulsing' : '';
+                const bob = it.id === 'exclamacao' ? ' bobbing' : '';
+                return (
+                  <img
+                    key={it.id}
+                    className={`rig-item${shake}${pulse}${bob}`}
+                    src={asset(it.sprite)}
+                    alt=""
+                    style={style}
+                  />
+                );
+              })}
+            </>
           )}
 
           {/* ------------------------------------------------- o Juggler */}

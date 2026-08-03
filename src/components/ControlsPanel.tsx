@@ -19,7 +19,7 @@ const STEPS = [
     title: 'Fisgar',
     touch: 'Toque em FISGAR! assim que a boia mexer.',
     keys: 'Espaço ou Enter',
-    tip: 'A janela é de pouco mais de um segundo. Perdeu, perdeu o peixe.',
+    tip: 'A janela é de uns 4 segundos e meio. Perdeu, perdeu o peixe. Dá para afinar esse tempo no editor, em MECÂNICAS.',
   },
   {
     n: '4',
@@ -64,6 +64,16 @@ export function ControlsApp() {
         </div>
       ))}
 
+      <div className="section-title">Câmera</div>
+      <div className="row">
+        <div className="grow desc">
+          <strong style={{ color: 'var(--neon)' }}>Ctrl + roda do mouse</strong> aproxima e afasta a
+          câmera, de 60% até 260%. Serve para conferir um detalhe do cenário de perto ou abrir o
+          plano e ver o píer inteiro. O zoom vale também dentro do modo editor, e o botão
+          <strong> ZOOM</strong> da barra do editor volta para 100%.
+        </div>
+      </div>
+
       <div className="section-title">Moedas</div>
       <div className="row">
         <div className="grow">
@@ -81,7 +91,7 @@ export function ControlsApp() {
             Olhos da Hydra
           </div>
           <div className="desc">
-            Moeda de prestígio. Vem de peixe épico pra cima, baús, Eventos Hydra e conquistas. So o Altar
+            Moeda de prestígio. Vem de peixe épico pra cima, baús, Eventos Hydra e conquistas. Só o Altar
             da Hydra aceita.
           </div>
         </div>

@@ -149,8 +149,8 @@ function DayCycle() {
   return (
     <>
       <div className="desc" style={{ padding: '4px 2px 10px' }}>
-        Um dia no cais dura 24 minutos e nao para: cada fase fica{' '}
-        {Math.round(PHASE_MS / 60000)} minutos no ar e passa a vez sozinha. Agora sao{' '}
+        Um dia no cais dura 24 minutos e não para: cada fase fica{' '}
+        {Math.round(PHASE_MS / 60000)} minutos no ar e passa a vez sozinha. Agora são{' '}
         <strong>{clockLabel()}</strong>.
       </div>
       {REGION_ORDER.map((id) => {

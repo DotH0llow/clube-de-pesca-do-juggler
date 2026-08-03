@@ -17,6 +17,7 @@ import {
   type CatchOutcome,
 } from '../state/casino';
 import { consumeJackpotReady } from '../state/casino';
+import { getFx } from '../editor/fx';
 import type { CastResult } from '../state/types';
 
 export type Phase = 'idle' | 'power' | 'waiting' | 'bite' | 'reeling' | 'result';
@@ -32,8 +33,16 @@ export interface Outcome {
   pendingLost?: number;
 }
 
-/** Janela de reacao para fisgar, em ms. */
-const BITE_WINDOW = 1100;
+/**
+ * Janela de reacao para fisgar, em ms.
+ *
+ * O valor sai da configuracao de mecanicas (`src/editor/fx.ts`), editavel na
+ * secao MECANICAS do editor. O padrao subiu de 1100 para 4600 ms: 1,1 s era
+ * curto demais para quem estava lendo a tela em vez de decorar o ritmo.
+ */
+function biteWindow(): number {
+  return getFx().timings.biteWindowMs;
+}
 
 /**
  * Maquina de estados da pescaria.
@@ -155,11 +164,12 @@ export function useFishingLoop(onOutcome?: (o: Outcome) => void) {
           complete(true);
           return;
         }
-        setBiteDeadline(Date.now() + BITE_WINDOW);
+        const window_ms = biteWindow();
+        setBiteDeadline(Date.now() + window_ms);
         setPhase('bite');
         playSfx('bite');
         buzz([10, 40, 10]);
-        timerRef.current = window.setTimeout(() => complete(false), BITE_WINDOW);
+        timerRef.current = window.setTimeout(() => complete(false), window_ms);
       }, biteDelay(bonusSchoolActive()));
     },
     [complete],

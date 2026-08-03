@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../assets';
 import { clamp } from '../engine/rng';
 import { getSettings } from '../state/settings';
+import { clipConfig, frameAt, seqLength } from '../editor/anims';
 import { inZone, rodX } from '../editor/scene';
 import { CHAR_ANCHOR, CHAR_CANVAS, CHAR_FRAME_H, CLIP_FRAMES } from './charFrames';
 import { groundAt, WALK_MAX, WALK_MIN, WORLD_H, WORLD_W } from './layout';
@@ -12,23 +13,12 @@ export type AnimName = 'side-idle' | 'walk' | 'run' | 'jump' | 'fish' | 'sit';
 export type Spot = 'vara' | 'mercado' | null;
 
 /**
- * Duracao de cada quadro, em ms.
+ * Quanto o Juggler encolheu para o mar ganhar tela.
  *
- * A caminhada tem 4 quadros (pe esquerdo -> perfil -> pe direito -> perfil), o
- * que da dois passos por ciclo. Correr usa exatamente a mesma arte, 25% mais
- * rapida - foi assim que a animacao foi pedida.
+ * O quadro inteiro (`CHAR_FRAME_H`) e gerado pelo importador e nao se mexe na
+ * mao; o ajuste de jogo mora aqui.
  */
-const WALK_FRAME_MS = 170;
-export const RUN_ANIM_SPEEDUP = 1.25;
-
-const FRAME_MS: Record<AnimName, number> = {
-  'side-idle': 1000,
-  walk: WALK_FRAME_MS,
-  run: WALK_FRAME_MS / RUN_ANIM_SPEEDUP,
-  jump: 1000, // o pulo nao roda no tempo: o quadro sai da velocidade vertical
-  fish: 1000, // a pescaria nao roda no tempo: o quadro sai da fase do lance
-  sit: 1000,
-};
+export const CHAR_SCALE = 0.72;
 
 /**
  * Quadro da pescaria por fase do lance. A arte veio com uma pose para cada
@@ -36,31 +26,35 @@ const FRAME_MS: Record<AnimName, number> = {
  * A fase `waiting` passa rapido pelo arremesso antes de assentar na espera.
  */
 export type FishPose = 'idle' | 'power' | 'cast' | 'waiting' | 'bite' | 'reeling';
-const FISH_FRAME: Record<FishPose, number> = {
-  idle: 0, // 01_ready
-  power: 1, // 02_cast_backswing
-  cast: 2, // 03_cast_forward
-  waiting: 3, // 04_wait_reel
-  bite: 4, // 05_hook_set
-  reeling: 5, // 06_reel_in
+
+/** Posicao de cada pose dentro da sequencia do clipe `fish`. */
+const FISH_SLOT: Record<FishPose, number> = {
+  idle: 0,
+  power: 1,
+  cast: 2,
+  waiting: 3,
+  bite: 4,
+  reeling: 5,
 };
-/** quanto tempo o arremesso fica na tela antes de virar espera */
-const CAST_HOLD_MS = 380;
 
 const WALK_SPEED = 200;
 const RUN_SPEED = 360;
 const GRAVITY = 2000;
 const JUMP_V = 700;
 
+/** Limites do zoom de ctrl+roda. */
+export const ZOOM_MIN = 0.6;
+export const ZOOM_MAX = 2.6;
+
 /** Altura do quadro inteiro em unidades de mundo (inclui a vara). */
-export const PLAYER_H = CHAR_FRAME_H;
+export const PLAYER_H = CHAR_FRAME_H * CHAR_SCALE;
 
 function clipName(anim: AnimName, facing: Facing): string {
   return `${anim}-${facing}`;
 }
 
-function framePath(anim: AnimName, facing: Facing, i: number): string {
-  return `char/${clipName(anim, facing)}/${String(i).padStart(2, '0')}`;
+function framePath(clip: string, i: number): string {
+  return `char/${clip}/${String(i).padStart(2, '0')}`;
 }
 
 /** Deixa todo quadro em cache antes de o jogador ver, para nao piscar na troca. */
@@ -71,7 +65,7 @@ function preload() {
   for (const clip of Object.keys(CLIP_FRAMES)) {
     for (let i = 0; i < CLIP_FRAMES[clip]; i++) {
       const img = new Image();
-      img.src = asset(`char/${clip}/${String(i).padStart(2, '0')}`);
+      img.src = asset(framePath(clip, i));
     }
   }
 }
@@ -96,7 +90,9 @@ interface Options {
  *
  * Os quadros ja saem do importador alinhados pelo quadril e pelo pe dentro de
  * um canvas unico, entao a correcao de ancora e uma constante (`CHAR_ANCHOR`)
- * em vez de uma tabela por quadro.
+ * em vez de uma tabela por quadro. QUAL quadro tocar, em que ordem e em que
+ * ritmo vem da configuracao de animacoes (`src/editor/anims.ts`), que o editor
+ * edita - aqui nao existe mais ordem de quadro escrita na mao.
  */
 export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }: Options) {
   const cameraRef = useRef<HTMLDivElement | null>(null);
@@ -106,7 +102,10 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
   const spriteRef = useRef<HTMLImageElement | null>(null);
 
   const [spot, setSpot] = useState<Spot>(null);
-  const [scale, setScale] = useState(1);
+  const [viewH, setViewH] = useState(() =>
+    typeof window === 'undefined' ? WORLD_H : window.innerHeight,
+  );
+  const [zoom, setZoom] = useState(1);
 
   const x = useRef(1780);
   const vx = useRef(0);
@@ -114,7 +113,8 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
   const vy = useRef(0);
   const facing = useRef<Facing>('left');
   const anim = useRef<AnimName>('side-idle');
-  const frame = useRef(0);
+  /** posicao dentro da SEQUENCIA do clipe, nao o numero do arquivo */
+  const step = useRef(0);
   const frameT = useRef(0);
   const camX = useRef(0);
   const keys = useRef(new Set<string>());
@@ -122,15 +122,16 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
   const fishingRef = useRef(fishing);
   const pausedRef = useRef(paused);
   const poseRef = useRef<FishPose>(fishPose);
-  /** ha quanto tempo a fase da pescaria mudou: segura o quadro de arremesso */
-  const poseT = useRef(0);
+  const scaleRef = useRef(1);
   activeRef.current = active;
   fishingRef.current = fishing;
   pausedRef.current = paused;
-  if (poseRef.current !== fishPose) {
-    poseRef.current = fishPose;
-    poseT.current = 0;
-  }
+  poseRef.current = fishPose;
+
+  const scale = (viewH / WORLD_H) * zoom;
+  scaleRef.current = scale;
+  /** com zoom o mundo passa da altura da tela: centraliza em vez de cortar embaixo */
+  const viewY = (viewH - WORLD_H * scale) / 2;
 
   useEffect(preload, []);
 
@@ -156,11 +157,29 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
 
   // ------------------------------------------------------- escala da cena
   useEffect(() => {
-    const onResize = () => setScale(window.innerHeight / WORLD_H);
+    const onResize = () => setViewH(window.innerHeight);
     onResize();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  /**
+   * Zoom de ctrl+roda.
+   *
+   * O listener precisa ser nao-passivo para o `preventDefault` valer: sem ele o
+   * navegador aplica o proprio zoom da pagina e o jogo sai de lugar.
+   */
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      setZoom((z) => clamp(z * (e.deltaY > 0 ? 0.9 : 1 / 0.9), ZOOM_MIN, ZOOM_MAX));
+    };
+    window.addEventListener('wheel', onWheel, { passive: false });
+    return () => window.removeEventListener('wheel', onWheel);
+  }, []);
+
+  const resetZoom = useCallback(() => setZoom(1), []);
 
   /** Move o jogador por toque/clique: usado pelos botoes de mobile. */
   const press = useCallback((code: string, on: boolean) => {
@@ -189,25 +208,22 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
       }
     };
 
-    const step = (now: number) => {
-      // pausado (celular aberto ou editor): o mundo congela, mas a camera
-      // continua obedecendo - e assim que o editor navega pelo mapa
-      if (pausedRef.current) {
-        last = now;
-        writeCamera();
-        raf = requestAnimationFrame(step);
-        return;
-      }
-
-      const dt = Math.min(0.05, (now - last) / 1000);
+    const stepLoop = (now: number) => {
+      /*
+       * Pausado (celular aberto ou editor): fisica e teclado ficam de fora, mas
+       * camera, posicao e QUADRO continuam sendo escritos. E isso que deixa a
+       * simulacao passo a passo do editor mostrar a pose certa - antes o mundo
+       * congelava no ultimo quadro desenhado e a etapa escolhida nao aparecia.
+       */
+      const frozen = pausedRef.current;
+      const dt = frozen ? 0 : Math.min(0.05, (now - last) / 1000);
       last = now;
-      poseT.current += dt * 1000;
 
       const k = keys.current;
-      const canMove = activeRef.current && !fishingRef.current;
+      const canMove = !frozen && activeRef.current && !fishingRef.current;
       const left = canMove && (k.has('ArrowLeft') || k.has('KeyA'));
       const right = canMove && (k.has('ArrowRight') || k.has('KeyD'));
-      const running = k.has('ShiftLeft') || k.has('ShiftRight');
+      const running = !frozen && (k.has('ShiftLeft') || k.has('ShiftRight'));
       const wantJump = canMove && (k.has('Space') || k.has('ArrowUp') || k.has('KeyW'));
 
       const speed = running ? RUN_SPEED : WALK_SPEED;
@@ -221,9 +237,11 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
       if (wantJump && grounded) {
         vy.current = JUMP_V;
       }
-      vy.current -= GRAVITY * dt;
-      y.current = Math.max(0, y.current + vy.current * dt);
-      if (y.current === 0) vy.current = 0;
+      if (!frozen) {
+        vy.current -= GRAVITY * dt;
+        y.current = Math.max(0, y.current + vy.current * dt);
+        if (y.current === 0) vy.current = 0;
+      }
 
       // ------------------------------------------------- estado da animacao
       const airborne = y.current > 0.5;
@@ -238,49 +256,51 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
 
       if (next !== anim.current) {
         anim.current = next;
-        frame.current = 0;
+        step.current = 0;
         frameT.current = 0;
       }
 
-      const count = CLIP_FRAMES[clipName(anim.current, facing.current)] ?? 1;
-      if (anim.current === 'fish') {
-        // quadro colado na fase do lance, com uma passada rapida pelo arremesso
-        const pose = poseRef.current;
-        const shown =
-          pose === 'waiting' && poseT.current < CAST_HOLD_MS ? 'cast' : pose;
-        frame.current = Math.min(count - 1, FISH_FRAME[shown]);
-      } else if (anim.current === 'jump') {
-        // subindo mostra o impulso, descendo mostra a aterrissagem
-        frame.current = vy.current > 0 ? 0 : Math.min(1, count - 1);
-      } else if (count > 1) {
+      const clip = clipName(anim.current, facing.current);
+      const count = CLIP_FRAMES[clip] ?? 1;
+      const cfg = clipConfig(`char/${clip}`);
+
+      if (cfg.mode === 'fase') {
+        // um quadro por momento do lance, com uma passada rapida pelo arremesso
+        step.current = FISH_SLOT[poseRef.current] ?? 0;
+      } else if (cfg.mode === 'fisica') {
+        // subindo mostra o primeiro quadro da sequencia, descendo o ultimo
+        step.current = vy.current > 0 ? 0 : seqLength(`char/${clip}`) - 1;
+      } else if (seqLength(`char/${clip}`) > 1) {
         frameT.current += dt * 1000;
-        const dur = FRAME_MS[anim.current];
+        const dur = Math.max(30, cfg.frameMs);
         while (frameT.current >= dur) {
           frameT.current -= dur;
-          frame.current = (frame.current + 1) % count;
+          step.current += 1;
         }
       } else {
-        frame.current = 0;
+        step.current = 0;
       }
 
       // ------------------------------------------------------------ camera
-      const view = window.innerWidth / (window.innerHeight / WORLD_H);
-      const focus = fishingRef.current ? rodX() - 107 : x.current;
-      const target = clamp(focus - view / 2, 0, Math.max(0, WORLD_W - view));
-      const smooth = getSettings().animations ? 1 - Math.pow(0.001, dt) : 1;
-      camX.current += (target - camX.current) * smooth;
+      // congelado, quem manda na camera e o editor (ele escreve em camX direto)
+      if (!frozen) {
+        const view = window.innerWidth / scaleRef.current;
+        const focus = fishingRef.current ? rodX() - 90 : x.current;
+        const target = clamp(focus - view / 2, 0, Math.max(0, WORLD_W - view));
+        const smooth = getSettings().animations ? 1 - Math.pow(0.001, dt) : 1;
+        camX.current += (target - camX.current) * smooth;
+      }
 
       writeCamera();
       if (playerRef.current) {
         const gy = groundAt(x.current) - y.current;
         playerRef.current.style.transform = `translate3d(${x.current}px,${gy}px,0)`;
       }
-      const clip = clipName(anim.current, facing.current);
-      const frameKey = `${clip}/${frame.current}`;
+      const shown = frameAt(`char/${clip}`, step.current, count);
+      const frameKey = `${clip}/${shown}`;
       if (spriteRef.current && frameKey !== lastFrameKey) {
         lastFrameKey = frameKey;
-        const el = spriteRef.current;
-        el.src = asset(framePath(anim.current, facing.current, frame.current));
+        spriteRef.current.src = asset(framePath(clip, shown));
       }
 
       let near: Spot = null;
@@ -293,10 +313,10 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
         setSpot(near);
       }
 
-      raf = requestAnimationFrame(step);
+      raf = requestAnimationFrame(stepLoop);
     };
 
-    raf = requestAnimationFrame(step);
+    raf = requestAnimationFrame(stepLoop);
     return () => cancelAnimationFrame(raf);
   }, []);
 
@@ -312,6 +332,10 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
     nearRod: spot === 'vara',
     nearMarket: spot === 'mercado',
     scale,
+    /** deslocamento vertical da cena quando o zoom passa da altura da tela */
+    viewY,
+    zoom,
+    resetZoom,
     press,
     playerX: x,
   };

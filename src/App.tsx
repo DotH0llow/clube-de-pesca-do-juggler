@@ -12,6 +12,8 @@ import {
 import { CatchPopup } from './components/CatchPopup';
 import { DevPanel } from './components/DevPanel';
 import { EditorOverlay } from './editor/EditorOverlay';
+import { getFx } from './editor/fx';
+import { currentStep, usePreview } from './editor/preview';
 import { MarketApp } from './components/MarketPanel';
 import { Sheet } from './components/Sheet';
 import { Phone } from './components/Phone';
@@ -21,11 +23,12 @@ import { TitleScreen } from './components/TitleScreen';
 import { World } from './components/World';
 import { ACHIEVEMENTS_BY_ID } from './data/achievements';
 import { FAMILIES } from './data/fish';
+import { FISH } from './data/fish';
 import { REGIONS } from './data/regions';
 import { initAudio, playSfx, startAmbience, stopAmbience } from './engine/audio';
 import { autoStartRadio } from './engine/music';
 import { SHARDS_FOR_LEGENDARY } from './engine/outcomes';
-import { useFishingLoop, type Outcome } from './hooks/useFishingLoop';
+import { useFishingLoop, type Outcome, type Phase } from './hooks/useFishingLoop';
 import {
   bonusSchoolActive,
   debugActions,
@@ -38,6 +41,19 @@ import { useSettings } from './state/settings';
 import { claimDaily, dailyAvailable, dailyPreview, syncRegion, useGame } from './state/store';
 import { usePlayer, type FishPose } from './world/usePlayer';
 import { clockLabel, useDayPhase } from './world/dayCycle';
+
+/** Peixe de mentira: so a simulacao do editor usa, para ter o que desenhar. */
+const DEMO_CAST = {
+  category: 'comum' as const,
+  fish: FISH[0],
+  weight: 2.4,
+  length: 42,
+  value: 120,
+  eyes: 0,
+  difficulty: 0.4,
+  headline: 'SIMULAÇÃO DO EDITOR',
+  pityTriggered: false,
+};
 
 interface Toast {
   id: number;
@@ -94,11 +110,11 @@ export default function App() {
   const handleOutcome = useCallback(
     (o: Outcome) => {
       if (o.unlocks.newSpecies && o.result.fish) {
-        pushToast(`Nova especie no album: ${o.result.fish.name}`, 'ach');
+        pushToast(`Nova espécie no álbum: ${o.result.fish.name}`, 'ach');
       }
       for (const famId of o.unlocks.families) {
         const fam = FAMILIES.find((f) => f.id === famId);
-        if (fam) pushToast(`Familia completa: ${fam.name}! +${fam.reward.sazoncoins} SZ`, 'ach');
+        if (fam) pushToast(`Família completa: ${fam.name}! +${fam.reward.sazoncoins} SZ`, 'ach');
       }
       for (const id of o.unlocks.achievements) {
         pushToast(`Conquista: ${ACHIEVEMENTS_BY_ID[id]?.name ?? id}`, 'ach');
@@ -133,11 +149,46 @@ export default function App() {
     showMarket ||
     ladderBase !== null ||
     Boolean(session.cardOffer);
+  /**
+   * O quadro de arremesso nao tem fase propria na maquina de estados: ele e o
+   * comecinho da espera. Segurar esse quadro aqui (e nao dentro do laco de
+   * animacao) faz a pose ficar disponivel para todo mundo - inclusive para a
+   * linha de pesca, que precisa saber onde esta a ponta da vara neste momento.
+   */
+  const [castHeld, setCastHeld] = useState(false);
+  useEffect(() => {
+    if (phase !== 'waiting') {
+      setCastHeld(false);
+      return;
+    }
+    setCastHeld(true);
+    const t = window.setTimeout(() => setCastHeld(false), getFx().timings.castHoldMs);
+    return () => window.clearTimeout(t);
+  }, [phase]);
+
+  // ------------------------------------------------- simulacao do editor
+  // Com a secao MECANICAS aberta, quem manda na fase e a etapa escolhida: o
+  // mundo desenhado e o de verdade, so congelado no momento que voce quer ver.
+  const preview = usePreview();
+  const step = preview.mechanic ? currentStep() : null;
+  const shownPhase: Phase = step ? step.phase : phase;
+  const shownFishing = step ? true : fishing;
+  const shownPending = step
+    ? pending ?? { ...DEMO_CAST }
+    : pending;
+
   // a arte da pescaria tem uma pose por momento do lance
-  const fishPose: FishPose = phase === 'result' ? 'idle' : phase;
+  const fishPose: FishPose = step
+    ? step.pose
+    : phase === 'result'
+      ? 'idle'
+      : castHeld
+        ? 'cast'
+        : phase;
+
   const player = usePlayer({
     active: view === 'mundo' && !busy,
-    fishing,
+    fishing: shownFishing,
     fishPose,
     paused: phoneOpen || editor,
   });
@@ -292,15 +343,18 @@ export default function App() {
     <div className={rootClass} style={styleVars}>
       <World
         region={dayPhase}
-        phase={phase}
-        pending={pending}
-        fishing={fishing}
+        phase={shownPhase}
+        pose={fishPose}
+        pending={shownPending}
+        fishing={shownFishing}
+        playerXRef={player.playerX}
         cameraRef={player.cameraRef}
         farRef={player.farRef}
         midRef={player.midRef}
         playerRef={player.playerRef}
         spriteRef={player.spriteRef}
         scale={player.scale}
+        viewY={player.viewY}
       />
 
       {!editor && (
@@ -343,7 +397,7 @@ export default function App() {
 
         {shards > 0 && fishing && (
           <div className="chip" style={{ alignSelf: 'flex-start', fontSize: 13 }}>
-            Escamas lendarias {shards}/{SHARDS_FOR_LEGENDARY}
+            Escamas lendárias {shards}/{SHARDS_FOR_LEGENDARY}
           </div>
         )}
 
@@ -363,7 +417,8 @@ export default function App() {
             ) : (
               settings.hints && (
                 <div className="hint-strip">
-                  SETAS OU A/D PARA ANDAR &middot; SHIFT CORRE &middot; ESPAÇO PULA &middot; ESC ABRE O CELULAR
+                  SETAS OU A/D PARA ANDAR &middot; SHIFT CORRE &middot; ESPAÇO PULA &middot;
+                  CTRL+RODA DÁ ZOOM &middot; ESC ABRE O CELULAR
                 </div>
               )
             )}
@@ -416,7 +471,7 @@ export default function App() {
                   )}
                   {s.casino.tideWheel.availableSpins > 0 && (
                     <button className="btn small" onClick={() => setShowWheel(true)}>
-                      RODA DA MARE ({s.casino.tideWheel.availableSpins})
+                      RODA DA MARÉ ({s.casino.tideWheel.availableSpins})
                     </button>
                   )}
                   <button className="btn ghost small" onClick={stopFishing}>
@@ -499,7 +554,15 @@ export default function App() {
       )}
 
       {editor && (
-        <EditorOverlay camXRef={player.camXRef} scale={player.scale} onExit={() => setEditor(false)} />
+        <EditorOverlay
+          camXRef={player.camXRef}
+          scale={player.scale}
+          viewY={player.viewY}
+          zoom={player.zoom}
+          onResetZoom={player.resetZoom}
+          playerXRef={player.playerX}
+          onExit={() => setEditor(false)}
+        />
       )}
 
       {showDebug && (
@@ -529,7 +592,7 @@ export default function App() {
               </div>
               <Sprite path="sky/setting-sun" size={92} />
               <div className="flavor">
-                Dia {daily.streak} seguido no cais. O clube guardou uma ajuda pra voce.
+                Dia {daily.streak} seguido no cais. O clube guardou uma ajuda pra você.
               </div>
               <div className="reward-line">
                 <span style={{ color: 'var(--coin)' }}>+{daily.sazoncoins} SZ</span>

@@ -14,7 +14,7 @@ root.setProperty('--panel-frame', `url("${asset('ui/decorative-frame')}")`);
 root.setProperty('--banner-frame', `url("${asset('fx/capture-banner')}")`);
 
 const el = document.getElementById('root');
-if (!el) throw new Error('#root nao encontrado');
+if (!el) throw new Error('#root não encontrado');
 
 createRoot(el).render(
   <StrictMode>

@@ -53,7 +53,7 @@ export function PlaylistApp() {
       <div className="row">
         <div className="grow">
           <div className="title">
-            VOLUME DA MUSICA <span style={{ opacity: 0.6 }}>{Math.round(settings.music * 100)}%</span>
+            VOLUME DA MÚSICA <span style={{ opacity: 0.6 }}>{Math.round(settings.music * 100)}%</span>
           </div>
           <input
             className="range"

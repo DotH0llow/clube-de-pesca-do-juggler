@@ -67,3 +67,75 @@ posição da área de pesca.
 `EXPORTAR` baixa um JSON com a cena inteira; `IMPORTAR` carrega de volta. É o
 caminho para versionar um cenário novo no repositório em vez de deixá-lo só no
 navegador.
+
+## Zoom
+
+`Ctrl + roda do mouse` aproxima e afasta a cena, de 60% a 260%. Vale no jogo e
+no editor — as alças, o arrasto e as caixas de seleção acompanham o zoom, porque
+a conversão tela↔mundo usa a mesma escala. O botão `ZOOM 100%` da barra volta ao
+padrão.
+
+Com o zoom acima de 100% o mundo passa da altura da viewport, então ele é
+centralizado verticalmente em vez de ficar colado no topo. Esse deslocamento
+(`viewY`) atravessa junto com a escala; quem for mexer em coordenada de tela
+precisa dos dois.
+
+## Animações
+
+`ANIMAÇÕES` na barra do topo. Duas partes.
+
+### Sequências de quadro
+
+A árvore da esquerda é montada sozinha: **toda pasta em `src/assets/game/` cujos
+arquivos sejam `00.webp`, `01.webp`, ...** vira um clipe, agrupado pela
+categoria. Soltar uma pasta nova no padrão já a faz aparecer, sem cadastro.
+
+Escolhido o clipe, o painel mostra:
+
+* o clipe rodando, com o passo e o número do quadro;
+* a **sequência**: a ordem em que o jogo toca. Cada passo tem `‹` e `›` para
+  trocar de lugar, um seletor para apontar outro quadro e `×` para tirar;
+* **todos os quadros da pasta** — clicar soma o quadro no fim da sequência;
+* **ritmo** (ms por quadro) e **leitura** (`CICLO`, `FÍSICA`, `FASE`).
+
+Isso resolve o problema clássico: a pasta pode ter 4 quadros e a animação boa
+usar só 2, ou usar `0,1,2,1` — a arte não muda, a ordem sim.
+
+Fica salvo em `localStorage` (`juggler-fishing/animacoes/v1`). `RESETAR TUDO`
+volta para os padrões de `src/editor/anims.ts`.
+
+### Animações por mecânica
+
+`MECÂNICAS` na barra do topo. Escolha a mecânica (hoje, `PESCARIA`) e o **jogo
+congela na etapa escolhida** — não é uma maquete, é o mundo de verdade parado no
+momento que você quer ver. O Juggler é levado até o ponto de pesca e a câmera
+enquadra ali.
+
+`◀ VOLTAR` e `AVANÇAR ▶` andam pelas sete etapas do lance (vara na mão, barra de
+força, arremesso, espera, mordida, recolhendo, resultado); os números embaixo
+pulam direto para uma delas.
+
+Cada peça que aparece na etapa ganha uma caixa amarela na tela e uma linha na
+lista. Clicando nela dá para:
+
+* **arrastar** na área de trabalho;
+* **redimensionar** pelas alças (canto mantém a proporção);
+* digitar `X`, `Y`, largura, altura, giro e opacidade nos campos.
+
+As pontas de vara aparecem como uma cruz rosa em vez de caixa: são pontos de
+referência, e é de onde a linha de pesca sai. Existe uma por pose, porque a vara
+aponta para um lado diferente em cada momento do lance.
+
+Embaixo ficam os **tempos da mecânica**: janela do FISGAR, quanto o quadro de
+arremesso segura, onde a boia cai e a grossura e a barriga da linha.
+
+Tudo isso vale no jogo no próximo lance — é a mesma configuração que
+`src/components/World.tsx` e `src/hooks/useFishingLoop.ts` leem. Fica salvo em
+`juggler-fishing/mecanicas/v1`; `RESETAR` volta para `src/editor/fx.ts`.
+
+### A linha de pesca não é sprite
+
+Ela é desenhada (um `path` de SVG) da ponta da vara até a boia, com uma barriga
+que some quando o peixe está sendo recolhido. Era um PNG de tamanho fixo largado
+perto da água, que nunca batia com a direção nem com o comprimento da vara. Agora
+os dois extremos são configuração, então alinhar é questão de arrastar a cruz.

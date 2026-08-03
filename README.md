@@ -8,6 +8,15 @@ prefere nao ter encontrado.
 Estetica: pixel art tropical/oceanica com cara de anos 2000 - agua turquesa,
 ilhas ao longe, por do sol, barco ancorado. Nada de fantasia medieval.
 
+
+## Regra de texto (leia antes de escrever qualquer frase)
+
+Texto que o jogador lê vai **acentuado**; comentário, nome de variável e id de
+dado ficam **sem acento**. `npm run textos` caça acento perdido e o `npm run
+build` já roda essa checagem antes de compilar. Detalhes e o porquê em
+[`docs/textos-do-jogo.md`](docs/textos-do-jogo.md).
+
+
 ## Mundo e personagem
 
 O jogo nao e uma tela parada: e um cenario lateral que vai da **floresta da ilha**

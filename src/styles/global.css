@@ -159,10 +159,13 @@ button {
   opacity: 0.75;
 }
 
+/* A tarde de temporal estava pesada demais: o tom da tempestade e as duas
+   camadas de chuva somavam quase meio ceu de cinza por cima do jogo. Agora a
+   chuva e um veu, nao um filtro. */
 .storm-tint {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(12, 22, 34, 0.7), rgba(20, 36, 50, 0.35));
+  background: linear-gradient(180deg, rgba(12, 22, 34, 0.34), rgba(20, 36, 50, 0.14));
 }
 
 .rain {
@@ -171,23 +174,23 @@ button {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.32;
-  animation: rain-fall 0.7s linear infinite;
+  opacity: 0.13;
+  animation: rain-fall 1.1s linear infinite;
 }
 
 .rain-2 {
-  opacity: 0.2;
+  opacity: 0.07;
   transform: scaleX(-1);
-  animation-duration: 1.1s;
+  animation-duration: 1.7s;
 }
 
 .lightning {
   position: absolute;
   top: 2%;
   right: 18%;
-  height: 42%;
+  height: 30%;
   opacity: 0;
-  animation: flash 11s steps(1) infinite;
+  animation: flash 17s steps(1) infinite;
 }
 
 @keyframes drift-across {
@@ -390,9 +393,9 @@ button {
 
 .pier-deck {
   position: absolute;
-  height: 30px;
+  height: 24px;
   background-repeat: repeat-x;
-  background-size: auto 30px;
+  background-size: auto 24px;
   filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.25));
 }
 
@@ -405,6 +408,11 @@ button {
 
 /* a areia nao termina num corte reto: desce em rampa para dentro da agua.
    o mar fica a esquerda, entao a rampa cai para aquele lado */
+.world-spill {
+  position: absolute;
+  height: 420px;
+}
+
 .sand-slope {
   position: absolute;
   width: 420px;
@@ -562,48 +570,32 @@ button {
   filter: blur(1px);
 }
 
-/* linha, boia e peixe no ponto de pesca */
+/* linha, boia e peixe no ponto de pesca.
+   Cada peca e posicionada em unidades de mundo pela configuracao de mecanicas
+   (`src/editor/fx.ts`), entao aqui so mora aparencia - nada de posicao fixa. */
 
-.rig {
+.rig-line-svg {
   position: absolute;
-  width: 190px;
-  margin-left: -95px;
+  left: 0;
+  top: 0;
+  width: 3400px;
+  height: 720px;
+  overflow: visible;
+  pointer-events: none;
   z-index: 4;
 }
 
-.rig img {
+.rig-item {
   position: absolute;
-  left: 0;
-  width: 100%;
-  height: auto;
+  z-index: 4;
+  pointer-events: none;
 }
 
-.rig-line {
-  bottom: 8px;
-  opacity: 0.9;
-}
-
-.ripple {
-  bottom: -10px;
-  opacity: 0.85;
-}
-
-.bite-ring {
-  bottom: -26px;
+.rig-item.pulsing {
   animation: pulse 0.7s ease-in-out infinite;
 }
 
-.bang {
-  left: 36%;
-  bottom: 54px;
-  width: 26%;
-  animation: bob 0.5s steps(4) infinite;
-}
-
 .hooked {
-  position: absolute;
-  left: 10%;
-  top: 34px;
   display: grid;
   place-items: center;
 }
@@ -2947,4 +2939,405 @@ button {
   font-size: 10px;
   opacity: 0.5;
   line-height: 1.4;
+}
+
+/* ==========================================================================
+   EDITOR · ANIMAÇÕES E MECÂNICAS
+   ========================================================================== */
+
+.rig-item.bobbing {
+  animation: rig-bob 0.9s steps(4) infinite;
+}
+
+@keyframes rig-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* o painel largo cabe a árvore de pastas e o editor da sequência lado a lado */
+.editor-panel.wide {
+  width: 520px;
+  overflow: hidden;
+}
+
+.eanim-body {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.eanim-tree {
+  width: 168px;
+  overflow-y: auto;
+  border-right: 2px solid #23404f;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.eanim-folder {
+  width: 100%;
+  text-align: left;
+  font-family: var(--font);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #ffd166;
+  background: none;
+  border: 0;
+  padding: 5px 2px;
+}
+
+.eanim-clip {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font);
+  font-size: 11px;
+  color: #cfe6f2;
+  background: #14293a;
+  border: 2px solid transparent;
+  padding: 2px 4px;
+  margin-bottom: 2px;
+}
+
+.eanim-clip img {
+  width: 20px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.eanim-clip .grow {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eanim-clip.on {
+  border-color: #45c6f0;
+  background: #1d3c52;
+}
+
+.eanim-edit {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.eanim-stage {
+  position: relative;
+  height: 150px;
+  background: repeating-conic-gradient(#16303f 0% 25%, #12262f 0% 50%) 50% / 16px 16px;
+  border: 2px solid #23404f;
+  display: grid;
+  place-items: center;
+}
+
+.eanim-stage img {
+  max-height: 138px;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.eanim-stage span {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.eanim-label {
+  font-size: 10px;
+  letter-spacing: 1px;
+  opacity: 0.55;
+  margin-top: 2px;
+}
+
+.eanim-seq,
+.eanim-all {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.eanim-slot {
+  width: 68px;
+  background: #13293a;
+  border: 2px solid #274a5e;
+  padding: 2px;
+}
+
+.eanim-slot img {
+  width: 100%;
+  height: 46px;
+  object-fit: contain;
+}
+
+.eanim-slot-bar,
+.eanim-slot-foot {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.eanim-slot-bar button,
+.eanim-slot-foot button,
+.eanim-add {
+  font-family: var(--font);
+  font-size: 11px;
+  color: #dff0f8;
+  background: #1b3342;
+  border: 1px solid #33586e;
+  padding: 0 4px;
+}
+
+.eanim-slot-foot {
+  justify-content: space-between;
+}
+
+.eanim-slot-foot small {
+  font-size: 9px;
+  opacity: 0.6;
+}
+
+.eanim-slot-bar select {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font);
+  font-size: 11px;
+  background: #0e1f2b;
+  color: #dff0f8;
+  border: 1px solid #33586e;
+}
+
+.eanim-slot-foot button.danger {
+  background: #6d2231;
+  border-color: #a83b50;
+}
+
+.eanim-add {
+  width: 34px;
+  height: 88px;
+  font-size: 18px;
+}
+
+.eanim-thumb {
+  width: 44px;
+  background: #13293a;
+  border: 2px solid #274a5e;
+  padding: 1px;
+  position: relative;
+}
+
+.eanim-thumb img {
+  width: 100%;
+  height: 40px;
+  object-fit: contain;
+}
+
+.eanim-thumb span {
+  position: absolute;
+  right: 2px;
+  bottom: 0;
+  font-size: 9px;
+  opacity: 0.7;
+}
+
+.eanim-row {
+  display: flex;
+  gap: 8px;
+}
+
+.eanim-row label,
+.efield {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  opacity: 0.85;
+}
+
+.eanim-row input,
+.eanim-row select,
+.efield input {
+  font-family: var(--font);
+  font-size: 12px;
+  background: #0e1f2b;
+  color: #dff0f8;
+  border: 2px solid #33586e;
+  padding: 3px 4px;
+  width: 100%;
+}
+
+.eanim-row small,
+.efield small {
+  font-size: 9px;
+  opacity: 0.5;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.efields {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.emech-row,
+.emech-steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.emech-now {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.emech-now strong {
+  font-size: 12px;
+  color: #ffd166;
+}
+
+.emech-now small {
+  font-size: 9px;
+  opacity: 0.6;
+}
+
+.emech-dots {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.emech-dot {
+  flex: 1;
+  font-family: var(--font);
+  font-size: 11px;
+  color: #9fc0d2;
+  background: #14293a;
+  border: 2px solid #274a5e;
+  padding: 2px 0;
+}
+
+.emech-dot.on {
+  background: #1f7a4d;
+  border-color: #2fbf7a;
+  color: #eafff4;
+}
+
+.emech-list {
+  max-height: 150px;
+  overflow-y: auto;
+  margin-bottom: 6px;
+}
+
+.emech-form {
+  border-top: 2px solid #23404f;
+  padding-top: 6px;
+  margin-bottom: 6px;
+}
+
+/* caixa de uma peça de mecânica em cima da área de trabalho */
+.editor-fx {
+  position: absolute;
+  border: 2px dashed rgba(255, 209, 102, 0.8);
+  background: rgba(255, 209, 102, 0.08);
+  cursor: move;
+}
+
+.editor-fx b {
+  position: absolute;
+  left: 0;
+  top: -15px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #10222d;
+  background: #ffd166;
+  padding: 0 3px;
+  white-space: nowrap;
+}
+
+.editor-fx.on {
+  border-style: solid;
+  border-color: #45c6f0;
+  background: rgba(69, 198, 240, 0.12);
+}
+
+.editor-fx.on b {
+  background: #45c6f0;
+}
+
+.editor-fx .h {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border: 2px solid #10222d;
+}
+
+.editor-fxpoint {
+  position: absolute;
+  width: 0;
+  height: 0;
+  cursor: move;
+}
+
+.editor-fxpoint::before,
+.editor-fxpoint::after {
+  content: '';
+  position: absolute;
+  background: #ff8fa3;
+}
+
+.editor-fxpoint::before {
+  left: -11px;
+  top: -1px;
+  width: 22px;
+  height: 2px;
+}
+
+.editor-fxpoint::after {
+  left: -1px;
+  top: -11px;
+  width: 2px;
+  height: 22px;
+}
+
+.editor-fxpoint span {
+  position: absolute;
+  left: 14px;
+  top: -7px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #10222d;
+  background: #ff8fa3;
+  padding: 0 3px;
+  white-space: nowrap;
+}
+
+.editor-fxpoint.on::before,
+.editor-fxpoint.on::after {
+  background: #45c6f0;
+}
+
+.editor-fxpoint.on span {
+  background: #45c6f0;
 }

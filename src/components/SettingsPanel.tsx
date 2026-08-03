@@ -193,7 +193,7 @@ export function SettingsApp() {
         {confirmWipe ? (
           <div style={{ display: 'flex', gap: 6 }}>
             <button className="btn small ghost" onClick={() => setConfirmWipe(false)}>
-              NAO
+              NÃO
             </button>
             <button
               className="btn small danger"

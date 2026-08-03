@@ -6,20 +6,21 @@
   "description": "Juggler Fishing - jogo casual de pesca do universo Hydra",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "node scripts/check-texts.mjs && tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "simulate": "esbuild scripts/simulate.ts --bundle --platform=node --format=cjs --outfile=node_modules/.cache/sim.cjs --log-level=error && node node_modules/.cache/sim.cjs",
-    "test": "vite build --ssr scripts/test-rewards.ts --outDir .testout --logLevel error && node .testout/test-rewards.js"
+    "test": "vite build --ssr scripts/test-rewards.ts --outDir .testout --logLevel error && node .testout/test-rewards.js",
+    "textos": "node scripts/check-texts.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@types/node": "^22.10.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "@types/node": "^22.10.2",
     "@vitejs/plugin-react": "^4.3.4",
     "esbuild": "^0.21.5",
     "typescript": "^5.6.3",

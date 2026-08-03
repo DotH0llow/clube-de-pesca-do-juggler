@@ -14,40 +14,51 @@
 export const WORLD_H = 720;
 export const WORLD_W = 3400;
 
-/** Linha da agua. Acima disso e ceu/praia, abaixo e o mar. */
-export const WATER_Y = 430;
+/**
+ * Linha da agua. Acima disso e ceu/praia, abaixo e o mar.
+ *
+ * Subiu de 430 para 372 para o mar ocupar mais tela: a coluna de agua passou de
+ * 290 para 348 unidades de altura, quase 20% a mais. Deck e areia sobem junto -
+ * a praia nao pode ficar abaixo do nivel do mar.
+ */
+export const WATER_Y = 372;
 
 /** Onde o mar encontra a areia. A esquerda disso e agua, a direita e praia. */
-export const SHORE_X = 1520;
+export const SHORE_X = 1400;
 
 /** Piso da praia e piso do deck do pier. */
-export const SAND_Y = 426;
-export const PIER_Y = 384;
+export const SAND_Y = 368;
+export const PIER_Y = 336;
 
 /** O pier: comeca sobre o mar aberto e encosta na praia. */
-export const PIER_START = 520;
-export const PIER_END = 1580;
+export const PIER_START = 600;
+export const PIER_END = 1460;
 /** Rampa que liga o deck a areia. */
 export const PIER_RAMP = 70;
 
 /** Faixas de cenario, da esquerda para a direita. */
 export const BEACH_START = PIER_END;
-export const MARKET_START = 2180;
-export const CABANA_START = 2600;
-export const FOREST_START = 2980;
+export const MARKET_START = 2060;
+export const CABANA_START = 2480;
+export const FOREST_START = 2860;
 
 /** Onde fica a vara fincada no deck: o ponto de pescaria, na ponta do pier. */
-export const ROD_X = 660;
+export const ROD_X = 720;
 /** Distancia em que aparece o aviso de interagir. */
 export const ROD_REACH = 130;
 
 /** Barraca do mercado: segundo ponto de interacao do mundo. */
-export const MARKET_X = 2330;
+export const MARKET_X = 2210;
 export const MARKET_REACH = 150;
 
-/** Onde a boia cai na agua quando o jogador lanca: mar aberto, fora do pier. */
-export const BOBBER_X = ROD_X - 215;
-export const BOBBER_Y = WATER_Y + 46;
+/**
+ * Onde a boia cai na agua quando o jogador lanca: mar aberto, fora do pier.
+ *
+ * Estes sao so os valores de partida - quem manda de verdade e a configuracao
+ * de mecanicas (`src/editor/fx.ts`), que o editor edita.
+ */
+export const BOBBER_X = ROD_X - 270;
+export const BOBBER_Y = WATER_Y + 30;
 
 /** Limites de caminhada: da ponta do pier ate a treeline. */
 export const WALK_MIN = PIER_START + 50;
@@ -64,6 +75,20 @@ export function groundAt(x: number): number {
   return SAND_Y;
 }
 
+/**
+ * Quanto tudo que fica em terra encolheu.
+ *
+ * O pedido era mar maior e pier/ilha/Juggler menores. Em vez de mexer na altura
+ * de cada prop na mao, o cenario de terra passa por aqui: pier, praia, mercado,
+ * cabana e mata saem 20% menores. Quem fica no mar (fundo, vida submersa,
+ * detalhe de areia) nao encolhe - o mar cresceu, nao diminuiu.
+ */
+export const LAND_SCALE = 0.8;
+
+function scaled(list: Prop[]): Prop[] {
+  return list.map((p) => ({ ...p, h: Math.round(p.h * LAND_SCALE) }));
+}
+
 export interface Prop {
   sprite: string;
   x: number;
@@ -78,47 +103,47 @@ export interface Prop {
 }
 
 /** Tralha em cima do deck, entre a vara e a praia. */
-export const PIER_PROPS: Prop[] = [
-  { sprite: 'props/capture-net', x: 560, y: PIER_Y + 2, h: 96 },
-  { sprite: 'props/small-anchor', x: 820, y: PIER_Y + 2, h: 74 },
-  { sprite: 'props/fishing-bucket', x: 930, y: PIER_Y + 2, h: 66 },
-  { sprite: 'props/mooring-rope', x: 1040, y: PIER_Y + 2, h: 44 },
-  { sprite: 'props/cooler-box', x: 1150, y: PIER_Y + 2, h: 66 },
-  { sprite: 'props/tackle-box', x: 1250, y: PIER_Y + 2, h: 60 },
-  { sprite: 'props/pier-lantern', x: 1370, y: PIER_Y + 2, h: 150 },
-  { sprite: 'props/fish-basket', x: 1470, y: PIER_Y + 2, h: 72 },
-  { sprite: 'props/barrel', x: 1540, y: PIER_Y + 2, h: 86 },
-];
+export const PIER_PROPS: Prop[] = scaled([
+  { sprite: 'props/capture-net', x: 632, y: PIER_Y + 2, h: 96 },
+  { sprite: 'props/small-anchor', x: 843, y: PIER_Y + 2, h: 74 },
+  { sprite: 'props/fishing-bucket', x: 933, y: PIER_Y + 2, h: 66 },
+  { sprite: 'props/mooring-rope', x: 1022, y: PIER_Y + 2, h: 44 },
+  { sprite: 'props/cooler-box', x: 1111, y: PIER_Y + 2, h: 66 },
+  { sprite: 'props/tackle-box', x: 1192, y: PIER_Y + 2, h: 60 },
+  { sprite: 'props/pier-lantern', x: 1290, y: PIER_Y + 2, h: 150 },
+  { sprite: 'props/fish-basket', x: 1371, y: PIER_Y + 2, h: 72 },
+  { sprite: 'props/barrel', x: 1427, y: PIER_Y + 2, h: 86 },
+]);
 
 /** Praia: areia aberta entre o pier e o mercado. */
-export const BEACH: Prop[] = [
-  { sprite: 'props/rolled-fishing-net', x: 1700, y: SAND_Y + 2, h: 66 },
-  { sprite: 'props/wooden-oar', x: 1780, y: SAND_Y + 2, h: 100 },
-  { sprite: 'props/coastal-rocks', x: 1880, y: SAND_Y + 10, h: 80 },
-  { sprite: 'props/sand-grass-patch', x: 1960, y: SAND_Y + 4, h: 44 },
-  { sprite: 'nature/fan-palm', x: 2050, y: SAND_Y, h: 300 },
-  { sprite: 'props/pier-bench-side', x: 2140, y: SAND_Y + 2, h: 74 },
-  { sprite: 'props/seashell', x: 1830, y: SAND_Y + 6, h: 26 },
-  { sprite: 'props/starfish', x: 2000, y: SAND_Y + 6, h: 30 },
-];
+export const BEACH: Prop[] = scaled([
+  { sprite: 'props/rolled-fishing-net', x: 1580, y: SAND_Y + 2, h: 66 },
+  { sprite: 'props/wooden-oar', x: 1660, y: SAND_Y + 2, h: 100 },
+  { sprite: 'props/coastal-rocks', x: 1760, y: SAND_Y + 10, h: 80 },
+  { sprite: 'props/sand-grass-patch', x: 1840, y: SAND_Y + 4, h: 44 },
+  { sprite: 'nature/fan-palm', x: 1930, y: SAND_Y, h: 300 },
+  { sprite: 'props/pier-bench-side', x: 2020, y: SAND_Y + 2, h: 74 },
+  { sprite: 'props/seashell', x: 1710, y: SAND_Y + 6, h: 26 },
+  { sprite: 'props/starfish', x: 1880, y: SAND_Y + 6, h: 30 },
+]);
 
 /** Mercado de peixe: a barraca e a bagunca de trabalho em volta. */
-export const MARKET: Prop[] = [
+export const MARKET: Prop[] = scaled([
   { sprite: 'props/fish-market-stall-side', x: MARKET_X, y: SAND_Y + 4, h: 240 },
   { sprite: 'props/fish-basket', x: MARKET_X - 130, y: SAND_Y + 2, h: 70 },
   { sprite: 'props/barrel', x: MARKET_X + 150, y: SAND_Y + 2, h: 84 },
   { sprite: 'props/cooler-box', x: MARKET_X + 235, y: SAND_Y + 2, h: 64 },
   { sprite: 'props/sand-grass-patch', x: MARKET_X + 320, y: SAND_Y + 4, h: 40, flip: true },
-];
+]);
 
 /** Cabana do clube, com coqueiro e tralha na frente. */
-export const CABANA: Prop[] = [
-  { sprite: 'nature/coconut-palm', x: 2640, y: SAND_Y, h: 320, flip: true },
-  { sprite: 'props/beach-cabana-side', x: 2760, y: SAND_Y + 4, h: 260 },
-  { sprite: 'props/pier-bench-side', x: 2900, y: SAND_Y + 2, h: 74, flip: true },
-  { sprite: 'props/fishing-line-spool', x: 2700, y: SAND_Y + 2, h: 40 },
-  { sprite: 'props/seashell', x: 2900, y: SAND_Y + 6, h: 24, flip: true },
-];
+export const CABANA: Prop[] = scaled([
+  { sprite: 'nature/coconut-palm', x: 2520, y: SAND_Y, h: 320, flip: true },
+  { sprite: 'props/beach-cabana-side', x: 2640, y: SAND_Y + 4, h: 260 },
+  { sprite: 'props/pier-bench-side', x: 2780, y: SAND_Y + 2, h: 74, flip: true },
+  { sprite: 'props/fishing-line-spool', x: 2580, y: SAND_Y + 2, h: 40 },
+  { sprite: 'props/seashell', x: 2780, y: SAND_Y + 6, h: 24, flip: true },
+]);
 
 /**
  * Treeline do fim do mapa: vegetacao fechada, sem passagem.
@@ -126,7 +151,7 @@ export const CABANA: Prop[] = [
  * A mata mistura especies do pacote `nature` para nao virar um paredao de
  * coqueiro clonado: mangue e ipe atras, palmeira e amendoeira na frente.
  */
-export const FOREST: Prop[] = [
+export const FOREST: Prop[] = scaled([
   { sprite: 'nature/coconut-palm', x: FOREST_START + 40, y: SAND_Y + 4, h: 330 },
   { sprite: 'nature/tropical-almond', x: FOREST_START + 130, y: SAND_Y + 10, h: 290, flip: true, depth: 0.9 },
   { sprite: 'nature/royal-palm', x: FOREST_START + 220, y: SAND_Y + 2, h: 350 },
@@ -140,7 +165,7 @@ export const FOREST: Prop[] = [
   { sprite: 'nature/casuarina', x: FOREST_START + 370, y: SAND_Y + 12, h: 300, depth: 0.86, opacity: 0.95 },
   { sprite: 'nature/twisted-trunk', x: FOREST_START + 470, y: SAND_Y + 6, h: 210, depth: 0.9 },
   { sprite: 'props/coastal-rocks', x: FOREST_START + 250, y: SAND_Y + 14, h: 70, flip: true },
-];
+]);
 
 /** Fundo do mar, na parte visivel abaixo da linha d agua. */
 export const SEAFLOOR: Prop[] = [
@@ -169,16 +194,16 @@ export const SEAFLOOR: Prop[] = [
 
 /** Detalhe solto na faixa de areia da frente, para a praia nao ficar vazia. */
 export const SHORE: Prop[] = [
-  { sprite: 'props/seashell', x: 1660, y: SAND_Y + 92, h: 22, opacity: 0.9 },
-  { sprite: 'props/starfish', x: 1900, y: SAND_Y + 150, h: 26, opacity: 0.9 },
-  { sprite: 'props/sunken-driftwood', x: 2200, y: SAND_Y + 190, h: 44, opacity: 0.85 },
-  { sprite: 'props/seashell', x: 2480, y: SAND_Y + 110, h: 18, flip: true, opacity: 0.85 },
-  { sprite: 'props/sand-grass-patch', x: 2750, y: SAND_Y + 165, h: 34, opacity: 0.8 },
+  { sprite: 'props/seashell', x: 1427, y: SAND_Y + 92, h: 22, opacity: 0.9 },
+  { sprite: 'props/starfish', x: 1780, y: SAND_Y + 150, h: 26, opacity: 0.9 },
+  { sprite: 'props/sunken-driftwood', x: 2080, y: SAND_Y + 190, h: 44, opacity: 0.85 },
+  { sprite: 'props/seashell', x: 2360, y: SAND_Y + 110, h: 18, flip: true, opacity: 0.85 },
+  { sprite: 'props/sand-grass-patch', x: 2630, y: SAND_Y + 165, h: 34, opacity: 0.8 },
   { sprite: 'props/starfish', x: 3050, y: SAND_Y + 235, h: 22, flip: true, opacity: 0.8 },
-  { sprite: 'props/seashell', x: 1620, y: SAND_Y + 250, h: 20, opacity: 0.75 },
-  { sprite: 'marine/blue-crab', x: 1740, y: SAND_Y + 128, h: 26, opacity: 0.9 },
-  { sprite: 'marine/hermit-crab', x: 2320, y: SAND_Y + 205, h: 22, flip: true, opacity: 0.85 },
-  { sprite: 'props/coastal-rocks', x: 1560, y: SAND_Y + 120, h: 54, opacity: 0.9 },
+  { sprite: 'props/seashell', x: 1500, y: SAND_Y + 250, h: 20, opacity: 0.75 },
+  { sprite: 'marine/blue-crab', x: 1620, y: SAND_Y + 128, h: 26, opacity: 0.9 },
+  { sprite: 'marine/hermit-crab', x: 2200, y: SAND_Y + 205, h: 22, flip: true, opacity: 0.85 },
+  { sprite: 'props/coastal-rocks', x: 1440, y: SAND_Y + 120, h: 54, opacity: 0.9 },
 ];
 
 /** Cardumes e bolhas passeando na coluna de agua. */

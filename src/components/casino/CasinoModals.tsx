@@ -316,7 +316,7 @@ export function PrizeLadderModal({
                 </div>
                 {!maxed && (
                   <div className="at-risk">
-                    PROXIMO <b>{nextBonus.toLocaleString('pt-BR')}</b> &middot; {cfg.difficulty.toUpperCase()}
+                    PRÓXIMO <b>{nextBonus.toLocaleString('pt-BR')}</b> &middot; {cfg.difficulty.toUpperCase()}
                   </div>
                 )}
               </div>

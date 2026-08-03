@@ -3,7 +3,7 @@ export type LayerId = 'fundo' | 'cenario' | 'objetos' | 'interagiveis';
 
 export const LAYERS: { id: LayerId; label: string; hint: string }[] = [
   { id: 'fundo', label: 'BACKGROUND', hint: 'fundo do mar, vida submersa e detalhe de areia' },
-  { id: 'cenario', label: 'CENÁRIO', hint: 'coqueiros, cabana, mercado, pier e barco' },
+  { id: 'cenario', label: 'CENÁRIO', hint: 'coqueiros, cabana, mercado, píer e barco' },
   { id: 'objetos', label: 'OBJETOS', hint: 'tralha solta: caixas, barris, vara, corda' },
   { id: 'interagiveis', label: 'INTERAGÍVEIS', hint: 'áreas de interação (vara, mercado)' },
 ];

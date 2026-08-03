@@ -16,26 +16,84 @@ esquerda do mapa; a direita é espelhada no importador):
 
 ## Clipes que o jogo monta
 
-| clipe | quadros | de onde sai |
+| clipe | quadros na pasta | sequência padrão |
 |---|---|---|
-| `side-idle` | 1 | perfil esquerdo parado |
-| `walk` | 4 | pé esquerdo → perfil → pé direito → perfil |
-| `run` | 4 | a mesma arte da caminhada, 25% mais rápida |
-| `jump` | 2 | impulso subindo, aterrissagem descendo |
-| `sit` | 1 | perfil sentado |
-| `fish` | 6 | um quadro por fase do lance |
-| `back-idle` | 1 | vista de costas |
+| `side-idle` | 1 | `0` |
+| `walk` | 4 | `0, 2` |
+| `run` | 4 | `0, 2` |
+| `jump` | 2 | `0, 1` (física) |
+| `sit` | 1 | `0` |
+| `fish` | 6 | `0..5` (uma por fase do lance) |
+| `back-idle` | 1 | `0` |
+
+**Quadros na pasta e sequência não são a mesma coisa.** A pasta é a arte que
+existe; a sequência é a ordem em que o jogo toca. Andar e correr saem com
+`0, 2` porque os quadros 1 e 3 são a pose parada — servem de contato num ciclo
+de 4 tempos, mas dão um ar de hesitação. Quem quiser o ciclo completo escreve
+`0, 1, 2, 3` no editor, sem tocar em código.
 
 Cada clipe vira duas pastas, `-left` e `-right`; a versão da direita é o espelho
 da esquerda, gerado na importação.
 
+### O espelho que veio trocado
+
+A importação anterior gerou parte dos quadros com o espelho invertido em relação
+ao nome da pasta. Dava três sintomas, todos reclamados em jogo:
+
+* `side-idle-left` olhava para a **direita** e `side-idle-right` para a
+  **esquerda** — por isso o Juggler terminava de andar para a direita e parava
+  virado para a esquerda;
+* os quadros **1 e 3** de `walk` e `run` eram cópias do `side-idle` com o mesmo
+  espelho errado — daí a impressão de que ele virava o rosto a cada passo, e de
+  que a caminhada usava uma pose parada;
+* `jump-left` e `jump-right` estavam simplesmente trocados, e `sit` também.
+
+A correção foi espelhar esses arquivos **no lugar**. Como o canvas é simétrico
+(`CHAR_ANCHOR.dx = 0`, âncora no centro), espelhar não desalinha nada.
+
+Regra para a próxima importação: o nome da pasta manda. `-left` olha para a
+esquerda, `-right` para a direita, em **todos** os quadros do clipe. Uma tira de
+conferência rápida:
+
+```bash
+python3 - <<'EOF'
+from PIL import Image; import glob
+for f in sorted(glob.glob('src/assets/game/char/*/00.webp')):
+    print(f)  # abra e confira o lado do nariz contra o nome da pasta
+EOF
+```
+
+## Onde mora a ordem dos quadros
+
+Em `src/editor/anims.ts`, não no laço de animação. Cada pasta de quadros tem uma
+`ClipConfig`:
+
+```ts
+{ frames: [0, 2], frameMs: 200, mode: 'loop' }
+```
+
+* `frames` — a ordem, por índice de arquivo. Pode repetir e pode inverter.
+* `frameMs` — quanto cada passo segura (só vale no modo `loop`).
+* `mode` — como o jogo lê a lista:
+  * `loop` — roda em ciclo (andar, correr, parado);
+  * `fisica` — primeiro item subindo, último descendo (pulo);
+  * `fase` — um item por momento do lance (pescaria).
+
+Tudo isso é editável na seção **ANIMAÇÕES** do modo editor e fica salvo no
+navegador. `src/world/usePlayer.ts` só pergunta qual é o quadro da vez.
+
 ### Correr é caminhar acelerado
 
-`RUN_ANIM_SPEEDUP = 1.25` em `src/world/usePlayer.ts`. O clipe de corrida usa
-exatamente os mesmos quadros da caminhada, só com o tempo de quadro dividido por
-1,25. A velocidade de deslocamento (`RUN_SPEED`) é outra coisa e continua sendo
-decisão de jogabilidade — se um dia o deslize dos pés incomodar, é esse número
-que se mexe.
+Mesma arte da caminhada, `frameMs` menor (200 ms andando, 160 ms correndo). A
+velocidade de deslocamento (`RUN_SPEED`) é outra coisa e continua sendo decisão
+de jogabilidade — se um dia o deslize dos pés incomodar, é esse número que se
+mexe, ou o ritmo do clipe no editor.
+
+### Tamanho do Juggler
+
+`CHAR_SCALE = 0.72` em `src/world/usePlayer.ts` encolhe o quadro inteiro para o
+mar ganhar tela. `CHAR_FRAME_H` continua sendo gerado pelo importador e não se
+mexe na mão.
 
 ### A pescaria não roda em loop
 

@@ -21,7 +21,7 @@ import {
 } from '../world/layout';
 import type { LayerId, SceneObject, SceneState, ZoneId } from './types';
 
-const KEY = 'juggler-fishing/cena/v1';
+const KEY = 'juggler-fishing/cena/v2';
 
 /**
  * A cena do mundo em forma de dados.
@@ -61,20 +61,23 @@ function seedObjects(): SceneObject[] {
   // ------------------------------------------------------------- fundo
   for (const p of SEAFLOOR) out.push(fromProp(p, 'fundo', true));
   for (const p of UNDERWATER_LIFE) out.push(fromProp(p, 'fundo', true));
-  for (const p of SHORE) out.push(fromProp(p, 'fundo'));
+  // A areia da frente e desenhada DEPOIS da camada de fundo, entao concha,
+  // estrela e caranguejo da orla precisam viver no cenario - no fundo eles
+  // ficavam escondidos atras do proprio chao.
+  for (const p of SHORE) out.push(fromProp(p, 'cenario'));
 
   // ----------------------------------------------------------- cenario
-  const postCount = Math.floor((PIER_END - 60 - (PIER_START - 30)) / 210) + 1;
+  const postCount = Math.floor((PIER_END - 60 - (PIER_START - 30)) / 190) + 1;
   for (let i = 0; i < postCount; i++) {
     out.push({
       id: `pier-post-${i}`,
       layer: 'cenario',
       kind: 'sprite',
       sprite: 'props/pier-post-side',
-      x: PIER_START - 30 + i * 210,
-      y: PIER_Y + 26,
-      w: Math.round(230 * aspectOf('props/pier-post-side')),
-      h: 230,
+      x: PIER_START - 30 + i * 190,
+      y: PIER_Y + 22,
+      w: Math.round(184 * aspectOf('props/pier-post-side')),
+      h: 184,
       rot: 0,
     });
   }
@@ -83,10 +86,10 @@ function seedObjects(): SceneObject[] {
     layer: 'cenario',
     kind: 'sprite',
     sprite: 'props/pier-ladder-side',
-    x: PIER_START + 300,
-    y: PIER_Y + 20,
-    w: Math.round(120 * aspectOf('props/pier-ladder-side')),
-    h: 120,
+    x: PIER_START + 280,
+    y: PIER_Y + 16,
+    w: Math.round(96 * aspectOf('props/pier-ladder-side')),
+    h: 96,
     rot: 0,
   });
   out.push({
@@ -94,10 +97,10 @@ function seedObjects(): SceneObject[] {
     layer: 'cenario',
     kind: 'sprite',
     sprite: 'props/fishing-boat-idle-side',
-    x: PIER_START - 460,
-    y: 356,
-    w: Math.round(150 * aspectOf('props/fishing-boat-idle-side')),
-    h: 150,
+    x: PIER_START - 420,
+    y: 314,
+    w: Math.round(118 * aspectOf('props/fishing-boat-idle-side')),
+    h: 118,
     rot: 0,
     anim: 'balanco',
   });
@@ -107,9 +110,9 @@ function seedObjects(): SceneObject[] {
     kind: 'sprite',
     sprite: '',
     x: FOREST_START - 90,
-    y: SAND_Y - 268,
+    y: SAND_Y - 216,
     w: WORLD_W - FOREST_START + 190,
-    h: 272,
+    h: 220,
     rot: 0,
     anim: 'treeline',
     locked: true,
@@ -127,9 +130,9 @@ function seedObjects(): SceneObject[] {
     kind: 'sprite',
     sprite: 'props/fishing-rod',
     x: ROD_X,
-    y: PIER_Y - 150,
-    w: Math.round(160 * aspectOf('props/fishing-rod')),
-    h: 160,
+    y: PIER_Y - 122,
+    w: Math.round(128 * aspectOf('props/fishing-rod')),
+    h: 128,
     rot: 0,
     flip: true,
     role: 'vara',
@@ -141,10 +144,10 @@ function seedObjects(): SceneObject[] {
     layer: 'interagiveis',
     kind: 'zone',
     zone: 'vara',
-    x: ROD_X - 130,
-    y: PIER_Y - 170,
-    w: 260,
-    h: 210,
+    x: ROD_X - 120,
+    y: PIER_Y - 145,
+    w: 240,
+    h: 180,
     rot: 0,
   });
   out.push({
@@ -152,10 +155,10 @@ function seedObjects(): SceneObject[] {
     layer: 'interagiveis',
     kind: 'zone',
     zone: 'mercado',
-    x: MARKET_X - 150,
-    y: SAND_Y - 250,
-    w: 300,
-    h: 260,
+    x: MARKET_X - 140,
+    y: SAND_Y - 205,
+    w: 280,
+    h: 215,
     rot: 0,
   });
 

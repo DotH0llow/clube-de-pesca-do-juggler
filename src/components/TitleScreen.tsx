@@ -151,7 +151,7 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
           <span className="title-clock">
             {clockLabel()} &middot; {REGIONS[phase].name}
           </span>
-          <span>v0.2</span>
+          <span>&middot; v0.2</span>
         </div>
       </div>
 
