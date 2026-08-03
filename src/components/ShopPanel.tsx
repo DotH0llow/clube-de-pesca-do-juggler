@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { REGION_ORDER, REGIONS } from '../data/regions';
-import { clockLabel, PHASE_MS, useDayPhase } from '../world/dayCycle';
+import { useGameClock, PHASE_MS, useDayPhase } from '../world/dayCycle';
 import type { RegionId } from '../state/types';
 import { RELICS, UPGRADES, upgradeCost } from '../data/upgrades';
 import { playSfx } from '../engine/audio';
@@ -146,12 +146,13 @@ export function ShopApp() {
  */
 function DayCycle() {
   const phase = useDayPhase();
+  const clock = useGameClock();
   return (
     <>
       <div className="desc" style={{ padding: '4px 2px 10px' }}>
         Um dia no cais dura 24 minutos e não para: cada fase fica{' '}
         {Math.round(PHASE_MS / 60000)} minutos no ar e passa a vez sozinha. Agora são{' '}
-        <strong>{clockLabel()}</strong>.
+        <strong>{clock}</strong>.
       </div>
       {REGION_ORDER.map((id) => {
         const r = REGIONS[id];

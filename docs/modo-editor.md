@@ -213,11 +213,38 @@ que some quando o peixe está sendo recolhido. Era um PNG de tamanho fixo largad
 perto da água, que nunca batia com a direção nem com o comprimento da vara. Agora
 os dois extremos são configuração, então alinhar é questão de arrastar a cruz.
 
+## Objetos na cena
+
+O painel `CENA` lista tudo o que existe, agrupado pela camada, com **miniatura**
+de cada asset e o número da profundidade à direita.
+
+- o campo de **busca** filtra por nome do sprite, da área ou do id;
+- **clique** seleciona;
+- **duplo clique** leva a tela até o objeto e o seleciona — é o caminho rápido
+  quando você sabe o nome mas não onde ele foi parar no mapa.
+
+No menu não há para onde andar (a cena cabe inteira na tela), então lá o duplo
+clique só seleciona.
+
 ## Cheats de teste (F8)
 
-Além das moedas, o painel de dev tem um interruptor de **chuva**, que passa por
-`AUTOMÁTICA → LIGADA → DESLIGADA`. Automática é o comportamento normal (só chove
-na tarde de temporal); as outras duas mandam na chuva independente da fase do
-dia, para dar para olhar como o cenário fica molhado sem esperar seis minutos.
+| Cheat | O que faz |
+| --- | --- |
+| moedas | `+100.000` em Sazoncoins, Olhos ou nos dois |
+| hora do dia | pula direto para uma das quatro fases; `-1H` e `+1H` andam de hora em hora; `HORA REAL` desfaz |
+| chuva | `AUTOMÁTICA → LIGADA → DESLIGADA` |
+| câmera livre | o Juggler fica plantado e a tela anda sozinha |
 
-Isso não é salvo: recarregar a página volta para automática.
+**Hora do dia** adianta um desvio em cima do relógio da máquina, como adiantar
+um relógio de parede: o dia continua andando sozinho a partir dali. Pular para o
+entardecer e esperar leva para a madrugada normalmente.
+
+**Chuva** automática é o comportamento normal (só chove na tarde de temporal);
+ligada e desligada mandam nela independente da fase do dia.
+
+**Câmera livre** solta a tela do personagem: `WASD` ou as setas movem, o mouse
+encostado na borda empurra, `Shift` acelera e `Esc` devolve o controle. Subir e
+descer só tem efeito com o zoom acima de 100%, que é quando o mundo passa da
+altura da tela.
+
+Nada disso é salvo: recarregar a página volta tudo ao normal.

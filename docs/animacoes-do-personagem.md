@@ -105,8 +105,20 @@ vara fincada no deck some — a arte já traz uma.
 
 ### O pulo segue a física, não o cronômetro
 
-Subindo mostra o impulso, descendo mostra a aterrissagem. Quem decide é o sinal
-da velocidade vertical.
+O quadro de impulso vale o voo inteiro — **subindo e descendo**. O quadro de
+aterrissagem só entra quando o pé encosta no chão, e fica `LAND_MS` (150 ms)
+antes de devolver o controle à animação normal.
+
+Antes disso o quadro saía do sinal da velocidade vertical, o que dava um Juggler
+agachado no ar durante toda a queda: a pose de aterrissar aparecia no ponto mais
+alto do pulo, que é o único lugar onde ela com certeza não deve estar.
+
+### A sombra fica no chão
+
+A sombra é **irmã** do personagem no DOM, não filha. Dentro do `.player` ela
+herdava o `translate` do pulo e subia junto, como se o chão fosse embora com
+ele. Agora o laço escreve a posição dela separado, sempre em `groundAt(x)`, e ela
+só encolhe e clareia conforme ele ganha altura.
 
 ## O que o importador resolve
 

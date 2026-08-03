@@ -37,10 +37,11 @@ import {
   useSession,
 } from './state/casino';
 import { debugEnabled } from './game/balance';
+import { setFreeCam, useDevFlags } from './state/dev';
 import { useSettings } from './state/settings';
 import { claimDaily, dailyAvailable, dailyPreview, syncRegion, useGame } from './state/store';
 import { usePlayer, type FishPose } from './world/usePlayer';
-import { clockLabel, useDayPhase } from './world/dayCycle';
+import { clockLabel, useDayPhase, useGameClock } from './world/dayCycle';
 
 /** Peixe de mentira: so a simulacao do editor usa, para ter o que desenhar. */
 const DEMO_CAST = {
@@ -64,6 +65,7 @@ interface Toast {
 export default function App() {
   const s = useGame();
   const settings = useSettings();
+  const dev = useDevFlags();
   const [view, setView] = useState<'titulo' | 'mundo'>('titulo');
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [fishing, setFishing] = useState(false);
@@ -95,6 +97,7 @@ export default function App() {
 
   // o dia anda sozinho: o save so acompanha a fase que esta no ar
   const dayPhase = useDayPhase();
+  const clock = useGameClock();
   const firstPhase = useRef(true);
   useEffect(() => {
     syncRegion(dayPhase);
@@ -250,6 +253,12 @@ export default function App() {
       }
       if (e.code === 'Escape') {
         e.preventDefault();
+        // com a camera livre ligada, Esc devolve o controle ao Juggler antes
+        // de qualquer outra coisa - e a saida obvia de um modo que prende a tela
+        if (dev.freeCam) {
+          setFreeCam(false);
+          return;
+        }
         setPhoneOpen((p) => {
           if (!p) abort();
           return !p;
@@ -299,6 +308,7 @@ export default function App() {
     startFishing,
     openMarket,
     editor,
+    dev.freeCam,
   ]);
 
   const enterGame = () => {
@@ -349,6 +359,8 @@ export default function App() {
         fishing={shownFishing}
         playerXRef={player.playerX}
         cameraRef={player.cameraRef}
+        worldRef={player.worldRef}
+        shadowRef={player.shadowRef}
         farRef={player.farRef}
         midRef={player.midRef}
         playerRef={player.playerRef}
@@ -356,6 +368,13 @@ export default function App() {
         scale={player.scale}
         viewY={player.viewY}
       />
+
+      {dev.freeCam && !editor && (
+        <div className="freecam-tag">
+          CÂMERA LIVRE
+          <small>WASD OU SETAS &middot; MOUSE NA BORDA &middot; SHIFT ACELERA &middot; ESC SAI</small>
+        </div>
+      )}
 
       {!editor && (
       <div className="ui-layer">
@@ -388,7 +407,7 @@ export default function App() {
           <div className="region-tag">
             {region.name}
             <small>
-              {clockLabel()} &middot; {region.subtitle}
+              {clock} &middot; {region.subtitle}
             </small>
           </div>
         </div>

@@ -105,6 +105,8 @@ export function EditorOverlay({
     'biblioteca',
   );
   const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  /** filtro da lista da cena, por nome do sprite / da area / do id */
+  const [busca, setBusca] = useState('');
   const [cam, setCam] = useState(() => camXRef.current);
   const [dragAsset, setDragAsset] = useState<string | null>(null);
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
@@ -132,6 +134,24 @@ export function EditorOverlay({
   }, [preview.mechanic, playerXRef, scale]);
 
   const sel = selected ? scene.objects.find((o) => o.id === selected) ?? null : null;
+
+  /**
+   * Leva a tela ate o objeto e o deixa selecionado.
+   *
+   * Numa cena de quase cem pecas, achar na lista e depois cacar no mapa era o
+   * trabalho chato de verdade. No menu nao ha para onde andar (a cena cabe
+   * inteira na tela), entao ali isso so seleciona.
+   */
+  const goTo = useCallback(
+    (o: SceneObject) => {
+      setLayer('todas');
+      setSelected(o.locked ? null : o.id);
+      if (sceneId === 'menu') return;
+      const view = window.innerWidth / scale;
+      setCam(Math.max(0, o.x + o.w / 2 - view / 2));
+    },
+    [sceneId, scale],
+  );
 
   const toScreen = useCallback(
     (x: number, y: number) => ({ x: (x - cam) * scale + viewX, y: y * scale + viewY }),
@@ -772,25 +792,55 @@ export function EditorOverlay({
       {panel === 'cena' && (
         <div className="editor-panel">
           <div className="etitle">OBJETOS NA CENA</div>
+          <div className="elib-tools">
+            <input
+              value={busca}
+              placeholder="buscar por nome"
+              onChange={(e) => setBusca(e.target.value)}
+            />
+            {busca && (
+              <button className="ebtn" onClick={() => setBusca('')}>
+                LIMPAR
+              </button>
+            )}
+          </div>
+
           <div className="elist">
-            {LAYERS.map((l) => (
-              <div key={l.id}>
-                <div className="elib-cat">
-                  {l.label} {scene.hidden.includes(l.id) && <span className="off">(ESCONDIDA)</span>}
-                </div>
-                {scene.objects
-                  .filter((o) => o.layer === l.id)
-                  .map((o) => (
+            {LAYERS.map((l) => {
+              const termo = busca.trim().toLowerCase();
+              const list = scene.objects.filter((o) => {
+                if (o.layer !== l.id) return false;
+                if (!termo) return true;
+                return `${o.sprite ?? ''} ${o.zone ?? ''} ${o.id}`.toLowerCase().includes(termo);
+              });
+              if (termo && list.length === 0) return null;
+              return (
+                <div key={l.id}>
+                  <div className="elib-cat">
+                    <span className="grow">{l.label}</span>
+                    <small>{list.length}</small>
+                    {scene.hidden.includes(l.id) && <span className="off">ESCONDIDA</span>}
+                  </div>
+                  {list.map((o) => (
                     <button
                       key={o.id}
-                      className={`eitem${selected === o.id ? ' on' : ''}${o.locked ? ' locked' : ''}`}
+                      className={`eitem eitem-thumb${selected === o.id ? ' on' : ''}${o.locked ? ' locked' : ''}`}
+                      title={`${o.sprite || o.zone || o.id}\nClique seleciona · duplo clique leva a tela até ele`}
                       onClick={() => {
-                        setLayer(o.layer);
+                        setLayer('todas');
                         setSelected(o.locked ? null : o.id);
                       }}
+                      onDoubleClick={() => goTo(o)}
                     >
-                      <span className="lock">{o.locked ? '[X]' : '[ ]'}</span>
+                      <span className="ethumb">
+                        {o.sprite ? (
+                          <img src={asset(o.sprite)} alt="" />
+                        ) : (
+                          <i className={o.kind === 'zone' ? 'ezone' : 'emass'} />
+                        )}
+                      </span>
                       <span className="grow">{o.sprite || o.zone || o.id}</span>
+                      <span className="edepth-tag">{o.depth}</span>
                       <span
                         className="mini"
                         onClick={(e) => {
@@ -802,8 +852,12 @@ export function EditorOverlay({
                       </span>
                     </button>
                   ))}
-              </div>
-            ))}
+                </div>
+              );
+            })}
+          </div>
+          <div className="ehint">
+            Duplo clique leva a tela até o objeto. O número à direita é a profundidade.
           </div>
         </div>
       )}

@@ -12,7 +12,23 @@ import type { RegionId } from '../state/types';
  * O tempo vem do relogio da maquina (`Date.now()`), nao de um contador que
  * comeca do zero a cada partida. Assim o mundo continua girando com o jogo
  * fechado - abrir de novo as 3 da tarde nao devolve o jogador ao amanhecer.
+ *
+ * Em cima disso existe um DESVIO (`offsetMs`), que so o painel de dev mexe: e
+ * como adiantar um relogio de parede. O dia continua andando sozinho a partir
+ * dali, entao adiantar para o entardecer e esperar leva para a madrugada
+ * normalmente. Nao e salvo: recarregar volta para a hora de verdade.
  */
+
+let offsetMs = 0;
+
+/** O agora do JOGO: relogio da maquina mais o desvio do painel de dev. */
+export function gameNow(): number {
+  return Date.now() + offsetMs;
+}
+
+export function clockOffset(): number {
+  return offsetMs;
+}
 
 export const DAY_LENGTH_MS = 24 * 60 * 1000;
 
@@ -31,7 +47,7 @@ export interface DayPhase {
   msLeft: number;
 }
 
-export function dayPhaseAt(now = Date.now()): DayPhase {
+export function dayPhaseAt(now = gameNow()): DayPhase {
   const t = ((now % DAY_LENGTH_MS) + DAY_LENGTH_MS) % DAY_LENGTH_MS;
   const index = Math.min(DAY_ORDER.length - 1, Math.floor(t / PHASE_MS));
   const into = t - index * PHASE_MS;
@@ -44,7 +60,7 @@ export function currentPhase(): RegionId {
 }
 
 /** Hora ficticia do mundo, em formato 24h, so para mostrar na tela. */
-export function clockLabel(now = Date.now()): string {
+export function clockLabel(now = gameNow()): string {
   const t = ((now % DAY_LENGTH_MS) + DAY_LENGTH_MS) % DAY_LENGTH_MS;
   // o dia do jogo comeca as 6h: as 24 horas ficticias cabem nos 24 minutos
   const hours = (6 + (t / DAY_LENGTH_MS) * 24) % 24;
@@ -63,11 +79,41 @@ const listeners = new Set<() => void>();
 let snapshot: RegionId = currentPhase();
 let timer: ReturnType<typeof setInterval> | undefined;
 
-function tick() {
+function tick(force = false) {
   const next = currentPhase();
-  if (next === snapshot) return;
+  if (next === snapshot && !force) return;
   snapshot = next;
   for (const l of listeners) l();
+}
+
+/**
+ * Adianta ou atrasa o relogio do jogo, em ms.
+ *
+ * `tick(true)` no fim porque a fase pode ate continuar a mesma (pular 10
+ * minutos dentro da mesma fase), mas a HORA mudou e quem mostra o relogio
+ * precisa saber.
+ */
+export function shiftClock(ms: number): void {
+  offsetMs += ms;
+  tick(true);
+  clockTick();
+}
+
+/** Leva o relogio para o comeco de uma fase, sem passar pelas outras. */
+export function jumpToPhase(id: RegionId): void {
+  const target = DAY_ORDER.indexOf(id);
+  if (target < 0) return;
+  const t = ((gameNow() % DAY_LENGTH_MS) + DAY_LENGTH_MS) % DAY_LENGTH_MS;
+  // meio da fase, e nao a borda: parar em cima da virada troca de fase sozinho
+  const want = target * PHASE_MS + PHASE_MS * 0.15;
+  shiftClock(want - t);
+}
+
+/** Devolve o relogio para a hora de verdade. */
+export function resetClock(): void {
+  offsetMs = 0;
+  tick(true);
+  clockTick();
 }
 
 function subscribe(fn: () => void): () => void {
@@ -88,5 +134,43 @@ export function useDayPhase(): RegionId {
     subscribe,
     () => snapshot,
     () => snapshot,
+  );
+}
+
+/**
+ * O relogio da tela, separado da fase de proposito.
+ *
+ * A fase troca de 6 em 6 minutos e re-renderizar o mundo inteiro nela e barato.
+ * O relogio anda a cada segundo; se ele estivesse no mesmo gancho, o cenario
+ * seria remontado 60 vezes por minuto a toa. Aqui so quem mostra a hora escuta.
+ */
+const clockListeners = new Set<() => void>();
+let clockSnap = clockLabel();
+let clockTimer: ReturnType<typeof setInterval> | undefined;
+
+function clockTick() {
+  const next = clockLabel();
+  if (next === clockSnap) return;
+  clockSnap = next;
+  for (const l of clockListeners) l();
+}
+
+function subscribeClock(fn: () => void): () => void {
+  clockListeners.add(fn);
+  if (clockTimer === undefined) clockTimer = setInterval(clockTick, 500);
+  return () => {
+    clockListeners.delete(fn);
+    if (clockListeners.size === 0 && clockTimer !== undefined) {
+      clearInterval(clockTimer);
+      clockTimer = undefined;
+    }
+  };
+}
+
+export function useGameClock(): string {
+  return useSyncExternalStore(
+    subscribeClock,
+    () => clockSnap,
+    () => clockSnap,
   );
 }

@@ -7,7 +7,7 @@ import { SceneLayer } from './SceneLayer';
 import { initAudio, playSfx, startAmbience } from '../engine/audio';
 import { useGame } from '../state/store';
 import { useSettings } from '../state/settings';
-import { clockLabel, useDayPhase } from '../world/dayCycle';
+import { useDayPhase, useGameClock } from '../world/dayCycle';
 import { REGIONS } from '../data/regions';
 import { ControlsApp } from './ControlsPanel';
 import { SettingsApp } from './SettingsPanel';
@@ -108,6 +108,7 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
   const s = useGame();
   const settings = useSettings();
   const phase = useDayPhase();
+  const clock = useGameClock();
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [editor, setEditor] = useState(false);
   const view = useMenuView();
@@ -208,7 +209,7 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
         <div className="title-foot">
           <span className="founder-plate">FUNDADOR</span>
           <span className="title-clock">
-            {clockLabel()} &middot; {REGIONS[phase].name}
+            {clock} &middot; {REGIONS[phase].name}
           </span>
           <span>&middot; v0.2</span>
         </div>

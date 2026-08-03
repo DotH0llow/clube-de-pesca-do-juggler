@@ -33,6 +33,8 @@ interface Props {
   /** onde o Juggler esta: a linha de pesca sai da ponta da vara dele */
   playerXRef: React.MutableRefObject<number>;
   cameraRef: React.MutableRefObject<HTMLDivElement | null>;
+  worldRef: React.MutableRefObject<HTMLDivElement | null>;
+  shadowRef: React.MutableRefObject<HTMLDivElement | null>;
   farRef: React.MutableRefObject<HTMLDivElement | null>;
   midRef: React.MutableRefObject<HTMLDivElement | null>;
   playerRef: React.MutableRefObject<HTMLDivElement | null>;
@@ -55,6 +57,8 @@ export function World({
   fishing,
   playerXRef,
   cameraRef,
+  worldRef,
+  shadowRef,
   farRef,
   midRef,
   playerRef,
@@ -93,6 +97,7 @@ export function World({
           tambem e centralizada em vez de ficar colada no topo. */}
       <div
         className="world-scale"
+        ref={worldRef}
         style={{ transform: `translate3d(0,${viewY}px,0) scale(${scale})` }}
       >
         {/* Horizonte. As faixas sao objetos de cena como qualquer outro - dao
@@ -234,6 +239,9 @@ export function World({
           )}
 
           {/* ------------------------------------------------- o Juggler */}
+          {/* A sombra e irma do personagem, nao filha: assim ela fica no chao
+              enquanto ele pula, encolhendo conforme ganha altura. */}
+          <div className="player-shadow" ref={shadowRef} />
           <div className="player" ref={playerRef}>
             <img
               ref={spriteRef}
@@ -242,7 +250,6 @@ export function World({
               alt="Juggler"
               style={PLAYER_SPRITE_STYLE}
             />
-            <div className="player-shadow" />
           </div>
 
           {/* marcador discreto do balcao do mercado, na area definida no editor */}
