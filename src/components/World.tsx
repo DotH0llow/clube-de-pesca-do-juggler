@@ -95,38 +95,15 @@ export function World({
         className="world-scale"
         style={{ transform: `translate3d(0,${viewY}px,0) scale(${scale})` }}
       >
-        {/* ------------------------------------------------ fundo distante */}
+        {/* Horizonte. As faixas sao objetos de cena como qualquer outro - dao
+            para esconder, mover e trocar no editor - e so ficam em containers
+            proprios porque andam mais devagar que a camera. */}
         <div className="layer" ref={farRef}>
-          <div
-            className="strip"
-            style={{
-              backgroundImage: `url(${asset('sky/distant-mountain-strip')})`,
-              top: WATER_Y - 96,
-              height: 96,
-              opacity: 0.55,
-            }}
-          />
+          <SceneLayer scene="mundo" band="longe" />
         </div>
 
         <div className="layer" ref={midRef}>
-          <div
-            className="strip"
-            style={{
-              backgroundImage: `url(${asset('sky/distant-island-strip')})`,
-              top: WATER_Y - 86,
-              height: 92,
-              opacity: 0.85,
-            }}
-          />
-          <div
-            className="strip"
-            style={{
-              backgroundImage: `url(${asset('sky/horizon-haze-strip')})`,
-              top: WATER_Y - 26,
-              height: 40,
-              opacity: 0.45,
-            }}
-          />
+          <SceneLayer scene="mundo" band="meio" />
         </div>
 
         {/* ---------------------------------------------------- plano do jogo */}
@@ -153,9 +130,6 @@ export function World({
             {/* areia do fundo */}
             <div className="seabed" />
           </div>
-
-          {/* camada de fundo: fundo do mar, vida submersa e detalhe de areia */}
-          <SceneLayer layer="fundo" />
 
           {/* espuma e ondas na linha d agua */}
           <div
@@ -205,12 +179,11 @@ export function World({
           />
           {/* rampinha do deck para a areia */}
           <div className="pier-ramp" style={{ left: PIER_END, width: PIER_RAMP + 10, top: PIER_Y }} />
-          {/* cenario: pier, praia, mercado, cabana e a mata do fim do mapa */}
-          <SceneLayer layer="cenario" />
-
-          {/* objetos soltos. A vara fincada some quando o Juggler pega a dele:
-              a arte da pescaria ja vem com vara na mao. */}
-          <SceneLayer layer="objetos" hideRod={fishing} />
+          {/* A cena inteira numa passada so: quem fica na frente de quem sai da
+              profundidade de cada objeto, nao da ordem deste arquivo. A vara
+              fincada some quando o Juggler pega a dele - a arte da pescaria ja
+              vem com uma na mao. */}
+          <SceneLayer scene="mundo" hideRod={fishing} />
 
           {/* ------------------------------------------- linha, boia, peixe */}
           {inWater && (

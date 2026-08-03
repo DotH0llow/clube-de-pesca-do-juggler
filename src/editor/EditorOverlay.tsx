@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../assets';
-import { ASSET_LIST } from '../assets/dims';
 import {
   addSprite,
   beginBatch,
@@ -17,11 +16,24 @@ import {
   toggleLayer,
   toggleLock,
   undo,
+  reorder,
   rodX,
   updateObject,
+  useActiveScene,
   useScene,
+  MENU_H,
+  MENU_W,
 } from './scene';
-import { LAYERS, type LayerId, type SceneObject } from './types';
+import {
+  DEPTH_HINTS,
+  DEPTH_MAX,
+  DEPTH_MIN,
+  LAYERS,
+  PLAYER_DEPTH,
+  type LayerId,
+  type SceneObject,
+} from './types';
+import { LibraryPanel } from './LibraryPanel';
 import { AnimationsPanel, MechanicsPanel } from './AnimationsPanel';
 import { updateFx, useFx, type FxItem } from './fx';
 import { currentStep, stopPreview, usePreview } from './preview';
@@ -41,29 +53,21 @@ type Drag =
 interface Props {
   camXRef: React.MutableRefObject<number>;
   scale: number;
-  /** deslocamento vertical da cena quando o zoom passa da altura da tela */
+  /** deslocamento da cena quando o zoom passa do tamanho da tela */
   viewY: number;
-  zoom: number;
-  onResetZoom: () => void;
+  viewX?: number;
+  zoom?: number;
+  onResetZoom?: () => void;
   /** onde o Juggler esta: ancora das pecas presas nele (ponta da vara) */
-  playerXRef: React.MutableRefObject<number>;
+  playerXRef?: React.MutableRefObject<number>;
   onExit: () => void;
 }
 
 const HANDLES: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 
-/** Assets da biblioteca, agrupados pela pasta. */
-function useLibrary() {
-  return useMemo(() => {
-    const groups = new Map<string, string[]>();
-    for (const path of ASSET_LIST) {
-      const cat = path.split('/')[0];
-      if (!groups.has(cat)) groups.set(cat, []);
-      groups.get(cat)!.push(path);
-    }
-    return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, []);
-}
+/** Camada de trabalho, ou `todas` para pegar qualquer coisa que estiver visivel. */
+type WorkLayer = LayerId | 'todas';
+const DEPTHS = Array.from({ length: DEPTH_MAX - DEPTH_MIN + 1 }, (_, i) => DEPTH_MIN + i);
 
 /**
  * Modo editor: uma engine simples por cima do jogo.
@@ -81,17 +85,20 @@ export function EditorOverlay({
   camXRef,
   scale,
   viewY,
-  zoom,
+  viewX = 0,
+  zoom = 1,
   onResetZoom,
   playerXRef,
   onExit,
 }: Props) {
+  const sceneId = useActiveScene();
   const scene = useScene();
-  const library = useLibrary();
   const fx = useFx();
   const preview = usePreview();
+  /** o menu nao tem pescaria, entao nao tem o que simular la */
+  const hasMechanics = sceneId === 'mundo' && Boolean(playerXRef);
 
-  const [layer, setLayer] = useState<LayerId>('cenario');
+  const [layer, setLayer] = useState<WorkLayer>('todas');
   const [selected, setSelected] = useState<string | null>(null);
   const [fxSel, setFxSel] = useState<string | null>(null);
   const [panel, setPanel] = useState<'biblioteca' | 'cena' | 'animacoes' | 'mecanicas' | null>(
@@ -116,7 +123,7 @@ export function EditorOverlay({
    * praia, longe do apetrecho, e nao dava para ver nada.
    */
   useEffect(() => {
-    if (!preview.mechanic) return;
+    if (!preview.mechanic || !playerXRef) return;
     const z = zoneRect('vara');
     playerXRef.current = z ? z.x + z.w / 2 : rodX();
     const view = window.innerWidth / scale;
@@ -127,12 +134,12 @@ export function EditorOverlay({
   const sel = selected ? scene.objects.find((o) => o.id === selected) ?? null : null;
 
   const toScreen = useCallback(
-    (x: number, y: number) => ({ x: (x - cam) * scale, y: y * scale + viewY }),
-    [cam, scale, viewY],
+    (x: number, y: number) => ({ x: (x - cam) * scale + viewX, y: y * scale + viewY }),
+    [cam, scale, viewX, viewY],
   );
   const toWorld = useCallback(
-    (px: number, py: number) => ({ x: px / scale + cam, y: (py - viewY) / scale }),
-    [cam, scale, viewY],
+    (px: number, py: number) => ({ x: (px - viewX) / scale + cam, y: (py - viewY) / scale }),
+    [cam, scale, viewX, viewY],
   );
 
   /**
@@ -144,9 +151,10 @@ export function EditorOverlay({
    */
   const fxRect = useCallback(
     (it: FxItem) => {
+      const px = playerXRef?.current ?? rodX();
       const base =
         it.anchor === 'jogador'
-          ? { x: playerXRef.current, y: groundAt(playerXRef.current) }
+          ? { x: px, y: groundAt(px) }
           : { x: rodX() + fx.timings.bobberDx, y: fx.timings.bobberY };
       return { x: base.x + it.x, y: base.y + it.y, w: it.w, h: it.h };
     },
@@ -157,17 +165,22 @@ export function EditorOverlay({
   const stepItems = step ? fx.items.filter((i) => i.steps.includes(step.id)) : [];
   const fxItem = fxSel ? stepItems.find((i) => i.id === fxSel) ?? null : null;
 
-  /** Objeto mais a frente sob o ponto, respeitando camada ativa e cadeado. */
+  /**
+   * Objeto sob o ponto, respeitando camada de trabalho, cadeado e visibilidade.
+   *
+   * Com `todas` (o padrao) pega qualquer coisa - inclusive as areas de
+   * interacao, que antes so davam para clicar se a camada INTERAGIVEIS
+   * estivesse selecionada, coisa que nao aparecia em lugar nenhum da tela.
+   * Desempata por profundidade: quem esta mais na frente ganha o clique.
+   */
   const hit = useCallback(
     (wx: number, wy: number): SceneObject | null => {
-      const list = scene.objects.filter(
-        (o) => o.layer === layer && !o.locked && !scene.hidden.includes(o.layer),
-      );
-      for (let i = list.length - 1; i >= 0; i--) {
-        const o = list[i];
-        if (wx >= o.x && wx <= o.x + o.w && wy >= o.y && wy <= o.y + o.h) return o;
-      }
-      return null;
+      const list = scene.objects
+        .filter((o) => layer === 'todas' || o.layer === layer)
+        .filter((o) => !o.locked && !scene.hidden.includes(o.layer))
+        .filter((o) => wx >= o.x && wx <= o.x + o.w && wy >= o.y && wy <= o.y + o.h);
+      if (list.length === 0) return null;
+      return list.reduce((best, o) => (o.depth >= best.depth ? o : best));
     },
     [scene.objects, scene.hidden, layer],
   );
@@ -228,7 +241,8 @@ export function EditorOverlay({
     // botao direito: so o menu de contexto, sem mexer na selecao
     if (e.button === 2) {
       const any = scene.objects
-        .filter((o) => o.layer === layer && !scene.hidden.includes(o.layer))
+        .filter((o) => layer === 'todas' || o.layer === layer)
+        .filter((o) => !scene.hidden.includes(o.layer))
         .reverse()
         .find((o) => w.x >= o.x && w.x <= o.x + o.w && w.y >= o.y && w.y <= o.y + o.h);
       if (any) setMenu({ x: px, y: py, id: any.id });
@@ -246,7 +260,7 @@ export function EditorOverlay({
 
     // com a simulacao ligada, as pecas da mecanica pegam o clique primeiro:
     // elas estao por cima de tudo e sao o que voce veio ajustar
-    if (step) {
+    if (step && hasMechanics) {
       for (let i = stepItems.length - 1; i >= 0; i--) {
         const it = stepItems[i];
         const r = fxRect(it);
@@ -292,6 +306,8 @@ export function EditorOverlay({
       if (!d) return;
 
       if (d.mode === 'pan') {
+        // o menu cabe inteiro na tela: nao ha para onde arrastar
+        if (sceneId === 'menu') return;
         setCam(Math.max(0, d.cam - (px - d.px) / scale));
         return;
       }
@@ -385,14 +401,14 @@ export function EditorOverlay({
       let wy: number;
       if (!rect || overPanel) {
         // solto em cima de um painel: entra no meio da tela
-        wx = cam + window.innerWidth / scale / 2;
-        wy = 300;
+        wx = sceneId === 'menu' ? MENU_W / 2 : cam + window.innerWidth / scale / 2;
+        wy = sceneId === 'menu' ? MENU_H / 2 : 300;
       } else {
         const w = toWorld(ev.clientX - rect.left, ev.clientY - rect.top);
         wx = w.x;
         wy = w.y;
       }
-      const obj = addSprite(dragAsset, layer, wx, wy, 120);
+      const obj = addSprite(dragAsset, layer === 'todas' ? 'objetos' : layer, wx, wy, 120);
       setSelected(obj.id);
       setDragAsset(null);
       setGhost(null);
@@ -404,7 +420,7 @@ export function EditorOverlay({
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, [dragAsset, scale, cam, layer, toWorld]);
+  }, [dragAsset, scale, cam, layer, sceneId, toWorld]);
 
   const startHandle = (e: React.PointerEvent, handle: Handle) => {
     if (!sel || e.button !== 0) return;
@@ -523,6 +539,7 @@ export function EditorOverlay({
 
         {/* pecas da mecanica em simulacao: caixa por cima do efeito de verdade */}
         {step &&
+          hasMechanics &&
           stepItems.map((it) => {
             const r = fxRect(it);
             const p = toScreen(r.x, r.y);
@@ -560,7 +577,7 @@ export function EditorOverlay({
 
       {/* ------------------------------------------------------------ topo */}
       <div className="editor-bar">
-        <span className="editor-badge">MODO EDITOR</span>
+        <span className="editor-badge">{sceneId === 'menu' ? 'EDITOR DO MENU' : 'MODO EDITOR'}</span>
         <button className="ebtn" disabled={!canUndo()} onClick={() => undo()} title="Ctrl+Z">
           DESFAZER
         </button>
@@ -594,19 +611,23 @@ export function EditorOverlay({
         >
           ANIMAÇÕES
         </button>
-        <button
-          className="ebtn"
-          onClick={() => {
-            const next = panel === 'mecanicas' ? null : 'mecanicas';
-            setPanel(next);
-            if (next === null) stopPreview();
-          }}
-        >
-          MECÂNICAS
-        </button>
-        <button className="ebtn" onClick={onResetZoom} title="Ctrl + roda do mouse dá zoom">
-          ZOOM {Math.round(zoom * 100)}%
-        </button>
+        {hasMechanics && (
+          <button
+            className="ebtn"
+            onClick={() => {
+              const next = panel === 'mecanicas' ? null : 'mecanicas';
+              setPanel(next);
+              if (next === null) stopPreview();
+            }}
+          >
+            MECÂNICAS
+          </button>
+        )}
+        {onResetZoom && (
+          <button className="ebtn" onClick={onResetZoom} title="Ctrl + roda do mouse dá zoom">
+            ZOOM {Math.round(zoom * 100)}%
+          </button>
+        )}
         <button className="ebtn" onClick={doExport}>
           EXPORTAR
         </button>
@@ -642,7 +663,19 @@ export function EditorOverlay({
 
       {/* --------------------------------------------------------- camadas */}
       <div className="editor-layers">
-        <div className="etitle">CAMADAS</div>
+        <div className="etitle">TRABALHANDO EM</div>
+        <div className="elayer-pick">
+          <button
+            className={`ebtn${layer === 'todas' ? ' primary' : ''}`}
+            onClick={() => {
+              setLayer('todas');
+              setSelected(null);
+            }}
+            title="Pega qualquer objeto visível, de qualquer camada"
+          >
+            TODAS
+          </button>
+        </div>
         {LAYERS.map((l) => {
           const count = scene.objects.filter((o) => o.layer === l.id).length;
           const visible = !scene.hidden.includes(l.id);
@@ -657,16 +690,22 @@ export function EditorOverlay({
               <button
                 className="ename"
                 onClick={() => {
-                  setLayer(l.id);
+                  setLayer(layer === l.id ? 'todas' : l.id);
                   setSelected(null);
                 }}
+                title="Trabalhar só nesta camada"
               >
                 {l.label} <small>({count})</small>
               </button>
             </div>
           );
         })}
-        <div className="ehint">{LAYERS.find((l) => l.id === layer)?.hint}</div>
+        <div className="ehint">
+          {layer === 'todas'
+            ? 'Clique pega qualquer objeto visível. Escolha uma camada para travar o clique nela.'
+            : LAYERS.find((l) => l.id === layer)?.hint}
+        </div>
+
         {sel && (
           <div className="einspect">
             <div className="etitle">SELECIONADO</div>
@@ -677,6 +716,36 @@ export function EditorOverlay({
             <div className="eline">
               L {Math.round(sel.w)} &middot; A {Math.round(sel.h)} &middot; {Math.round(sel.rot)}°
             </div>
+
+            <div className="etitle" style={{ marginTop: 8 }}>
+              PROFUNDIDADE
+            </div>
+            <div className="edepth">
+              {DEPTHS.map((d) => (
+                <button
+                  key={d}
+                  className={`edepth-step${sel.depth === d ? ' on' : ''}${d === PLAYER_DEPTH ? ' juggler' : ''}`}
+                  onClick={() => updateObject(sel.id, { depth: d })}
+                  title={DEPTH_HINTS[d]}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+            <div className="ehint">
+              {sel.depth} &middot; {DEPTH_HINTS[sel.depth] ?? ''}
+              <br />
+              {sel.depth > PLAYER_DEPTH ? 'na frente do Juggler' : 'atrás do Juggler'}
+            </div>
+            <div className="erow">
+              <button className="ebtn" onClick={() => reorder(sel.id, true)} title="Desempata quem tem a mesma profundidade">
+                À FRENTE
+              </button>
+              <button className="ebtn" onClick={() => reorder(sel.id, false)}>
+                ATRÁS
+              </button>
+            </div>
+
             <div className="erow">
               <button className="ebtn" onClick={() => updateObject(sel.id, { flip: !sel.flip })}>
                 ESPELHAR
@@ -691,33 +760,12 @@ export function EditorOverlay({
 
       {/* ------------------------------------------------------- biblioteca */}
       {panel === 'biblioteca' && (
-        <div className="editor-panel">
-          <div className="etitle">BIBLIOTECA &middot; ARRASTE PARA A CENA</div>
-          <div className="elib">
-            {library.map(([cat, items]) => (
-              <div key={cat} className="elib-group">
-                <div className="elib-cat">{cat.toUpperCase()}</div>
-                <div className="elib-grid">
-                  {items.map((path) => (
-                    <button
-                      key={path}
-                      className="elib-item"
-                      title={path}
-                      onPointerDown={(e) => {
-                        if (e.button !== 0) return;
-                        e.preventDefault();
-                        setDragAsset(path);
-                        setGhost({ x: e.clientX, y: e.clientY });
-                      }}
-                    >
-                      <img src={asset(path)} alt="" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <LibraryPanel
+          onDragAsset={(path, x, y) => {
+            setDragAsset(path);
+            setGhost({ x, y });
+          }}
+        />
       )}
 
       {/* ------------------------------------------------------ lista da cena */}
@@ -762,7 +810,9 @@ export function EditorOverlay({
 
       {panel === 'animacoes' && <AnimationsPanel />}
 
-      {panel === 'mecanicas' && <MechanicsPanel selected={fxSel} onSelect={setFxSel} />}
+      {panel === 'mecanicas' && hasMechanics && (
+        <MechanicsPanel selected={fxSel} onSelect={setFxSel} />
+      )}
 
       {/* ---------------------------------------------------- menu do direito */}
       {menu && (

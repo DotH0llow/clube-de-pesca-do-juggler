@@ -1,7 +1,14 @@
 # Modo editor
 
-Abre pelo painel de dev (**F8** → `ABRIR MODO EDITOR`). Enquanto ele está
-ligado o jogo fica parado: não dá para andar nem pescar.
+Abre em dois lugares:
+
+* **no jogo** — painel de dev (`F8`) → `ABRIR MODO EDITOR`. O jogo fica parado:
+  não dá para andar nem pescar;
+* **no menu** — botão `EDITOR DO MENU` na tela de título.
+
+É o mesmo editor nos dois: mesma barra, mesmas camadas, mesma biblioteca,
+mesmos atalhos. Muda só a cena que está sendo editada (`mundo` ou `menu`), e o
+menu não tem as seções que dependem da pescaria.
 
 ## Como a cena funciona
 
@@ -10,22 +17,72 @@ barril e área de interação é um objeto com posição, tamanho, rotação, ca
 cadeado (`src/editor/scene.ts`). O jogo desenha essa mesma lista, então o que
 você move no editor é o que aparece no jogo.
 
-A cena fica salva no navegador (`localStorage`). `RESETAR` volta para o layout
-original de `src/world/layout.ts`, que continua sendo a semente.
+Cada cena fica salva no navegador (`localStorage`, chave
+`juggler-fishing/cena/v3`). `RESETAR` volta a cena aberta para a semente de
+`src/editor/scene.ts`. Cena da versão anterior é migrada sozinha: as posições
+que você já tinha arrumado continuam valendo, e cada objeto ganha camada e
+profundidade pela família do sprite.
 
-## Camadas
+## Camadas e profundidade são coisas diferentes
+
+Isto aqui é o ponto que mais confunde, então vai separado:
+
+* **camada** é a *gaveta*. Serve para achar, esconder em bloco e travar o
+  clique. Não decide quem aparece na frente de quem;
+* **profundidade** (0 a 10) é a *ordem de desenho*. É ela que decide.
+
+Dá para ter um barril de `OBJETOS` atrás de um coqueiro de `CENÁRIO`, e é isso
+que se quer na maioria das cenas.
+
+### As gavetas
 
 | Camada | O que vive nela |
 | --- | --- |
-| `BACKGROUND` | fundo do mar, cardume, bolha e detalhe de areia |
-| `CENÁRIO` | coqueiro, cabana, mercado, pier, barco e a mata do fim do mapa |
-| `OBJETOS` | tralha solta: barril, caixa, corda, balde e a vara |
+| `BACKGROUND` | o que fecha o horizonte: montanha longe, ilha, neblina da linha do mar |
+| `CENÁRIO` | o que fica de pé no mapa: píer, coqueiro, cabana, mercado, barco, mata |
+| `OBJETOS` | tralha solta e vida do mar: barril, caixa, vara, coral, alga, cardume |
 | `INTERAGÍVEIS` | as caixas verdes de PESCAR e MERCADO |
 
-- A caixa de seleção do painel esconde a camada inteira.
-- **Só dá para pegar objeto da camada ativa** (a de fundo amarelo). Clique no
-  nome para trocar.
-- Objeto travado não é selecionado nem apagado, nem pelo clique nem pela lista.
+O céu e as nuvens não são objetos de cena: eles seguem a fase do dia
+(`src/components/Sky.tsx`) e trocam sozinhos de manhã, à tarde, no entardecer e
+de madrugada.
+
+### Trabalhando em
+
+O painel da esquerda abre em **TODAS**: o clique pega qualquer objeto visível,
+de qualquer camada — inclusive as áreas de interação. Escolher uma camada
+**trava o clique nela**, que é o que se quer quando o cenário está cheio e você
+só mexe numa coisa. Clicar de novo no nome volta para TODAS.
+
+A caixa de seleção ao lado do nome é outra coisa: ela esconde a camada inteira.
+
+Objeto travado não é selecionado nem apagado, nem pelo clique nem pela lista.
+
+### A régua de profundidade
+
+| | |
+| --- | --- |
+| 0 | horizonte e fundo do mar |
+| 1 | vulto submerso |
+| 2 | espuma e linha d'água |
+| 3 | cenário distante |
+| 4 | estacas e estrutura |
+| 5 | deck e chão |
+| 6 | tralha em cima do deck |
+| **7** | **plano do Juggler** |
+| 8 | na frente do Juggler |
+| 9 | primeiro plano |
+| 10 | colado na tela |
+
+O `7` vem marcado de amarelo no editor porque é a referência: **de 0 a 7 o
+objeto passa atrás do Juggler; de 8 para cima, na frente dele.**
+
+As peças fixas do mundo (mar, areia, espuma, deck do píer) entram na mesma
+régua, então dá para enfiar um objeto entre elas — um barril em 4 fica atrás do
+deck, o mesmo barril em 6 fica em cima.
+
+Empate de número desempata pela ordem da lista; `À FRENTE` e `ATRÁS` no
+inspetor mexem nisso.
 
 ## Controles
 
@@ -55,6 +112,22 @@ conta como **um** passo — a pilha guarda o estado de antes de você pegar o
 objeto, não um estado por quadro do mouse. Esconder ou mostrar uma camada é
 visualização, não edição, e por isso fica fora do histórico. O histórico vive na
 sessão: fechar o jogo zera a pilha (a cena, essa sim, continua salva).
+
+## Biblioteca
+
+Cada pasta abre e fecha no clique do título. O título também **arrasta**: solte
+em cima de outro título para reordenar. Um item arrastado para dentro de outra
+pasta muda de pasta — é etiqueta, não arquivo: nada é movido no disco e
+`RESETAR` desfaz tudo.
+
+`CRIAR` faz uma pasta sua, para juntar os assets que você usa toda hora sem
+caçar no meio de 250 imagens. Pasta criada por você tem um `×` para apagar; os
+assets voltam para a pasta de origem.
+
+Para jogar um asset na cena: **duplo clique**, ou **shift + arrastar** até o
+ponto onde ele deve entrar.
+
+A organização fica salva em `juggler-fishing/biblioteca/v1`.
 
 ## Interagíveis
 
@@ -139,3 +212,12 @@ Ela é desenhada (um `path` de SVG) da ponta da vara até a boia, com uma barrig
 que some quando o peixe está sendo recolhido. Era um PNG de tamanho fixo largado
 perto da água, que nunca batia com a direção nem com o comprimento da vara. Agora
 os dois extremos são configuração, então alinhar é questão de arrastar a cruz.
+
+## Cheats de teste (F8)
+
+Além das moedas, o painel de dev tem um interruptor de **chuva**, que passa por
+`AUTOMÁTICA → LIGADA → DESLIGADA`. Automática é o comportamento normal (só chove
+na tarde de temporal); as outras duas mandam na chuva independente da fase do
+dia, para dar para olhar como o cenário fica molhado sem esperar seis minutos.
+
+Isso não é salvo: recarregar a página volta para automática.

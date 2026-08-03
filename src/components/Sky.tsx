@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { asset } from '../assets';
+import { useDevFlags } from '../state/dev';
 import type { RegionId } from '../state/types';
 
 /**
@@ -50,7 +51,10 @@ function seeded(seed: number) {
 }
 
 export function Sky({ region }: { region: RegionId }) {
-  const cfg = SKY[region];
+  const base = SKY[region];
+  const dev = useDevFlags();
+  // o interruptor de teste manda na chuva; sem ele, quem decide e a fase do dia
+  const cfg = dev.rain === null ? base : { ...base, storm: dev.rain };
 
   const clouds = useMemo<Drifter[]>(() => {
     const rnd = seeded(region.length * 7919 + 13);

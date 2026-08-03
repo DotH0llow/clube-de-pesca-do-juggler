@@ -1,26 +1,42 @@
 import { memo } from 'react';
 import { asset } from '../assets';
 import { useScene } from '../editor/scene';
-import type { LayerId, SceneObject } from '../editor/types';
+import { depthZ, type SceneId, type SceneObject } from '../editor/types';
 
 /**
- * Desenha uma camada da cena. O jogo e o editor leem a MESMA lista de objetos,
- * entao o que voce move no editor e o que aparece no jogo.
+ * Desenha uma cena inteira. O jogo e o editor leem a MESMA lista, entao o que
+ * voce move no editor e o que aparece na tela.
  *
- * Cada objeto e um div posicionado (posicao, tamanho, rotacao) com a imagem
- * dentro. A separacao existe para as animacoes de CSS (cardume, bolha, barco)
- * poderem usar transform sem brigar com a rotacao do objeto.
+ * Quem fica na frente de quem sai da `depth` de cada objeto (0 a 10), nao da
+ * ordem em que o codigo desenha. Por isso aqui nao ha mais uma chamada por
+ * camada: e uma passada so, e o z-index faz o resto. Empate de profundidade
+ * desempata pela ordem da lista, que o menu do botao direito sabe mexer.
+ *
+ * `parallax` separa as faixas do horizonte em tres grupos: as que andam pouco,
+ * as do meio e as que andam junto com o mundo. Os dois primeiros grupos vao
+ * para containers proprios, movidos pelo laco do jogo.
  */
 function ObjectView({ o }: { o: SceneObject }) {
-  const rot = o.rot;
   const style: React.CSSProperties = {
     left: o.x,
     top: o.y,
     width: o.w,
     height: o.h,
     opacity: o.opacity,
-    transform: `${rot ? `rotate(${rot}deg)` : ''}${o.flip ? ' scaleX(-1)' : ''}` || undefined,
+    zIndex: depthZ(o.depth),
+    transform: `${o.rot ? `rotate(${o.rot}deg)` : ''}${o.flip ? ' scaleX(-1)' : ''}` || undefined,
   };
+
+  // faixa que se repete no eixo x (horizonte, tabua do deck)
+  if (o.kind === 'strip') {
+    return (
+      <div
+        className="wobj wobj-strip"
+        data-obj={o.id}
+        style={{ ...style, backgroundImage: o.sprite ? `url(${asset(o.sprite)})` : undefined }}
+      />
+    );
+  }
 
   // a treeline nao e sprite: e uma massa de mata desenhada em CSS
   if (!o.sprite) {
@@ -39,24 +55,34 @@ function ObjectView({ o }: { o: SceneObject }) {
   );
 }
 
-export const SceneLayer = memo(function SceneLayer({
-  layer,
-  hideRod = false,
-}: {
-  layer: LayerId;
+interface Props {
+  scene: SceneId;
+  /** 'perto' = anda junto com a camera; os outros dois sao horizonte */
+  band?: 'longe' | 'meio' | 'perto';
   /** esconde a vara fincada no deck (o Juggler esta com a dele na mao) */
   hideRod?: boolean;
-}) {
-  const scene = useScene();
-  if (scene.hidden.includes(layer)) return null;
+}
+
+/** Em que faixa de parallax o objeto cai. */
+export function bandOf(o: SceneObject): 'longe' | 'meio' | 'perto' {
+  const p = o.parallax ?? 1;
+  if (p < 0.35) return 'longe';
+  if (p < 0.8) return 'meio';
+  return 'perto';
+}
+
+export const SceneLayer = memo(function SceneLayer({ scene, band = 'perto', hideRod = false }: Props) {
+  const state = useScene(scene);
   return (
-    <div className={`scene-layer layer-${layer}`}>
-      {scene.objects
-        .filter((o) => o.layer === layer && o.kind === 'sprite')
+    <>
+      {state.objects
+        .filter((o) => o.kind !== 'zone')
+        .filter((o) => !state.hidden.includes(o.layer))
+        .filter((o) => bandOf(o) === band)
         .filter((o) => !(hideRod && o.role === 'vara'))
         .map((o) => (
           <ObjectView key={o.id} o={o} />
         ))}
-    </div>
+    </>
   );
 });

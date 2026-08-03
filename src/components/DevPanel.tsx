@@ -1,4 +1,5 @@
 import { playSfx } from '../engine/audio';
+import { cycleRain, RAIN_LABEL, rainMode, useDevFlags } from '../state/dev';
 import { grantCheat, useGame } from '../state/store';
 
 interface Props {
@@ -12,6 +13,8 @@ interface Props {
  */
 export function DevPanel({ onClose, onEditor }: Props) {
   const s = useGame();
+  const dev = useDevFlags();
+  const rain = rainMode(dev);
 
   const pay = (coins: number, eyes: number) => {
     grantCheat(coins, eyes);
@@ -42,6 +45,20 @@ export function DevPanel({ onClose, onEditor }: Props) {
         </button>
         <button className="ebtn" onClick={() => pay(100000, 100000)}>
           +100K NOS DOIS
+        </button>
+      </div>
+
+      <div className="dev-grid">
+        <button
+          className={`ebtn wide${rain === 'on' ? ' primary' : ''}${rain === 'off' ? ' danger' : ''}`}
+          style={{ gridColumn: '1 / -1' }}
+          onClick={() => {
+            cycleRain();
+            playSfx('ui');
+          }}
+          title="Automática segue a fase do dia; ligada e desligada mandam nela"
+        >
+          {RAIN_LABEL[rain]}
         </button>
       </div>
 

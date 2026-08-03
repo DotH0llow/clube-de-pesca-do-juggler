@@ -270,6 +270,7 @@ button {
 /* ------------------------------------------------------------------ mar */
 
 .sea {
+  z-index: 0;
   position: absolute;
   overflow: hidden;
 }
@@ -311,6 +312,7 @@ button {
 
 /* espuma e ondas na linha d agua */
 .surf {
+  z-index: 25;
   position: absolute;
   height: 70px;
   pointer-events: none;
@@ -379,6 +381,9 @@ button {
 /* ------------------------------------------------------------ terra e pier */
 
 .sand {
+  /* a praia e massa de terra em primeiro plano: passa na frente do que esta
+     submerso (profundidade 1, z 10) e atras do detalhe de orla (3, z 30) */
+  z-index: 15;
   position: absolute;
   background:
     linear-gradient(180deg, #f2dfa8 0%, #e3c987 18%, #cdad6d 60%, #a88750 100%);
@@ -392,6 +397,7 @@ button {
 }
 
 .pier-deck {
+  z-index: 45;
   position: absolute;
   height: 24px;
   background-repeat: repeat-x;
@@ -409,11 +415,13 @@ button {
 /* a areia nao termina num corte reto: desce em rampa para dentro da agua.
    o mar fica a esquerda, entao a rampa cai para aquele lado */
 .world-spill {
+  z-index: 0;
   position: absolute;
   height: 420px;
 }
 
 .sand-slope {
+  z-index: 15;
   position: absolute;
   width: 420px;
   height: 294px;
@@ -424,6 +432,7 @@ button {
 
 /* rampa curta que liga o deck do pier a areia */
 .pier-ramp {
+  z-index: 45;
   position: absolute;
   height: 46px;
   background: linear-gradient(180deg, #a9733f, #7d5027);
@@ -447,6 +456,7 @@ button {
 
 /* pontinho de luz marcando um ponto de interacao no chao */
 .spot-mark {
+  z-index: 105;
   position: absolute;
   width: 90px;
   height: 16px;
@@ -469,6 +479,7 @@ button {
 }
 
 .tide-line {
+  z-index: 16;
   position: absolute;
   height: 14px;
   opacity: 0.55;
@@ -545,7 +556,8 @@ button {
   top: 0;
   width: 0;
   height: 0;
-  z-index: 5;
+  /* profundidade 7 na regua da cena */
+  z-index: 75;
   will-change: transform;
 }
 
@@ -582,12 +594,12 @@ button {
   height: 720px;
   overflow: visible;
   pointer-events: none;
-  z-index: 4;
+  z-index: 85;
 }
 
 .rig-item {
   position: absolute;
-  z-index: 4;
+  z-index: 85;
   pointer-events: none;
 }
 
@@ -1622,6 +1634,18 @@ button {
   overflow: hidden;
 }
 
+/*
+ * Caixa de desenho do menu: 1280x720 fixos, escalados para cobrir a tela. Ter
+ * tamanho fixo e o que permite editar o menu com o mesmo editor do jogo - as
+ * coordenadas do editor e as do CSS passam a ser as mesmas.
+ */
+.menu-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
 /* o ceu vem do mesmo componente do jogo e ocupa a tela inteira */
 .title-scene .sky {
   position: absolute;
@@ -1630,42 +1654,14 @@ button {
 
 /* --------------------------------------------------------------- horizonte */
 
-.title-strip {
-  position: absolute;
-  left: -2%;
-  width: 104%;
-  object-fit: cover;
-  object-position: 50% 100%;
-  pointer-events: none;
-}
-
-.title-mountains {
-  bottom: 46%;
-  height: 12vh;
-  opacity: 0.45;
-  filter: saturate(0.7);
-}
-
-.title-islands {
-  bottom: 41%;
-  height: 11vh;
-  opacity: 0.9;
-}
-
-.title-haze {
-  bottom: 38%;
-  height: 6vh;
-  opacity: 0.5;
-}
-
 /* --------------------------------------------------------------------- mar */
 
 .title-sea {
   position: absolute;
   left: 0;
   right: 0;
-  top: 59%;
-  bottom: 0;
+  bottom: -420px;
+  z-index: 5;
   background: linear-gradient(
     180deg,
     var(--sea-top, #35c6e0) 0%,
@@ -1675,23 +1671,12 @@ button {
   );
 }
 
-.title-boat {
-  position: absolute;
-  left: 12%;
-  bottom: 56%;
-  height: 9vh;
-  width: auto;
-  opacity: 0.9;
-  transform-origin: 50% 100%;
-  animation: obj-rock 5.5s ease-in-out infinite alternate;
-}
-
 .title-surf {
   position: absolute;
-  left: -4%;
-  width: 108%;
-  top: 56%;
-  height: 16vh;
+  left: -40px;
+  width: calc(100% + 80px);
+  height: 130px;
+  z-index: 25;
   pointer-events: none;
 }
 
@@ -1735,83 +1720,6 @@ button {
 }
 
 /* ---------------------------------------------------------- primeiro plano */
-
-.title-posts {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 26vh;
-}
-
-.title-posts img {
-  position: absolute;
-  bottom: 0;
-  height: 26vh;
-  width: auto;
-  opacity: 0.85;
-  filter: brightness(0.45) saturate(0.7);
-}
-
-.title-deck {
-  position: absolute;
-  left: -2%;
-  width: 104%;
-  bottom: 15vh;
-  height: 5vh;
-  background-repeat: repeat-x;
-  background-size: auto 100%;
-  filter: brightness(0.6) saturate(0.8);
-}
-
-.title-prop {
-  position: absolute;
-  width: auto;
-  bottom: 19vh;
-  filter: brightness(0.35) saturate(0.45);
-  opacity: 0.95;
-}
-
-.prop-lantern {
-  left: 6%;
-  height: 16vh;
-}
-
-.prop-net {
-  left: 22%;
-  height: 8vh;
-}
-
-.prop-barrel {
-  left: 33%;
-  height: 7vh;
-}
-
-.prop-basket {
-  left: 44%;
-  height: 6vh;
-  transform: scaleX(-1);
-}
-
-.title-palm {
-  position: absolute;
-  bottom: 8vh;
-  width: auto;
-  height: 62vh;
-  filter: brightness(0.32) saturate(0.4);
-  pointer-events: none;
-}
-
-.palm-left {
-  left: -6%;
-}
-
-.palm-right {
-  right: -8%;
-  transform: scaleX(-1);
-  height: 54vh;
-  opacity: 0.85;
-}
 
 /* ------------------------------------------------------- arte e conteudo */
 
@@ -1903,6 +1811,7 @@ button {
 }
 
 .title-clock {
+  white-space: nowrap;
   letter-spacing: 1px;
 }
 
@@ -1915,7 +1824,6 @@ button {
   border: 2px solid #d8bd77;
 }
 
-.no-anim .title-boat,
 .no-anim .title-surf > div {
   animation: none;
 }
@@ -1954,9 +1862,6 @@ button {
     height: 62%;
     right: -12%;
     opacity: 0.8;
-  }
-  .title-palm {
-    display: none;
   }
   .grid {
     grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
@@ -2478,9 +2383,19 @@ button {
    O jogo e o editor desenham a mesma lista de objetos.
    ========================================================================== */
 
-.scene-layer {
-  position: absolute;
-  inset: 0;
+/* ==========================================================================
+   PROFUNDIDADE (0 a 10)
+   --------------------------------------------------------------------------
+   Uma regua so para a cena inteira: z-index = profundidade x 10. As pecas
+   fixas do mundo (mar, areia, espuma, deck) entram na mesma regua, para dar
+   para enfiar um objeto entre elas. O Juggler mora no 7 (z 75), entao objeto
+   de 0 a 7 passa atras dele e de 8 para cima passa na frente.
+   ========================================================================== */
+
+.wobj-strip {
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  background-position: 0 100%;
 }
 
 .wobj {
@@ -2767,14 +2682,19 @@ button {
   color: #ff9a9a;
 }
 
+/* minmax(0, 1fr) e o que impede a coluna de crescer junto com um sprite largo:
+   com `1fr` puro o minimo e o tamanho do conteudo, e a arte vazava da caixa. */
 .elib-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
 }
 
 .elib-item {
+  position: relative;
   height: 54px;
+  min-width: 0;
+  overflow: hidden;
   display: grid;
   place-items: center;
   background: rgba(255, 255, 255, 0.06);
@@ -2784,8 +2704,10 @@ button {
 }
 
 .elib-item img {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .eitem {
@@ -3340,4 +3262,129 @@ button {
 
 .editor-fxpoint.on span {
   background: #45c6f0;
+}
+
+/* ==========================================================================
+   EDITOR · CAMADAS, PROFUNDIDADE E BIBLIOTECA
+   ========================================================================== */
+
+.elayer-pick {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.elayer-pick .ebtn {
+  flex: 1;
+}
+
+.elayer .ename {
+  cursor: pointer;
+}
+
+.elayer .ename:hover {
+  background: #24455a;
+}
+
+.elayer.active .ename:hover {
+  background: #ffd166;
+}
+
+.edepth {
+  display: grid;
+  grid-template-columns: repeat(11, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.edepth-step {
+  font-family: var(--font);
+  font-size: 10px;
+  color: #9fc0d2;
+  background: #14293a;
+  border: 1px solid #274a5e;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.edepth-step:hover {
+  background: #24455a;
+}
+
+/* O degrau do Juggler ganha marca: dali para cima o objeto passa na frente.
+   O nome da classe e `juggler` e nao `player` de proposito - `.player` ja e o
+   sprite do personagem no mundo, com position absolute e tamanho zero, e o
+   botao herdava isso e sumia da tela. */
+.edepth-step.juggler {
+  border-color: #ffd166;
+  color: #ffd166;
+}
+
+.edepth-step.on {
+  background: #1f7a4d;
+  border-color: #2fbf7a;
+  color: #eafff4;
+}
+
+.elib-tools {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.elib-tools input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font);
+  font-size: 11px;
+  background: #0e1f2b;
+  color: #dff0f8;
+  border: 2px solid #33586e;
+  padding: 3px 4px;
+}
+
+.elib-group {
+  border: 2px solid transparent;
+  padding: 2px;
+  margin-bottom: 2px;
+}
+
+.elib-group.over {
+  border-color: #45c6f0;
+  background: rgba(69, 198, 240, 0.08);
+}
+
+.elib-cat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: grab;
+  user-select: none;
+  padding: 3px 2px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.elib-cat .grow {
+  flex: 1;
+}
+
+.elib-cat small {
+  opacity: 0.6;
+}
+
+.elib-cat .mini {
+  color: #ff9a9a;
+  padding: 0 3px;
+}
+
+.elib-arrow {
+  width: 10px;
+  color: #ffd166;
+}
+
+.elib-empty {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  opacity: 0.45;
+  padding: 10px 0;
+  text-align: center;
 }
