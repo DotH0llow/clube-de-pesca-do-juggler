@@ -1,8 +1,29 @@
 import { useEffect, useRef, useState } from 'react';
 import { CLIPS, clipFrame } from '../assets';
 import { clipConfig, resetAnims, resetClip, setClip, useAnims, type ClipMode } from './anims';
-import { MECHANICS, resetFx, updateFx, updateTimings, useFx, type FxItem } from './fx';
+import {
+  FISHING_STEPS,
+  FX_ANIMS,
+  MECHANICS,
+  addFxItem,
+  addSound,
+  duplicateFxItem,
+  removeFxItem,
+  removeSound,
+  resetFx,
+  updateFx,
+  updateSound,
+  updateTimings,
+  useFx,
+  type FxItem,
+  type FxSound,
+} from './fx';
 import { currentStep, goToStep, moveStep, setMechanic, stepsOf, usePreview } from './preview';
+import { CheckField, NumberField, SliderField } from './fields';
+import { ASSET_LIST } from '../assets/dims';
+import { TRACKS } from '../engine/music';
+import { rodX, zoneRect } from './scene';
+import type { SfxName } from '../engine/audio';
 
 /**
  * Secao ANIMACOES do editor.
@@ -228,30 +249,95 @@ export function AnimationsPanel() {
 
 // =============================================================== mecanicas
 
-function NumberField({
-  label,
-  value,
-  onChange,
-  step = 1,
-  suffix,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  step?: number;
-  suffix?: string;
-}) {
+/** Sprites que fazem sentido pendurar numa mecanica de pesca. */
+const FX_SPRITES = ASSET_LIST.filter((p) => /^(fx|props|ui|trash)\//.test(p));
+
+const SFX_NAMES: SfxName[] = ['ui', 'cast', 'splash', 'bite', 'reel', 'coin', 'fail', 'unlock', 'chest'];
+
+function SoundRow({ s }: { s: FxSound }) {
+  const set = (patch: Partial<FxSound>) => updateSound(s.id, patch);
   return (
-    <label className="efield">
-      {label}
-      <input
-        type="number"
-        step={step}
-        value={Math.round(value * 100) / 100}
-        onChange={(e) => onChange(Number(e.target.value))}
-      />
-      {suffix && <small>{suffix}</small>}
-    </label>
+    <div className={`esound${s.off ? ' off' : ''}`}>
+      <div className="esound-head">
+        <input
+          className="esound-name"
+          value={s.label}
+          onChange={(e) => set({ label: e.target.value })}
+        />
+        <button className="ebtn" onClick={() => set({ off: !s.off })}>
+          {s.off ? 'LIGAR' : 'DESLIGAR'}
+        </button>
+        <button className="ebtn danger" onClick={() => removeSound(s.id)}>
+          ×
+        </button>
+      </div>
+
+      <div className="efields">
+        <label className="efield">
+          FONTE
+          <select value={s.source} onChange={(e) => set({ source: e.target.value as FxSound['source'] })}>
+            <option value="sfx">EFEITO DO MOTOR</option>
+            <option value="musica">FAIXA DE ÁUDIO</option>
+          </select>
+        </label>
+
+        {s.source === 'sfx' ? (
+          <label className="efield">
+            EFEITO
+            <select value={s.sfx} onChange={(e) => set({ sfx: e.target.value as SfxName })}>
+              {SFX_NAMES.map((n) => (
+                <option key={n} value={n}>
+                  {n.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <label className="efield">
+            FAIXA
+            <select value={s.track} onChange={(e) => set({ track: e.target.value })}>
+              <option value="">escolha uma faixa</option>
+              {TRACKS.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        <label className="efield">
+          EM QUE ETAPA
+          <select value={s.step} onChange={(e) => set({ step: e.target.value as FxSound['step'] })}>
+            {FISHING_STEPS.map((st) => (
+              <option key={st.id} value={st.id}>
+                {st.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="efield">
+          QUANDO
+          <select value={s.when} onChange={(e) => set({ when: e.target.value as FxSound['when'] })}>
+            <option value="entrar">AO ENTRAR NA ETAPA</option>
+            <option value="sair">AO SAIR DA ETAPA</option>
+          </select>
+        </label>
+
+        <NumberField label="ATRASO" value={s.delayMs} step={50} suffix="ms" onChange={(v) => set({ delayMs: Math.max(0, v) })} />
+        <SliderField label="VOLUME" value={s.volume} onChange={(v) => set({ volume: v })} />
+      </div>
+
+      {s.source === 'musica' && (
+        <CheckField
+          label="REPETIR ENQUANTO A ETAPA DURAR"
+          value={s.loop}
+          onChange={(v) => set({ loop: v })}
+          hint="a faixa para sozinha quando a etapa termina"
+        />
+      )}
+    </div>
   );
 }
 
@@ -267,6 +353,10 @@ export function MechanicsPanel({
   const steps = stepsOf(preview.mechanic);
   const step = currentStep();
   const item: FxItem | undefined = fx.items.find((i) => i.id === selected);
+  const [aba, setAba] = useState<'pecas' | 'audio'>('pecas');
+
+  const doStep = step?.id ?? 'idle';
+  const sons = fx.sounds.filter((s) => s.step === doStep);
 
   return (
     <div className="editor-panel wide">
@@ -291,7 +381,8 @@ export function MechanicsPanel({
       {!preview.mechanic ? (
         <div className="ehint">
           Escolha uma mecânica para o jogo congelar na etapa que você quiser ver. Cada peça que
-          aparecer na tela pode ser arrastada, redimensionada e cronometrada aqui.
+          aparecer na tela pode ser arrastada, redimensionada, escondida e cronometrada aqui - e o
+          Ctrl+Z de dentro da simulação só desfaz mexida de mecânica, nunca de cena.
         </div>
       ) : (
         <>
@@ -325,52 +416,238 @@ export function MechanicsPanel({
             ))}
           </div>
 
-          <div className="eanim-label">PEÇAS DESTA ETAPA</div>
-          <div className="emech-list">
-            {fx.items
-              .filter((i) => step && i.steps.includes(step.id))
-              .map((i) => (
-                <button
-                  key={i.id}
-                  className={`eitem${selected === i.id ? ' on' : ''}`}
-                  onClick={() => onSelect(selected === i.id ? null : i.id)}
-                >
-                  <span className="grow">{i.label}</span>
-                  <small>{i.point ? 'ponto' : `${Math.round(i.w)}×${Math.round(i.h)}`}</small>
-                </button>
-              ))}
-            {step && fx.items.filter((i) => i.steps.includes(step.id)).length === 0 && (
-              <div className="ehint">Nenhuma peça editável nesta etapa.</div>
-            )}
+          <div className="emech-row">
+            <button className={`ebtn${aba === 'pecas' ? ' primary' : ''}`} onClick={() => setAba('pecas')}>
+              PEÇAS
+            </button>
+            <button className={`ebtn${aba === 'audio' ? ' primary' : ''}`} onClick={() => setAba('audio')}>
+              ÁUDIO ({sons.length})
+            </button>
           </div>
 
-          {item && (
-            <div className="emech-form">
-              <div className="etitle">{item.label}</div>
-              <div className="efields">
-                <NumberField label="X" value={item.x} onChange={(v) => updateFx(item.id, { x: v })} />
-                <NumberField label="Y" value={item.y} onChange={(v) => updateFx(item.id, { y: v })} />
-                {!item.point && (
-                  <>
-                    <NumberField label="LARG" value={item.w} onChange={(v) => updateFx(item.id, { w: Math.max(1, v) })} />
-                    <NumberField label="ALT" value={item.h} onChange={(v) => updateFx(item.id, { h: Math.max(1, v) })} />
-                    <NumberField label="GIRO" value={item.rot} onChange={(v) => updateFx(item.id, { rot: v })} suffix="graus" />
-                    <NumberField
-                      label="OPACID"
-                      value={item.opacity}
-                      step={0.05}
-                      onChange={(v) => updateFx(item.id, { opacity: Math.min(1, Math.max(0, v)) })}
-                    />
-                  </>
+          {aba === 'audio' ? (
+            <>
+              <div className="eanim-label">SONS DESTA ETAPA</div>
+              <div className="ehint">
+                Cada som diz o que toca, em que etapa e se é ao entrar ou ao sair dela. Efeito do
+                motor é o som procedural do jogo; faixa de áudio é um arquivo de{' '}
+                <code>src/assets/music</code>.
+              </div>
+              {sons.map((s) => (
+                <SoundRow key={s.id} s={s} />
+              ))}
+              {sons.length === 0 && <div className="ehint">Nenhum som nesta etapa ainda.</div>}
+              <button className="ebtn primary" onClick={() => addSound(doStep)}>
+                + SOM NESTA ETAPA
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="eanim-label">PEÇAS DESTA ETAPA</div>
+              <div className="emech-list">
+                {fx.items
+                  .filter((i) => step && i.steps.includes(step.id))
+                  .sort((a, b) => a.z - b.z)
+                  .map((i) => (
+                    <button
+                      key={i.id}
+                      className={`eitem${selected === i.id ? ' on' : ''}${i.off ? ' locked' : ''}`}
+                      onClick={() => onSelect(selected === i.id ? null : i.id)}
+                    >
+                      <span className="edepth-tag">{i.z}</span>
+                      <span className="grow">{i.label}</span>
+                      <small>{i.point ? 'ponto' : `${Math.round(i.w)}×${Math.round(i.h)}`}</small>
+                      <span
+                        className="mini"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateFx(i.id, { off: !i.off });
+                        }}
+                      >
+                        {i.off ? 'MOSTRAR' : 'ESCONDER'}
+                      </span>
+                    </button>
+                  ))}
+                {step && fx.items.filter((i) => i.steps.includes(step.id)).length === 0 && (
+                  <div className="ehint">Nenhuma peça editável nesta etapa.</div>
                 )}
               </div>
-              <small className="ehint">
-                {item.point
-                  ? 'Ponto de referência: a linha de pesca sai daqui. Arraste a cruz na tela.'
-                  : 'Arraste na tela ou use as alças. Os números são unidades de mundo.'}
-              </small>
-            </div>
+
+              <button
+                className="ebtn primary"
+                onClick={() => {
+                  const novo = addFxItem(doStep);
+                  onSelect(novo.id);
+                }}
+              >
+                + PEÇA NESTA ETAPA
+              </button>
+
+              {item && (
+                <div className="emech-form">
+                  <label className="efield">
+                    NOME
+                    <input
+                      value={item.label}
+                      disabled={item.fixed}
+                      onChange={(e) => updateFx(item.id, { label: e.target.value })}
+                    />
+                  </label>
+
+                  {!item.point && item.kind === 'sprite' && (
+                    <label className="efield">
+                      SPRITE
+                      <select value={item.sprite} onChange={(e) => updateFx(item.id, { sprite: e.target.value })}>
+                        {FX_SPRITES.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+
+                  <div className="efields">
+                    <NumberField label="X" value={item.x} onChange={(v) => updateFx(item.id, { x: v })} />
+                    <NumberField label="Y" value={item.y} onChange={(v) => updateFx(item.id, { y: v })} />
+                    {!item.point && (
+                      <>
+                        <NumberField label="LARG" value={item.w} onChange={(v) => updateFx(item.id, { w: Math.max(1, v) })} />
+                        <NumberField label="ALT" value={item.h} onChange={(v) => updateFx(item.id, { h: Math.max(1, v) })} />
+                        <NumberField label="GIRO" value={item.rot} onChange={(v) => updateFx(item.id, { rot: v })} suffix="graus" />
+                        <SliderField
+                          label="OPACIDADE"
+                          value={item.opacity}
+                          onChange={(v) => updateFx(item.id, { opacity: v })}
+                        />
+                        <NumberField
+                          label="CAMADA"
+                          value={item.z}
+                          onChange={(v) => updateFx(item.id, { z: Math.round(v) })}
+                          suffix="maior fica na frente"
+                        />
+                      </>
+                    )}
+                  </div>
+
+                  {!item.point && (
+                    <>
+                      <div className="erow">
+                        <button className="ebtn" onClick={() => updateFx(item.id, { z: item.z + 1 })}>
+                          À FRENTE
+                        </button>
+                        <button className="ebtn" onClick={() => updateFx(item.id, { z: item.z - 1 })}>
+                          ATRÁS
+                        </button>
+                      </div>
+
+                      <div className="efields">
+                        <label className="efield">
+                          ANIMAÇÃO
+                          <select
+                            value={item.anim}
+                            onChange={(e) => updateFx(item.id, { anim: e.target.value as FxItem['anim'] })}
+                          >
+                            {FX_ANIMS.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <CheckField
+                          label="TREMER NA MORDIDA"
+                          value={Boolean(item.wave)}
+                          onChange={(v) => updateFx(item.id, { wave: v })}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="eanim-label">EM QUE ETAPAS APARECE</div>
+                  <div className="ehours">
+                    {FISHING_STEPS.map((st) => (
+                      <button
+                        key={st.id}
+                        className={`ebtn${item.steps.includes(st.id) ? ' primary' : ''}`}
+                        onClick={() =>
+                          updateFx(item.id, {
+                            steps: item.steps.includes(st.id)
+                              ? item.steps.filter((x) => x !== st.id)
+                              : [...item.steps, st.id],
+                          })
+                        }
+                      >
+                        {st.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="erow">
+                    <button className="ebtn" onClick={() => updateFx(item.id, { off: !item.off })}>
+                      {item.off ? 'MOSTRAR' : 'ESCONDER'}
+                    </button>
+                    <button
+                      className="ebtn"
+                      onClick={() => {
+                        const copy = duplicateFxItem(item.id);
+                        if (copy) onSelect(copy.id);
+                      }}
+                    >
+                      DUPLICAR
+                    </button>
+                    <button
+                      className="ebtn danger"
+                      disabled={item.fixed}
+                      title={item.fixed ? 'Peça da semente: dá para esconder, não para apagar' : 'Apagar'}
+                      onClick={() => {
+                        removeFxItem(item.id);
+                        onSelect(null);
+                      }}
+                    >
+                      APAGAR
+                    </button>
+                  </div>
+
+                  <small className="ehint">
+                    {item.point
+                      ? 'Ponto de referência: a linha de pesca sai daqui. Arraste a cruz na tela.'
+                      : 'Arraste na tela ou use as alças - todas as oito funcionam, inclusive as de cima e de baixo. Os números são unidades de mundo.'}
+                  </small>
+                </div>
+              )}
+            </>
           )}
+
+          <div className="eanim-label">O JUGGLER</div>
+          <div className="efields">
+            <NumberField
+              label="ONDE ELE FICA"
+              value={fx.timings.fishX ?? Math.round(rodX())}
+              step={5}
+              suffix="X no mundo quando a pescaria começa"
+              onChange={(v) => updateTimings({ fishX: v })}
+            />
+          </div>
+          <div className="erow">
+            <button
+              className="ebtn"
+              onClick={() => {
+                const z = zoneRect('vara');
+                updateTimings({ fishX: z ? Math.round(z.x + z.w / 2) : Math.round(rodX()) });
+              }}
+            >
+              PEGAR O CENTRO DA ÁREA DA VARA
+            </button>
+            <button className="ebtn" onClick={() => updateTimings({ fishX: null })}>
+              VOLTAR AO AUTOMÁTICO
+            </button>
+          </div>
+          <div className="ehint">
+            {fx.timings.fishX === null
+              ? 'Automático: ele para no meio da área de interação da vara.'
+              : `Fixo em ${fx.timings.fishX}. É daqui que a linha sai quando o lance começa.`}
+          </div>
 
           <div className="eanim-label">TEMPOS DA MECÂNICA</div>
           <div className="efields">
