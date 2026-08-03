@@ -193,6 +193,7 @@ export default function App() {
     fishing: shownFishing,
     fishPose,
     paused: phoneOpen || editor,
+    editing: editor,
   });
 
   // ---------------------------------------------------- ambiencia liga/desliga
@@ -510,6 +511,25 @@ export default function App() {
               >
                 &gt;
               </button>
+              {/* A saida de emergencia do celular.
+
+                  Num jogo de plataforma jogado com o dedo, mais cedo ou mais
+                  tarde alguem fica preso: atras de uma parede que foi
+                  arrastada no editor, num canto do deck de onde o pulo nao
+                  sai, ou simplesmente perdido no meio do mar. Isto devolve o
+                  Juggler ao marcador NASCIMENTO, de pe e com a camera nele. */}
+              <button
+                className="btn small travei"
+                onClick={() => {
+                  playSfx('ui');
+                  abort();
+                  setFishing(false);
+                  player.respawn();
+                }}
+                title="Voltar para o ponto de partida"
+              >
+                TRAVEI!
+              </button>
             </div>
           </div>
         )}
@@ -607,10 +627,12 @@ export default function App() {
       {editor && (
         <EditorOverlay
           camXRef={player.camXRef}
+          camYRef={player.camYRef}
           scale={player.scale}
           viewY={player.viewY}
           zoom={player.zoom}
           onResetZoom={player.resetZoom}
+          onZoomTo={player.setZoomTo}
           playerXRef={player.playerX}
           onExit={() => setEditor(false)}
         />

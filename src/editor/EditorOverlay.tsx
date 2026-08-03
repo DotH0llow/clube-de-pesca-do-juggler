@@ -57,6 +57,12 @@ import {
 import { currentStep, getPreview, stopPreview, usePreview } from './preview';
 import { zoneRect } from './scene';
 import { groundAt } from '../world/layout';
+import { panMaxY, panMinY, useWorld } from '../world/worldConfig';
+
+/** Prende o deslocamento vertical da tela dentro do mundo. */
+function clampPan(v: number): number {
+  return Math.min(panMaxY(), Math.max(panMinY(), v));
+}
 
 type Handle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w';
 type Drag =
@@ -65,23 +71,58 @@ type Drag =
   | { mode: 'rot'; id: string; cx: number; cy: number; start: number; base: number }
   | { mode: 'fx-move'; id: string; ox: number; oy: number; px: number; py: number }
   | { mode: 'fx-scale'; id: string; handle: Handle; start: FxItem; px: number; py: number }
-  | { mode: 'pan'; px: number; cam: number }
+  | { mode: 'pan'; px: number; py: number; cam: number; camY: number }
+  | { mode: 'guia'; px: number; base: number }
   | null;
 
 interface Props {
   camXRef: React.MutableRefObject<number>;
+  /** deslocamento vertical da camera: e por aqui que a tela do editor desce */
+  camYRef?: React.MutableRefObject<number>;
   scale: number;
   /** deslocamento da cena quando o zoom passa do tamanho da tela */
   viewY: number;
   viewX?: number;
   zoom?: number;
   onResetZoom?: () => void;
+  /** manda o zoom para um valor exato: usado pela trava de enquadramento */
+  onZoomTo?: (z: number) => void;
   /** onde o Juggler esta: ancora das pecas presas nele (ponta da vara) */
   playerXRef?: React.MutableRefObject<number>;
   onExit: () => void;
 }
 
 const HANDLES: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+
+/**
+ * A MOLDURA DO JOGADOR: que pedaco de mundo cabe na tela de quem joga.
+ *
+ * Isto era a pergunta sem resposta do editor. Voce colocava um coqueiro na
+ * praia sem saber se ele ia aparecer inteiro, se ia ser cortado ao meio ou se
+ * ia ficar fora da tela - porque o editor tem zoom proprio e mostrava um
+ * enquadramento que nao e o do jogo. Descobrir dava uma volta inteira: sair do
+ * editor, andar ate la, olhar, voltar, corrigir.
+ *
+ * A conta vem do `usePlayer`, ao contrario:
+ *
+ *   escala = (altura da tela / frameH) * moldura
+ *   altura visivel = altura da tela / escala = frameH / moldura
+ *   largura visivel = altura visivel * (largura da tela / altura da tela)
+ *
+ * e o topo sai da ancora da linha d'agua, que e o que fica parado quando a
+ * camera abre. As duas molduras do jogo (`frameLand` na praia, `frameSea` no
+ * pier) dao dois retangulos diferentes, e sao os dois que interessam ver.
+ */
+function molduraRect(
+  frame: number,
+  mundo: { frameH: number; waterY: number; waterAnchor: number },
+  centroX: number,
+): { x: number; y: number; w: number; h: number } {
+  const h = mundo.frameH / frame;
+  const razao = window.innerWidth / Math.max(1, window.innerHeight);
+  const w = h * razao;
+  return { x: centroX - w / 2, y: mundo.waterY - h * mundo.waterAnchor, w, h };
+}
 
 /** Camada de trabalho, ou `todas` para pegar qualquer coisa que estiver visivel. */
 type WorkLayer = LayerId | 'todas';
@@ -101,11 +142,13 @@ const DEPTHS = Array.from({ length: DEPTH_MAX - DEPTH_MIN + 1 }, (_, i) => DEPTH
  */
 export function EditorOverlay({
   camXRef,
+  camYRef,
   scale,
   viewY,
   viewX = 0,
   zoom = 1,
   onResetZoom,
+  onZoomTo,
   playerXRef,
   onExit,
 }: Props) {
@@ -113,6 +156,7 @@ export function EditorOverlay({
   const scene = useScene();
   const fx = useFx();
   const preview = usePreview();
+  const mundo = useWorld();
   /** o menu nao tem pescaria, entao nao tem o que simular la */
   const hasMechanics = sceneId === 'mundo' && Boolean(playerXRef);
 
@@ -128,6 +172,21 @@ export function EditorOverlay({
   /** filtro da lista da cena, por nome do sprite / da area / do id */
   const [busca, setBusca] = useState('');
   const [cam, setCam] = useState(() => camXRef.current);
+  /**
+   * A tela do editor tambem desce.
+   *
+   * Antes so existia `cam` (o eixo X): o editor era um trilho horizontal, e o
+   * mar fundo e o subsolo da praia so davam para ver na camera livre, fora do
+   * editor - ou seja, davam para OLHAR e nao para editar. Agora ha os dois
+   * eixos, e o limite e o mundo inteiro.
+   */
+  const [camY, setCamY] = useState(() => camYRef?.current ?? 0);
+  /** enquadramento do jogador desenhado por cima da cena */
+  const [guia, setGuia] = useState(false);
+  /** onde a moldura do jogador esta centrada, em unidades de mundo */
+  const [guiaX, setGuiaX] = useState<number | null>(null);
+  /** a tela do editor esta travada numa das molduras do jogo */
+  const [travado, setTravado] = useState<'praia' | 'mar' | null>(null);
   const [dragAsset, setDragAsset] = useState<string | null>(null);
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
   const drag = useRef<Drag>(null);
@@ -135,6 +194,10 @@ export function EditorOverlay({
   useEffect(() => {
     camXRef.current = cam;
   }, [cam, camXRef]);
+
+  useEffect(() => {
+    if (camYRef) camYRef.current = camY;
+  }, [camY, camYRef]);
 
   // fechar o editor nunca deixa o jogo preso numa etapa de simulacao
   useEffect(() => stopPreview, []);
@@ -168,18 +231,37 @@ export function EditorOverlay({
       setSelected(o.locked ? null : o.id);
       if (sceneId === 'menu') return;
       const view = window.innerWidth / scale;
-      setCam(Math.max(0, o.x + o.w / 2 - view / 2));
+      // sem `Math.max(0, ...)`: metade do cenario mora em x negativo (o mar
+      // aberto comeca em -5800) e a lista precisa conseguir chegar la
+      setCam(o.x + o.w / 2 - view / 2);
+      setCamY(clampPan(-(o.y + o.h / 2 - mundo.waterY)));
+      setTravado(null);
     },
-    [sceneId, scale],
+    [sceneId, scale, mundo.waterY],
   );
 
+  /*
+   * Tela <-> mundo.
+   *
+   * O mundo e desenhado com `translate(0, viewY + camY*escala) scale(escala)`
+   * por dentro e `translate(-cam)` por fora. As duas contas abaixo sao essa
+   * mesma transformacao, para frente e para tras - e e por isso que elas
+   * PRECISAM conhecer o `camY`: sem ele, descer a tela deixaria toda caixa de
+   * selecao do editor flutuando longe do sprite que ela deveria cercar.
+   */
   const toScreen = useCallback(
-    (x: number, y: number) => ({ x: (x - cam) * scale + viewX, y: y * scale + viewY }),
-    [cam, scale, viewX, viewY],
+    (x: number, y: number) => ({
+      x: (x - cam) * scale + viewX,
+      y: (y + camY) * scale + viewY,
+    }),
+    [cam, camY, scale, viewX, viewY],
   );
   const toWorld = useCallback(
-    (px: number, py: number) => ({ x: (px - viewX) / scale + cam, y: (py - viewY) / scale }),
-    [cam, scale, viewX, viewY],
+    (px: number, py: number) => ({
+      x: (px - viewX) / scale + cam,
+      y: (py - viewY) / scale - camY,
+    }),
+    [cam, camY, scale, viewX, viewY],
   );
 
   /**
@@ -306,7 +388,7 @@ export function EditorOverlay({
 
     // botao do meio: so navega pelo mapa
     if (e.button === 1) {
-      drag.current = { mode: 'pan', px, cam };
+      drag.current = { mode: 'pan', px, py, cam, camY };
       return;
     }
 
@@ -338,7 +420,7 @@ export function EditorOverlay({
       drag.current = { mode: 'move', id: found.id, ox: found.x, oy: found.y, px, py };
     } else {
       setSelected(null);
-      drag.current = { mode: 'pan', px, cam };
+      drag.current = { mode: 'pan', px, py, cam, camY };
     }
   };
 
@@ -364,7 +446,25 @@ export function EditorOverlay({
       if (d.mode === 'pan') {
         // o menu cabe inteiro na tela: nao ha para onde arrastar
         if (sceneId === 'menu') return;
-        setCam(Math.max(0, d.cam - (px - d.px) / scale));
+        // travado numa moldura do jogo, a tela nao sai do lugar: e esse o
+        // sentido de travar - o que voce ve e o que o jogador ve
+        if (travado) return;
+        /*
+         * Arrasto livre, nos dois eixos.
+         *
+         * O `Math.max(0, ...)` que estava aqui prendia a tela no zero do mundo.
+         * So que o mar aberto comeca em -5800: metade da agua ficava do outro
+         * lado de uma parede invisivel, e era por isso que so dava para ver o
+         * resto do mar na camera livre. Sem limite nenhum agora - no editor a
+         * tela vai aonde voce arrastar.
+         */
+        setCam(d.cam - (px - d.px) / scale);
+        setCamY(clampPan(d.camY + (py - d.py) / scale));
+        return;
+      }
+
+      if (d.mode === 'guia') {
+        setGuiaX(Math.round(d.base + (px - d.px) / scale));
         return;
       }
       if (d.mode === 'move') {
@@ -477,7 +577,7 @@ export function EditorOverlay({
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, [dragAsset, scale, cam, layer, sceneId, toWorld]);
+  }, [dragAsset, scale, cam, camY, layer, sceneId, travado, toWorld]);
 
   const startHandle = (e: React.PointerEvent, handle: Handle) => {
     if (!sel || e.button !== 0) return;
@@ -591,12 +691,62 @@ export function EditorOverlay({
   );
   const selBox = sel ? toScreen(sel.x, sel.y) : null;
 
+  // ------------------------------------------- moldura do jogador (a guia)
+  const centroGuia = guiaX ?? playerXRef?.current ?? rodX();
+  const molduras =
+    guia && sceneId === 'mundo'
+      ? ([
+          { id: 'praia' as const, label: 'TELA NA ILHA', frame: mundo.frameLand },
+          { id: 'mar' as const, label: 'TELA NO PÍER', frame: mundo.frameSea },
+        ].map((m) => ({ ...m, rect: molduraRect(m.frame, mundo, centroGuia) })))
+      : [];
+
+  /**
+   * Trava a tela do editor numa das molduras do jogo.
+   *
+   * Ver o retangulo ja ajuda; trabalhar DENTRO dele e outra coisa. Travar poe
+   * o zoom e a camera do editor exatamente nos valores que o jogo usaria, e
+   * entao a area de trabalho vira a tela do jogador - o que couber aqui, coube
+   * la. Enquanto travado o arrasto de tela fica desligado, senao o primeiro
+   * puxao ja desfaz a trava sem avisar.
+   */
+  const travar = useCallback(
+    (qual: 'praia' | 'mar') => {
+      if (!onZoomTo) return;
+      const alvoFrame = qual === 'praia' ? mundo.frameLand : mundo.frameSea;
+      const r = molduraRect(alvoFrame, mundo, centroGuia);
+
+      /*
+       * Que zoom do editor da a escala do jogo nesta moldura.
+       *
+       * A escala e sempre `(altura da tela / frameH) * zoom * moldura`. O
+       * editor nao recebe a moldura em que o jogo esta, mas recebe a escala e
+       * o zoom - e a moldura sai dessa divisao. Dai o zoom que se quer e o que
+       * substitui a moldura de agora pela moldura pedida.
+       */
+      const base = window.innerHeight / mundo.frameH;
+      const molduraAtual = scale / (base * zoom);
+      onZoomTo((zoom * alvoFrame) / molduraAtual);
+
+      // com a escala do jogo, `camY = 0` e exatamente a ancora da linha d'agua:
+      // e assim que a tela do editor passa a ser a tela do jogador
+      setCam(r.x);
+      setCamY(0);
+      setTravado(qual);
+      setGuia(true);
+    },
+    [centroGuia, mundo, onZoomTo, scale, zoom],
+  );
+
   return (
     <div className="editor">
       {/* --------------------------------------------------- area de trabalho */}
       <div
         className="editor-canvas"
         onPointerDown={onPointerDown}
+        // dar zoom desfaz a trava: a moldura travada so vale enquanto a escala
+        // for exatamente a do jogo, e seria pior deixar o rotulo mentindo
+        onWheel={() => travado && setTravado(null)}
         onContextMenu={(e) => e.preventDefault()}
       >
         {/* areas de interacao: so aparecem aqui dentro */}
@@ -664,6 +814,43 @@ export function EditorOverlay({
               </div>
             );
           })}
+
+        {/* ------------------------------------- a moldura do jogador */}
+        {molduras.map((m) => {
+          const p = toScreen(m.rect.x, m.rect.y);
+          return (
+            <div
+              key={m.id}
+              className={`editor-moldura ${m.id}${travado === m.id ? ' travada' : ''}`}
+              style={{ left: p.x, top: p.y, width: m.rect.w * scale, height: m.rect.h * scale }}
+            >
+              <span className="moldura-tag">
+                {m.label}
+                <small>
+                  {Math.round(m.rect.w)} × {Math.round(m.rect.h)} un
+                  {travado === m.id ? ' · TRAVADA' : ''}
+                </small>
+              </span>
+            </div>
+          );
+        })}
+
+        {/* a haste que arrasta as duas molduras pelo mapa de uma vez */}
+        {guia && sceneId === 'mundo' && !travado && (
+          <div
+            className="editor-guia-haste"
+            style={{ left: toScreen(centroGuia, 0).x }}
+            onPointerDown={(e) => {
+              if (e.button !== 0) return;
+              e.stopPropagation();
+              const rect = (e.currentTarget.closest('.editor-canvas') as HTMLElement).getBoundingClientRect();
+              drag.current = { mode: 'guia', px: e.clientX - rect.left, base: centroGuia };
+            }}
+            title="Arraste para levar a moldura ao ponto do mapa que você quer conferir"
+          >
+            <i />
+          </div>
+        )}
 
         {ghost && dragAsset && (
           <img className="editor-ghost" src={asset(dragAsset)} alt="" style={{ left: ghost.x, top: ghost.y }} />
@@ -775,9 +962,63 @@ export function EditorOverlay({
             MECÂNICAS
           </button>
         )}
+        {sceneId === 'mundo' && (
+          <button
+            className={`ebtn${guia ? ' primary' : ''}`}
+            onClick={() => {
+              setGuia((v) => !v);
+              if (guia) setTravado(null);
+            }}
+            title="Mostra o retângulo que o jogador enxerga, nas duas molduras do jogo"
+          >
+            TELA DO JOGADOR
+          </button>
+        )}
+        {guia && sceneId === 'mundo' && onZoomTo && (
+          <div className="eshape-wrap">
+            <button
+              className={`ebtn${travado ? ' primary' : ''}`}
+              onClick={() => {
+                if (travado) {
+                  setTravado(null);
+                  return;
+                }
+                travar('praia');
+              }}
+              title="Põe a área de trabalho exatamente no enquadramento do jogo"
+            >
+              {travado ? `DESTRAVAR (${travado === 'praia' ? 'ILHA' : 'PÍER'})` : 'TRAVAR NA ILHA'}
+            </button>
+            {!travado && (
+              <button className="ebtn" onClick={() => travar('mar')} title="Enquadramento aberto do píer">
+                TRAVAR NO PÍER
+              </button>
+            )}
+          </div>
+        )}
         {onResetZoom && (
-          <button className="ebtn" onClick={onResetZoom} title="Ctrl + roda do mouse dá zoom">
+          <button
+            className="ebtn"
+            onClick={() => {
+              onResetZoom();
+              setTravado(null);
+            }}
+            title="Roda do mouse dá zoom (sem Ctrl, aqui dentro) · clique volta a 100%"
+          >
             ZOOM {Math.round(zoom * 100)}%
+          </button>
+        )}
+        {sceneId === 'mundo' && (camY !== 0 || cam !== 0) && (
+          <button
+            className="ebtn"
+            onClick={() => {
+              setCamY(0);
+              setTravado(null);
+            }}
+            title="Devolve a altura da tela para a linha d'água"
+            disabled={camY === 0}
+          >
+            CENTRAR ALTURA
           </button>
         )}
         <button className="ebtn" onClick={doExport}>
@@ -799,8 +1040,9 @@ export function EditorOverlay({
         </button>
         <div className="grow" />
         <span className="editor-tip">
-          CLIQUE ESQUERDO SELECIONA E ARRASTA &middot; ALÇAS REDIMENSIONAM &middot; BOTÃO DIREITO
-          ABRE O MENU &middot; CTRL+Z DESFAZ &middot; DEL APAGA
+          ARRASTAR NO VAZIO MOVE A TELA (PRA CIMA E PRA BAIXO TAMBÉM) &middot; RODA DÁ ZOOM
+          &middot; ALÇAS REDIMENSIONAM &middot; BOTÃO DIREITO ABRE O MENU &middot; CTRL+Z DESFAZ
+          &middot; DEL APAGA
         </span>
         <button
           className="ebtn primary"
@@ -983,7 +1225,9 @@ export function EditorOverlay({
                       ? 'A fronteira dos dois enquadramentos: à esquerda a câmera abre para o mar, à direita ela fecha na superfície. Ajuste o zoom de cada lado na seção MUNDO.'
                       : sel.zone === 'vara'
                         ? 'Onde a pescaria abre. O Juggler para no meio dela.'
-                        : 'Onde o mercado de peixe abre.'}
+                        : sel.zone === 'spawn'
+                          ? 'Onde o Juggler nasce. É para o meio desta caixa que o botão "Travei!" do celular o traz de volta — arraste-a e o ponto de partida muda junto.'
+                          : 'Onde o mercado de peixe abre.'}
                 </div>
                 {sel.zone === 'parede' && (
                   <div className="erow">
@@ -1136,7 +1380,10 @@ export function EditorOverlay({
                 {o.kind === 'sprite' && (
                   <>
                     <div className="emenu-sep">MOVER PARA A CAMADA</div>
-                    {LAYERS.filter((l) => l.id !== 'interagiveis').map((l) => (
+                    {/* INTERAGÍVEIS e MARCADORES são gavetas de área, não de
+                        sprite: mandar um coqueiro para lá só o esconderia numa
+                        lista onde ninguém vai procurar por coqueiro */}
+                    {LAYERS.filter((l) => l.id !== 'interagiveis' && l.id !== 'marcadores').map((l) => (
                       <button
                         key={l.id}
                         disabled={o.layer === l.id}

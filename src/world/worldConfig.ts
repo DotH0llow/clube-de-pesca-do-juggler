@@ -178,3 +178,24 @@ export function sandBottom(): number {
 export function worldBottom(): number {
   return Math.max(seaBottom(), sandBottom());
 }
+
+/**
+ * Ate onde a tela pode descer e subir na camera livre e no editor.
+ *
+ * O limite antigo era o TRANSBORDO: so dava para mover no vertical quando o
+ * zoom fazia o mundo passar da altura da tela, e mesmo assim so metade disso.
+ * Com o mar seis vezes mais fundo, isso queria dizer que o fundo do mar e o
+ * subsolo da praia eram inalcancaveis - havia cenario ali que ninguem
+ * conseguia editar.
+ *
+ * O limite agora e o MUNDO, com uma tela de folga de cada lado: sobe ate acima
+ * do ceu e desce ate embaixo da areia. Sao unidades de mundo, e valores
+ * positivos olham para CIMA (o desenho desce na tela).
+ */
+export function panMaxY(): number {
+  return state.frameH;
+}
+
+export function panMinY(): number {
+  return -(worldBottom() - state.waterY + state.frameH);
+}

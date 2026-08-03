@@ -293,13 +293,17 @@ button {
   opacity: 0.2;
 }
 
+/* areia do fundo do mar: o autotile da praia, apagado pela profundidade */
 .seabed {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 60px;
-  background: linear-gradient(180deg, rgba(214, 200, 150, 0) 0%, rgba(206, 190, 140, 0.75) 55%, #b8a878 100%);
+  height: 64px;
+  background-repeat: repeat-x;
+  background-size: 32px 32px;
+  background-position: bottom left;
+  filter: saturate(0.5) brightness(0.55);
 }
 
 .under {
@@ -384,21 +388,41 @@ button {
 
 /* ------------------------------------------------------------ terra e pier */
 
+/* A praia e massa de terra em primeiro plano: passa na frente do que esta
+   submerso (profundidade 1, z 10) e atras do detalhe de orla (3, z 30).
+
+   Aqui nao ha mais gradiente. A areia era uma rampa de cor com um tile por
+   cima em `multiply` - ou seja, quem desenhava a praia era o CSS e o pixel art
+   so dava textura. Agora sao duas pecas do autotile de 47: `sand_12` (borda de
+   cima, sem vizinho ao norte) na primeira faixa e `sand_46` (cheia) no corpo.
+   A luz que desce da beira para o fundo ja vem pintada nelas. */
 .sand {
-  /* a praia e massa de terra em primeiro plano: passa na frente do que esta
-     submerso (profundidade 1, z 10) e atras do detalhe de orla (3, z 30).
-     A imagem de fundo (peca do autotile de areia) e posta em linha pelo React;
-     o gradiente fica por baixo dela, dando a variacao de luz que um tile
-     repetido sozinho nao tem. */
   z-index: 15;
   position: absolute;
-  /* a primeira camada e o tile (repetido, 64px), a segunda e a rampa de cor
-     (esticada). O `multiply` casa as duas: o tile da a textura, o gradiente da
-     a luz que desce da beira da agua para o fundo da praia. */
-  background-repeat: repeat, no-repeat;
-  background-size: 64px 64px, 100% 100%;
-  background-blend-mode: multiply, normal;
-  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.35);
+  background-repeat: repeat;
+  background-size: 32px 32px;
+}
+
+/* a faixa de cima da areia: a peca de BORDA do autotile, uma so linha */
+.sand-top {
+  z-index: 16;
+  position: absolute;
+  height: 32px;
+  background-repeat: repeat-x;
+  background-size: 32px 32px;
+}
+
+/* cada degrau da orla: borda em cima, corpo embaixo, um tile de largura */
+.sand-degrau {
+  z-index: 15;
+  position: absolute;
+}
+
+.sand-degrau > .sand,
+.sand-degrau > .sand-top {
+  left: 0;
+  right: 0;
+  width: auto;
 }
 
 .wet-sand {
@@ -407,62 +431,24 @@ button {
   background: linear-gradient(90deg, rgba(190, 168, 116, 0) 0%, rgba(150, 176, 150, 0.5) 60%, rgba(120, 180, 190, 0.6) 100%);
 }
 
-.pier-deck {
-  z-index: 45;
-  position: absolute;
-  height: 24px;
-  background-repeat: repeat-x;
-  background-size: auto 24px;
-  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.25));
-}
+/* `.pier-deck`, `.pier-post`, `.pier-ramp` e `.treeline` sairam daqui.
 
-.pier-post {
-  position: absolute;
-  height: 230px;
-  width: auto;
-  opacity: 0.95;
-}
+   Eram as quatro pecas de cenario desenhadas em CSS: o deck era uma faixa com
+   a tabua no fundo, a rampa era um gradiente cortado na diagonal e a mata era
+   um punhado de gradiente radial verde. Todas viraram sprite de verdade -
+   `world/pier.ts` monta o cais peca por peca e a mata e uma fileira de arvore
+   do pacote `nature`. */
 
-/* a areia nao termina num corte reto: desce em rampa para dentro da agua.
-   o mar fica a esquerda, entao a rampa cai para aquele lado */
+/* sobra sob o mundo, para nao aparecer faixa vazia quando a camera abre */
 .world-spill {
   z-index: 0;
   position: absolute;
   height: 420px;
 }
 
-.sand-slope {
-  z-index: 15;
-  position: absolute;
-  width: 420px;
-  height: 294px;
-  /* mesma rampa de cor da areia, para nao aparecer emenda no encontro */
-  background: linear-gradient(180deg, #f2dfa8 0%, #e3c987 18%, #cdad6d 60%, #a88750 100%);
-  clip-path: polygon(100% 0, 100% 100%, 0 100%);
-}
-
-/* rampa curta que liga o deck do pier a areia */
-.pier-ramp {
-  z-index: 45;
-  position: absolute;
-  height: 46px;
-  background: linear-gradient(180deg, #a9733f, #7d5027);
-  clip-path: polygon(0 0, 100% 100%, 100% 100%, 0 100%);
-  box-shadow: inset 0 2px 0 rgba(255, 226, 170, 0.35);
-}
-
-/* mata fechada atras da treeline: fecha o mapa sem parecer parede */
-.treeline {
-  position: absolute;
-  background:
-    radial-gradient(60px 90px at 12% 100%, rgba(28, 92, 54, 0.95), transparent 70%),
-    radial-gradient(70px 110px at 34% 100%, rgba(22, 78, 46, 0.95), transparent 72%),
-    radial-gradient(64px 96px at 56% 100%, rgba(30, 98, 58, 0.95), transparent 70%),
-    radial-gradient(80px 120px at 78% 100%, rgba(20, 74, 44, 0.95), transparent 72%),
-    linear-gradient(180deg, rgba(18, 64, 40, 0) 0%, rgba(18, 64, 40, 0.85) 55%, rgba(14, 52, 33, 0.95) 100%);
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 26%, #000 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, #000 26%, #000 100%);
-  pointer-events: none;
+/* a mata do fim do mapa: arvore de verdade, empurrada para o fundo pela cor */
+.mata-fundo {
+  filter: brightness(0.62) saturate(0.85) hue-rotate(-6deg);
 }
 
 /* pontinho de luz marcando um ponto de interacao no chao */
@@ -489,12 +475,17 @@ button {
   }
 }
 
+/* linha de mare: a MESMA espuma que corre na linha d'agua, e nao um degrade */
 .tide-line {
-  z-index: 16;
+  z-index: 17;
   position: absolute;
-  height: 14px;
-  opacity: 0.55;
-  background: linear-gradient(270deg, rgba(255, 255, 255, 0) 0%, rgba(190, 230, 240, 0.5) 70%, rgba(150, 215, 235, 0.7) 100%);
+  height: 18px;
+  opacity: 0.5;
+  background-repeat: repeat-x;
+  background-size: auto 18px;
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 55%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 55%, transparent 100%);
+  animation: surf-drift 24s linear infinite;
 }
 
 .anchored-boat {
@@ -1642,7 +1633,6 @@ button {
   inset: 0;
   overflow: hidden;
   background: #061826;
-  display: flex;
 }
 
 .title-scene {
@@ -1688,6 +1678,13 @@ button {
   );
 }
 
+/* A espuma do menu media em `vh`.
+
+   Isto era um dos motivos de a tela de titulo desmontar: ela mora dentro de
+   uma caixa de desenho FIXA de 1280x720, que depois e escalada para cobrir a
+   janela. Medir em `vh` la dentro e medir na janela e desenhar na caixa - as
+   faixas mudavam de altura e de posicao conforme o monitor, sozinhas, e
+   escorregavam para fora da linha d'agua. Tudo em unidades da caixa agora. */
 .title-surf {
   position: absolute;
   left: -40px;
@@ -1706,32 +1703,32 @@ button {
 
 .title-surf .foam {
   top: 0;
-  height: 4vh;
-  background-size: auto 4vh;
+  height: 30px;
+  background-size: auto 30px;
   opacity: 0.7;
   animation: surf-drift 20s linear infinite;
 }
 
 .title-surf .swell {
-  top: 3vh;
-  height: 5vh;
-  background-size: auto 5vh;
+  top: 22px;
+  height: 38px;
+  background-size: auto 38px;
   opacity: 0.5;
   animation: surf-drift 26s linear infinite reverse;
 }
 
 .title-surf .swell-b {
-  top: 6vh;
-  height: 6vh;
-  background-size: auto 6vh;
+  top: 44px;
+  height: 46px;
+  background-size: auto 46px;
   opacity: 0.38;
   animation-duration: 38s;
 }
 
 .title-surf .glint {
-  top: 1.5vh;
-  height: 3vh;
-  background-size: auto 3vh;
+  top: 12px;
+  height: 24px;
+  background-size: auto 24px;
   opacity: 0.3;
   animation: surf-drift 44s linear infinite;
 }
@@ -1773,17 +1770,36 @@ button {
   text-transform: uppercase;
 }
 
+/* O SÍMBOLO DO TOPO, esticado.
+
+   Ele tem `width: auto` e mora num container `display: flex; flex-direction:
+   column`. Em coluna, o eixo cruzado e a LARGURA, e o padrao do flex e
+   `align-items: stretch`: com a largura em `auto`, o navegador entendeu o
+   pedido como "ocupe a linha inteira" e esticou a marca de 72 px de altura por
+   560 px de largura. Aumentar a altura so piorava a distorcao.
+
+   `align-self: flex-start` tira a marca do estica-estica, e `object-fit:
+   contain` garante que o desenho nunca deforme mesmo que alguem arraste a
+   caixa da peca no editor. */
 .title-mark {
-  height: 72px;
+  height: 88px;
   width: auto;
+  max-width: 100%;
+  align-self: flex-start;
+  flex: 0 0 auto;
+  object-fit: contain;
+  object-position: left center;
   display: block;
   margin-bottom: 4px;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
 }
 
+/* mesma historia do `vh` na espuma: o titulo media em `vw` dentro de uma caixa
+   que nao e a janela, entao ele mudava de tamanho por conta propria e
+   transbordava a moldura desenhada no editor */
 .title-brand h1 {
-  font-size: clamp(26px, 6.6vw, 48px);
-  line-height: 1.3;
+  font-size: 46px;
+  line-height: 1.24;
   letter-spacing: 2px;
   margin: 8px 0;
   color: var(--cream);
@@ -1796,7 +1812,7 @@ button {
 }
 
 .title-sub {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.5;
   opacity: 0.8;
   max-width: 36ch;
@@ -3616,6 +3632,92 @@ button {
   background: #9b7bff;
 }
 
+.editor-zone.spawn {
+  border-color: #ffa94d;
+  background: rgba(255, 169, 77, 0.12);
+}
+
+.editor-zone.spawn span {
+  background: #ffa94d;
+  color: #2b1704;
+}
+
+/* ==========================================================================
+   A MOLDURA DO JOGADOR
+
+   O retangulo do que o jogador enxerga, desenhado por cima da cena. Sao dois,
+   porque o jogo tem dois enquadramentos: fechado na ilha e aberto no pier. A
+   linha cheia e a moldura em que a tela do editor esta travada; a tracejada e
+   a outra, ali so de referencia.
+   ========================================================================== */
+
+.editor-moldura {
+  position: absolute;
+  pointer-events: none;
+  border: 2px dashed rgba(120, 200, 255, 0.75);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+
+.editor-moldura.mar {
+  border-color: rgba(120, 240, 230, 0.7);
+}
+
+.editor-moldura.travada {
+  border-style: solid;
+  border-width: 3px;
+  border-color: #ffd166;
+  /* o de fora da moldura travada apaga: o que importa e o que cabe dentro */
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 0 0 4000px rgba(4, 14, 22, 0.55);
+}
+
+.moldura-tag {
+  position: absolute;
+  left: 0;
+  top: -30px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  background: rgba(8, 26, 38, 0.9);
+  color: #bfe6ff;
+  white-space: nowrap;
+}
+
+.editor-moldura.travada .moldura-tag {
+  background: #ffd166;
+  color: #2b2004;
+}
+
+.moldura-tag small {
+  opacity: 0.7;
+  letter-spacing: 0;
+}
+
+/* a haste que arrasta as duas molduras pelo mapa de uma vez */
+.editor-guia-haste {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 22px;
+  margin-left: -11px;
+  cursor: ew-resize;
+  display: flex;
+  justify-content: center;
+}
+
+.editor-guia-haste i {
+  width: 2px;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(120, 200, 255, 0.85) 0 10px,
+    transparent 10px 20px
+  );
+}
+
 /* ------------------------------------------------ animacoes das pecas de fx */
 
 .rig-item.pulsing {
@@ -3671,6 +3773,24 @@ button {
   }
 }
 
+/* A saida de emergencia do celular.
+
+   Fica separada dos tres botoes de andar - de proposito, com um respiro e
+   outra cor. Nao e um controle que se usa no meio da brincadeira: e o que se
+   procura quando alguma coisa deu errado, e nao pode estar colado no botao de
+   pular. */
+.btn.travei {
+  margin-left: auto;
+  border-color: #ffa94d;
+  color: #ffd8a8;
+  background: rgba(120, 60, 10, 0.55);
+  letter-spacing: 1px;
+}
+
+.btn.travei:hover {
+  background: rgba(160, 84, 16, 0.75);
+}
+
 
 /* ==========================================================================
    TELA DE TITULO · PECAS EDITAVEIS
@@ -3692,15 +3812,24 @@ button {
   pointer-events: auto;
 }
 
+/* `align-items: flex-start` e o que impede as pecas de dentro de serem
+   esticadas na largura da caixa - foi assim que o simbolo do topo virou uma
+   faixa de 560 px. Quem quiser ocupar a linha inteira pede (ver `.title-btn`). */
 .menu-slot.title-brand,
 .menu-slot.title-menu {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
 }
 
 .menu-slot.title-menu {
   justify-content: flex-start;
   gap: 12px;
+}
+
+.menu-slot.title-menu > .btn,
+.menu-slot.title-menu > .title-progress {
+  align-self: stretch;
 }
 
 /* o Juggler e a vinheta preenchem a caixa inteira */
@@ -3726,6 +3855,29 @@ button {
    engoliria o clique de qualquer coisa que estivesse embaixo dela */
 .menu-slot > .title-vignette {
   pointer-events: none;
+}
+
+/* --------------------------------- as peças do menu DENTRO do editor
+
+   O bloco da interface saía da tela inteiro quando o editor abria: as quatro
+   peças editáveis (Juggler, título, botões e vinheta) viravam caixa invisível,
+   e mexer nelas era arrastar retângulo vazio no escuro. Agora elas continuam
+   desenhadas; o que muda é que nada aqui responde ao ponteiro - o clique
+   atravessa e chega no editor, que é quem deve recebê-lo. A vinheta também
+   perde opacidade, senão escureceria justamente o que você foi ajustar. */
+.menu-ui.editando,
+.menu-ui.editando .menu-slot,
+.menu-ui.editando .menu-slot * {
+  pointer-events: none !important;
+}
+
+.menu-ui.editando .menu-slot {
+  outline: 1px dashed rgba(120, 240, 230, 0.35);
+  outline-offset: 2px;
+}
+
+.menu-ui.editando .title-vignette {
+  opacity: 0.45;
 }
 
 /* o rodape saiu de dentro do bloco de conteudo e agora e filho da tela:

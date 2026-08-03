@@ -4,11 +4,11 @@ import { clamp } from '../engine/rng';
 import { getDevFlags } from '../state/dev';
 import { getSettings } from '../state/settings';
 import { clipConfig, frameAt, seqLength } from '../editor/anims';
-import { blockWalls, inZone, rodX, thresholdX, zoneRect } from '../editor/scene';
+import { blockWalls, inZone, rodX, spawnX, thresholdX, zoneRect } from '../editor/scene';
 import { getFx } from '../editor/fx';
 import { CHAR_ANCHOR, CHAR_CANVAS, CHAR_FRAME_H, CLIP_FRAMES } from './charFrames';
 import { camMinX, groundAt, WORLD_W } from './layout';
-import { getWorld, useWorld } from './worldConfig';
+import { getWorld, panMaxY, panMinY, useWorld } from './worldConfig';
 
 export type Facing = 'left' | 'right';
 export type AnimName = 'side-idle' | 'walk' | 'run' | 'jump' | 'fish' | 'sit';
@@ -60,9 +60,30 @@ const FREE_CAM_SPEED = 900;
 /** Faixa da borda da tela que empurra a camera livre, em px. */
 const EDGE_BAND = 46;
 
-/** Limites do zoom de ctrl+roda. */
+/**
+ * Limites do zoom.
+ *
+ * JOGANDO o zoom e apertado de proposito: o enquadramento faz parte do jogo e
+ * afastar demais entrega o mapa inteiro. No EDITOR e na CAMERA LIVRE isso nao
+ * vale - la voce esta trabalhando na cena, e precisa tanto ver o mar inteiro
+ * de uma vez quanto colar o nariz num prego do deck.
+ */
 export const ZOOM_MIN = 0.6;
 export const ZOOM_MAX = 2.6;
+export const ZOOM_LIVRE_MIN = 0.05;
+export const ZOOM_LIVRE_MAX = 8;
+
+/**
+ * Quanto o zoom demora para chegar onde foi mandado, em segundos.
+ *
+ * O zoom pulava de degrau em degrau: cada volta da roda multiplicava a escala
+ * na hora e a tela dava um tranco. Agora a roda mexe num ALVO e a escala corre
+ * atras dele quadro a quadro. No editor a interpolacao e desligada - la a
+ * caixa de selecao precisa cair exatamente em cima do sprite no mesmo quadro.
+ */
+const ZOOM_EASE = 0.16;
+/** Quanto uma volta da roda mexe no zoom. Passo fino: a suavizacao faz o resto. */
+const ZOOM_STEP = 0.0016;
 
 /** Altura do quadro inteiro em unidades de mundo (inclui a vara). */
 export const PLAYER_H = CHAR_FRAME_H * CHAR_SCALE;
@@ -97,6 +118,14 @@ interface Options {
   fishPose?: FishPose;
   /** congela o mundo inteiro: fisica, animacao e camera (a musica continua) */
   paused?: boolean;
+  /**
+   * O editor esta aberto.
+   *
+   * Muda duas coisas: o zoom perde as amarras do jogo e para de ser
+   * interpolado. Sem isso, dar zoom no editor deixava a caixa de selecao
+   * correndo atras do sprite durante a animacao.
+   */
+  editing?: boolean;
 }
 
 /**
@@ -112,7 +141,13 @@ interface Options {
  * ritmo vem da configuracao de animacoes (`src/editor/anims.ts`), que o editor
  * edita - aqui nao existe mais ordem de quadro escrita na mao.
  */
-export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }: Options) {
+export function usePlayer({
+  active,
+  fishing,
+  fishPose = 'idle',
+  paused = false,
+  editing = false,
+}: Options) {
   const cameraRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<HTMLDivElement | null>(null);
   const shadowRef = useRef<HTMLDivElement | null>(null);
@@ -138,7 +173,8 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
   const [frame, setFrame] = useState(() => getWorld().frameLand);
   const frameRef = useRef(frame);
 
-  const x = useRef(1780);
+  // onde ele nasce sai da caixa NASCIMENTO da cena, nao de um numero aqui
+  const x = useRef(spawnX());
   const vx = useRef(0);
   const y = useRef(0); // altura acima do chao
   const vy = useRef(0);
@@ -158,13 +194,20 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
   const activeRef = useRef(active);
   const fishingRef = useRef(fishing);
   const pausedRef = useRef(paused);
+  const editingRef = useRef(editing);
   const poseRef = useRef<FishPose>(fishPose);
   const scaleRef = useRef(1);
   const viewYRef = useRef(0);
+  const viewHRef = useRef(viewH);
+  /** onde o zoom quer chegar; `zoomRef` e onde ele esta agora */
+  const zoomAlvo = useRef(zoom);
+  const zoomRef = useRef(zoom);
   activeRef.current = active;
   fishingRef.current = fishing;
   pausedRef.current = paused;
+  editingRef.current = editing;
   poseRef.current = fishPose;
+  viewHRef.current = viewH;
 
   /*
    * Escala e deslocamento.
@@ -179,9 +222,20 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
    * e o que entra e agua embaixo - em vez de a cena inteira escorregar.
    */
   const scale = (viewH / world.frameH) * zoom * frame;
-  scaleRef.current = scale;
   const viewY = viewH * world.waterAnchor - world.waterY * scale;
-  viewYRef.current = viewY;
+  /*
+   * Os refs sao a versao de QUADRO desses dois numeros; estes aqui sao a versao
+   * de RENDER, que vira propriedade para o editor desenhar as caixas.
+   *
+   * Quem escreve nos refs e o laco, que roda 60 vezes por segundo. Se o render
+   * escrevesse tambem, um re-render no meio de um zoom suave devolveria a
+   * escala para o valor da ultima vez que o React acordou - e a cena piscaria.
+   * O primeiro quadro e a excecao: ai o laco ainda nao rodou.
+   */
+  if (scaleRef.current === 1 && viewYRef.current === 0) {
+    scaleRef.current = scale;
+    viewYRef.current = viewY;
+  }
 
   useEffect(preload, []);
 
@@ -249,22 +303,79 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
   }, []);
 
   /**
-   * Zoom de ctrl+roda.
+   * Zoom de roda.
    *
-   * O listener precisa ser nao-passivo para o `preventDefault` valer: sem ele o
-   * navegador aplica o proprio zoom da pagina e o jogo sai de lugar.
+   * Duas mudancas em relacao ao que era:
+   *
+   *   - o passo virou CONTINUO. Antes cada volta multiplicava a escala por
+   *     0,9 na hora: o zoom andava aos trancos, em degraus visiveis. Agora a
+   *     roda mexe num alvo, com passo proporcional a distancia rolada, e o laco
+   *     leva a escala ate la;
+   *   - no editor e na camera livre a roda dispensa o Ctrl. Ali dentro rolar a
+   *     pagina nao quer dizer nada, e pedir Ctrl para uma coisa que se usa o
+   *     tempo todo e so atrito.
+   *
+   * O listener e nao-passivo para o `preventDefault` valer: sem ele o navegador
+   * aplica o proprio zoom da pagina e o jogo sai de lugar.
    */
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
+      const livre = editingRef.current || getDevFlags().freeCam;
+      if (!livre && !e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      setZoom((z) => clamp(z * (e.deltaY > 0 ? 0.9 : 1 / 0.9), ZOOM_MIN, ZOOM_MAX));
+      const [lo, hi] = livre ? [ZOOM_LIVRE_MIN, ZOOM_LIVRE_MAX] : [ZOOM_MIN, ZOOM_MAX];
+      // exponencial: uma volta para cima desfaz exatamente uma para baixo
+      const fator = Math.exp(-e.deltaY * ZOOM_STEP);
+      zoomAlvo.current = clamp(zoomAlvo.current * fator, lo, hi);
+      // no editor a escala tem de valer JA: a caixa de selecao e desenhada
+      // por cima do sprite e nao pode ficar um quadro atras dele
+      if (editingRef.current) {
+        zoomRef.current = zoomAlvo.current;
+        setZoom(zoomAlvo.current);
+      }
     };
     window.addEventListener('wheel', onWheel, { passive: false });
     return () => window.removeEventListener('wheel', onWheel);
   }, []);
 
-  const resetZoom = useCallback(() => setZoom(1), []);
+  const resetZoom = useCallback(() => {
+    zoomAlvo.current = 1;
+    if (editingRef.current) {
+      zoomRef.current = 1;
+      setZoom(1);
+    }
+  }, []);
+
+  /** Manda o zoom para um valor exato: usado pelas travas do editor. */
+  const setZoomTo = useCallback((z: number) => {
+    const alvo = clamp(z, ZOOM_LIVRE_MIN, ZOOM_LIVRE_MAX);
+    zoomAlvo.current = alvo;
+    zoomRef.current = alvo;
+    setZoom(alvo);
+  }, []);
+
+  /**
+   * "Travei!": devolve o Juggler ao ponto de nascimento.
+   *
+   * Serve para a situacao boba que trava qualquer jogo de plataforma no
+   * celular - ficar presa atras de uma parede que voce arrastou no editor, ou
+   * num canto do deck de onde o pulo nao sai. Ele reaparece no marcador
+   * NASCIMENTO, de pe, parado, com as teclas soltas e a camera ja nele.
+   */
+  const respawn = useCallback(() => {
+    const alvo = spawnX();
+    x.current = alvo;
+    vx.current = 0;
+    y.current = 0;
+    vy.current = 0;
+    landT.current = 0;
+    keys.current.clear();
+    facing.current = 'left';
+    camY.current = 0;
+    // a camera vai junto, sem deslizar do outro lado do mapa
+    const view = window.innerWidth / Math.max(0.05, scaleRef.current);
+    camX.current = clamp(alvo - view / 2, camMinX(), Math.max(camMinX(), WORLD_W - view));
+  }, []);
 
   /** Move o jogador por toque/clique: usado pelos botoes de mobile. */
   const press = useCallback((code: string, on: boolean) => {
@@ -279,6 +390,7 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
     let lastSpot: Spot = null;
     let lastFrameKey = '';
     let frameShown = frameRef.current;
+    let zoomShown = zoomRef.current;
 
     /** camera e parallax vao direto pro DOM, sem passar por render do React */
     const writeCamera = () => {
@@ -307,7 +419,41 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
        */
       const frozen = pausedRef.current;
       const dt = frozen ? 0 : Math.min(0.05, (now - last) / 1000);
+      const dtReal = Math.min(0.05, (now - last) / 1000);
       last = now;
+
+      /*
+       * O zoom, quadro a quadro.
+       *
+       * A roda mexe no ALVO; aqui a escala caminha ate ele. Era isto que
+       * faltava: antes a escala era trocada de uma vez no evento da roda, e o
+       * mundo dava um pulo a cada clique da rodinha. Com o editor aberto (ou
+       * com as animacoes desligadas nas preferencias) a interpolacao sai de
+       * cena e o valor vale na hora - no editor porque a caixa de selecao
+       * precisa bater com o sprite no mesmo quadro.
+       */
+      const instantaneo = editingRef.current || !getSettings().animations;
+      if (instantaneo) {
+        zoomRef.current = zoomAlvo.current;
+      } else if (Math.abs(zoomAlvo.current - zoomRef.current) > 0.0005) {
+        const suave = 1 - Math.pow(0.001, dtReal / ZOOM_EASE);
+        zoomRef.current += (zoomAlvo.current - zoomRef.current) * suave;
+      } else {
+        zoomRef.current = zoomAlvo.current;
+      }
+
+      // escala e deslocamento sao recalculados aqui, e nao no render: e o que
+      // deixa o zoom correr a 60 quadros sem re-renderizar a cena inteira
+      const mundoAgora = getWorld();
+      scaleRef.current = (viewHRef.current / mundoAgora.frameH) * zoomRef.current * frameRef.current;
+      viewYRef.current = viewHRef.current * mundoAgora.waterAnchor - mundoAgora.waterY * scaleRef.current;
+
+      // o React so precisa saber quando o numero muda de verdade (o editor le
+      // esse valor para desenhar as caixas, e o topo mostra a porcentagem)
+      if (Math.abs(zoomRef.current - zoomShown) > 0.002) {
+        zoomShown = zoomRef.current;
+        setZoom(zoomRef.current);
+      }
 
       const free = getDevFlags().freeCam;
       const k = keys.current;
@@ -386,14 +532,21 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
       }
 
       // ------------------------------------------------------------ camera
-      // congelado, quem manda na camera e o editor (ele escreve em camX direto)
+      // congelado, quem manda na camera e o editor (ele escreve em camX/camY)
       const view = window.innerWidth / scaleRef.current;
       const minX = camMinX();
       const maxX = Math.max(minX, WORLD_W - view);
       if (frozen) {
-        // o editor escreve em camX direto, e a conta dele nao conhece a camera
-        // livre: zerar aqui garante que a caixa de selecao caia sobre o sprite
-        camY.current = 0;
+        /*
+         * Nada a fazer: o editor escreve em `camX` e `camY` direto.
+         *
+         * Antes o `camY` era ZERADO aqui a cada quadro. A intencao era manter a
+         * caixa de selecao em cima do sprite - e o efeito era que no editor a
+         * tela nao descia um pixel: dava para dar zoom no mar, mas nao para
+         * chegar no fundo dele nem no subsolo da praia. Agora o editor soma o
+         * mesmo `camY` na conta de tela dele, entao a caixa continua batendo e
+         * a tela desce ate onde voce quiser.
+         */
       } else if (free && activeRef.current) {
         // WASD e setas empurram a tela; o mouse encostado na borda faz o mesmo
         const m = mouse.current;
@@ -401,6 +554,16 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
         let dy = 0;
         if (k.has('KeyA') || k.has('ArrowLeft')) dx -= 1;
         if (k.has('KeyD') || k.has('ArrowRight')) dx += 1;
+        /*
+         * `dy` positivo = olhar para BAIXO.
+         *
+         * Cuidado com o sinal aqui: `camY` positivo empurra o desenho para
+         * baixo na tela, o que mostra o que esta ACIMA. Ou seja, olhar para
+         * baixo e DIMINUIR o `camY` - e e por isso que ele entra subtraindo
+         * logo abaixo. Sem essa inversao, apertar a seta para baixo subia a
+         * camera, que era o comportamento antigo e passou despercebido so
+         * porque o limite vertical era de poucos pixels.
+         */
         if (k.has('KeyW') || k.has('ArrowUp')) dy -= 1;
         if (k.has('KeyS') || k.has('ArrowDown')) dy += 1;
         if (m.x >= 0) {
@@ -410,12 +573,18 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
           if (m.y > window.innerHeight - EDGE_BAND) dy += 1;
         }
         const boost = k.has('ShiftLeft') || k.has('ShiftRight') ? 2.2 : 1;
-        const speed = (FREE_CAM_SPEED * boost * dt) / Math.max(0.25, scaleRef.current);
+        const speed = (FREE_CAM_SPEED * boost * dt) / Math.max(0.05, scaleRef.current);
         camX.current = clamp(camX.current + Math.sign(dx) * speed, minX, maxX);
-        // so da para subir e descer quando o zoom faz o mundo passar da tela
-        const over = Math.max(0, getWorld().frameH * scaleRef.current - window.innerHeight);
-        const maxY = over / scaleRef.current / 2;
-        camY.current = clamp(camY.current + Math.sign(dy) * speed, -maxY, maxY);
+        /*
+         * Subir e descer, de verdade.
+         *
+         * A conta antiga so deixava mover no vertical quando o zoom fazia o
+         * mundo transbordar da tela, e o limite era metade desse transbordo:
+         * na pratica a camera livre era um trilho horizontal e o fundo do mar
+         * ficava inalcancavel. O limite agora e o MUNDO - do ceu acima da linha
+         * d'agua ate o subsolo da praia - e nao o quanto sobra de tela.
+         */
+        camY.current = clamp(camY.current - Math.sign(dy) * speed, panMinY(), panMaxY());
       } else if (free) {
         // camera livre com painel aberto: a tela fica onde estava
       } else {
@@ -500,6 +669,8 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
     spriteRef,
     /** posicao da camera: o editor escreve aqui para navegar pelo mapa */
     camXRef: camX,
+    /** deslocamento vertical da camera: o editor escreve aqui para descer ao fundo */
+    camYRef: camY,
     spot,
     nearRod: spot === 'vara',
     nearMarket: spot === 'mercado',
@@ -508,6 +679,8 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
     viewY,
     zoom,
     resetZoom,
+    setZoomTo,
+    respawn,
     press,
     playerX: x,
   };

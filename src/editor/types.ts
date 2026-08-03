@@ -2,7 +2,7 @@
  * Camadas de TRABALHO. Elas dizem em que gaveta o objeto mora - nao dizem quem
  * fica na frente de quem. Ordem de desenho e a `depth`, logo abaixo.
  */
-export type LayerId = 'fundo' | 'cenario' | 'objetos' | 'interagiveis';
+export type LayerId = 'fundo' | 'cenario' | 'objetos' | 'interagiveis' | 'marcadores';
 
 export const LAYERS: { id: LayerId; label: string; hint: string }[] = [
   {
@@ -21,6 +21,11 @@ export const LAYERS: { id: LayerId; label: string; hint: string }[] = [
     hint: 'tralha solta e vida do mar: barril, caixa, vara, coral, alga, peixinho',
   },
   { id: 'interagiveis', label: 'INTERAGÍVEIS', hint: 'áreas de interação (vara, mercado)' },
+  {
+    id: 'marcadores',
+    label: 'MARCADORES',
+    hint: 'pontos de referência do jogo: onde o Juggler nasce e onde a câmera vira',
+  },
 ];
 
 /**
@@ -64,16 +69,18 @@ export function depthZ(depth: number): number {
  *   mercado - abre o mercado de peixe
  *   parede  - barra o Juggler (as antigas paredes invisiveis, agora moveis)
  *   limiar  - troca o enquadramento da camera entre mar e praia
+ *   spawn   - onde o Juggler nasce e para onde o "Travei!" o traz de volta
  *
  * Pode existir mais de uma parede na cena. As outras sao unicas.
  */
-export type ZoneId = 'vara' | 'mercado' | 'parede' | 'limiar';
+export type ZoneId = 'vara' | 'mercado' | 'parede' | 'limiar' | 'spawn';
 
 export const ZONE_LABEL: Record<ZoneId, string> = {
   vara: 'PESCAR',
   mercado: 'MERCADO',
   parede: 'PAREDE',
   limiar: 'LIMIAR DO PÍER',
+  spawn: 'NASCIMENTO',
 };
 
 /** Formas geometricas que da para criar direto no editor, sem sprite. */
