@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import { asset } from '../assets';
 import cutscene from '../assets/juggler-cutscene.webp';
 import { EditorOverlay } from '../editor/EditorOverlay';
-import { MENU_H, MENU_W, setActiveScene } from '../editor/scene';
+import { MENU_H, MENU_W, menuSlot, setActiveScene, useScene } from '../editor/scene';
+import { depthZ } from '../editor/types';
 import { SceneLayer } from './SceneLayer';
 import { initAudio, playSfx, startAmbience } from '../engine/audio';
 import { useGame } from '../state/store';
 import { useSettings } from '../state/settings';
-import { useDayPhase, useGameClock } from '../world/dayCycle';
-import { REGIONS } from '../data/regions';
+import { useWorld } from '../world/worldConfig';
 import { ControlsApp } from './ControlsPanel';
 import { SettingsApp } from './SettingsPanel';
 import { Sheet } from './Sheet';
@@ -46,31 +46,63 @@ function menuView() {
 const MENU_SEA_Y = 430;
 
 /**
+ * Um lugar reservado na cena do menu.
+ *
+ * O Juggler, o bloco do titulo, a coluna de botoes e a vinheta sao objetos de
+ * cena: tem caixa, profundidade, giro e opacidade, e o editor mexe neles como
+ * mexe num coqueiro. Este componente pega a caixa e desenha o conteudo dentro.
+ *
+ * Devolve `null` quando a peca foi apagada ou escondida no editor - esconder o
+ * Juggler da tela de titulo passou a ser uma caixinha, nao uma edicao de codigo.
+ */
+function MenuSlot({
+  role,
+  className,
+  children,
+}: {
+  role: 'juggler' | 'titulo' | 'botoes' | 'vinheta';
+  className?: string;
+  children?: React.ReactNode;
+}) {
+  // a assinatura da cena mora aqui: mexer no editor redesenha na hora
+  useScene('menu');
+  const o = menuSlot(role);
+  if (!o) return null;
+  return (
+    <div
+      className={`menu-slot ${className ?? ''}`}
+      style={{
+        left: o.x,
+        top: o.y,
+        width: o.w,
+        height: o.h,
+        opacity: o.opacity,
+        zIndex: depthZ(o.depth),
+        transform: `${o.rot ? `rotate(${o.rot}deg)` : ''}${o.flip ? ' scaleX(-1)' : ''}` || undefined,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
  * O cenario do menu, montado com os mesmos assets do jogo.
  *
  * A ideia e o menu ser um pedaco do mundo visto da ponta do pier, e nao uma
- * arte separada: o ceu, o mar, o horizonte e a tralha do deck sao exatamente
- * os sprites que o jogo usa. Por isso ele tambem segue a fase do dia - abrir o
- * jogo de madrugada mostra o menu de madrugada.
+ * arte separada: o ceu, o mar, o horizonte e a tralha do deck sao exatamente os
+ * sprites que o jogo usa.
  *
- * Tudo o que e sprite virou objeto de CENA (`src/editor/scene.ts`, cena
- * `menu`), entao da para arrumar o menu com o mesmo editor do jogo. O que
- * continua sendo estrutura aqui e o que nao e sprite: ceu, gradiente do mar,
- * faixa de espuma e a vinheta.
+ * O que ele NAO faz mais e seguir o relogio. A hora do menu e escolhida na
+ * secao MUNDO do editor e fica quieta: uma tela de apresentacao que muda de cor
+ * sozinha enquanto voce olha nao apresenta nada.
  */
-function TitleScene({
-  phase,
-  view,
-  editing,
-}: {
-  phase: ReturnType<typeof useDayPhase>;
-  view: { scale: number; x: number; y: number };
-  /** no editor a vinheta sai: ela escurece justamente o que voce foi arrumar */
-  editing: boolean;
-}) {
+function TitleScene({ view }: { view: { scale: number; x: number; y: number } }) {
+  const w = useWorld();
+
   return (
     <div className="title-scene">
-      <Sky region={phase} />
+      <Sky hour={w.menuHour} />
 
       <div
         className="menu-world"
@@ -84,7 +116,7 @@ function TitleScene({
         <SceneLayer scene="menu" band="longe" />
         <SceneLayer scene="menu" band="meio" />
 
-        {/* o mar, com a paleta da fase do dia */}
+        {/* o mar, com a paleta da hora escolhida */}
         <div className="title-sea" style={{ top: MENU_SEA_Y }} />
 
         {/* espuma e ondas na linha d agua */}
@@ -98,8 +130,6 @@ function TitleScene({
         {/* barco, estacas, deck, tralha e vegetacao: tudo objeto de cena */}
         <SceneLayer scene="menu" band="perto" />
       </div>
-
-      {!editing && <div className="title-vignette" />}
     </div>
   );
 }
@@ -107,8 +137,6 @@ function TitleScene({
 export function TitleScreen({ onPlay }: { onPlay: () => void }) {
   const s = useGame();
   const settings = useSettings();
-  const phase = useDayPhase();
-  const clock = useGameClock();
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [editor, setEditor] = useState(false);
   const view = useMenuView();
@@ -130,7 +158,7 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
 
   return (
     <div className="title-screen" onPointerDown={initAudio}>
-      <TitleScene phase={phase} view={view} editing={editor} />
+      <TitleScene view={view} />
 
       {editor && (
         <EditorOverlay
@@ -142,86 +170,103 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
         />
       )}
 
-      {editor ? null : (
-      <>
-      {/* o Juggler posando com a vara, encostado no canto direito */}
-      <img className="title-art" src={cutscene} alt="O Juggler" />
+      {/* A interface do menu vive DENTRO da caixa de desenho, junto com o resto
+          da cena: e assim que ela pode ser arrastada no editor. No modo editor
+          ela sai da frente - as caixas ficam a mostra para você mexer. */}
+      {!editor && (
+        <div
+          className="menu-world menu-ui"
+          style={{
+            width: MENU_W,
+            height: MENU_H,
+            transform: `translate3d(${view.x}px,${view.y}px,0) scale(${view.scale})`,
+          }}
+        >
+          <MenuSlot role="vinheta">
+            <div className="title-vignette" />
+          </MenuSlot>
 
-      <div className="title-content">
-        <div className="title-brand">
-          <img className="title-mark" src={asset('ui/temporary-logo-mark')} alt="" />
-          <h1>
-            JUGGLER'S
-            <br />
-            <em>FISHING CLUB</em>
-          </h1>
-          <p className="title-sub">
-            Lança a linha, fisga o que aparecer e reza pra não ser a Hydra.
-          </p>
+          <MenuSlot role="juggler">
+            <img className="title-art" src={cutscene} alt="O Juggler" />
+          </MenuSlot>
+
+          <MenuSlot role="titulo" className="title-brand">
+            <img className="title-mark" src={asset('ui/temporary-logo-mark')} alt="" />
+            <h1>
+              JUGGLER'S
+              <br />
+              <em>FISHING CLUB</em>
+            </h1>
+            <p className="title-sub">
+              Lança a linha, fisga o que aparecer e reza pra não ser a Hydra.
+            </p>
+          </MenuSlot>
+
+          <MenuSlot role="botoes" className="title-menu">
+            <button
+              className="btn primary title-btn"
+              onClick={() => {
+                wake();
+                onPlay();
+              }}
+            >
+              {hasProgress ? 'CONTINUAR' : 'COMEÇAR'}
+            </button>
+            {hasProgress && (
+              <div className="title-progress">
+                {s.stats.casts.toLocaleString('pt-BR')} lançamentos &middot;{' '}
+                {Object.keys(s.album).length} espécies &middot;{' '}
+                {s.sazoncoins.toLocaleString('pt-BR')} SZ
+              </div>
+            )}
+            <button
+              className="btn title-btn"
+              onClick={() => {
+                wake();
+                setOverlay('controles');
+              }}
+            >
+              COMO JOGAR
+            </button>
+            <button
+              className="btn title-btn"
+              onClick={() => {
+                wake();
+                setOverlay('config');
+              }}
+            >
+              CONFIGURAÇÕES
+            </button>
+            <button
+              className="btn title-btn ghost"
+              onClick={() => {
+                wake();
+                setEditor(true);
+              }}
+              title="Mesmo editor do jogo, editando a tela de menu"
+            >
+              EDITOR DO MENU
+            </button>
+          </MenuSlot>
         </div>
+      )}
 
-        <div className="title-menu">
-          <button
-            className="btn primary title-btn"
-            onClick={() => {
-              wake();
-              onPlay();
-            }}
-          >
-            {hasProgress ? 'CONTINUAR' : 'COMEÇAR'}
-          </button>
-          {hasProgress && (
-            <div className="title-progress">
-              {s.stats.casts.toLocaleString('pt-BR')} lançamentos &middot;{' '}
-              {Object.keys(s.album).length} espécies &middot; {s.sazoncoins.toLocaleString('pt-BR')} SZ
-            </div>
-          )}
-          <button
-            className="btn title-btn"
-            onClick={() => {
-              wake();
-              setOverlay('controles');
-            }}
-          >
-            COMO JOGAR
-          </button>
-          <button
-            className="btn title-btn"
-            onClick={() => {
-              wake();
-              setOverlay('config');
-            }}
-          >
-            CONFIGURAÇÕES
-          </button>
-          <button
-            className="btn title-btn ghost"
-            onClick={() => {
-              wake();
-              setEditor(true);
-            }}
-            title="Mesmo editor do jogo, editando a tela de menu"
-          >
-            EDITOR DO MENU
-          </button>
-        </div>
-
+      {!editor && (
         <div className="title-foot">
           <span className="founder-plate">FUNDADOR</span>
-          <span className="title-clock">
-            {clock} &middot; {REGIONS[phase].name}
-          </span>
-          <span>&middot; v0.2</span>
+          <span>v0.3</span>
         </div>
-      </div>
+      )}
 
-      {overlay === 'config' && <Sheet title="CONFIGURAÇÕES" onClose={() => setOverlay(null)}><SettingsApp /></Sheet>}
+      {overlay === 'config' && (
+        <Sheet title="CONFIGURAÇÕES" onClose={() => setOverlay(null)}>
+          <SettingsApp />
+        </Sheet>
+      )}
       {overlay === 'controles' && (
         <Sheet title="COMO JOGAR" onClose={() => setOverlay(null)}>
           <ControlsApp />
         </Sheet>
-      )}
-      </>
       )}
     </div>
   );
