@@ -171,11 +171,16 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
       )}
 
       {/* A interface do menu vive DENTRO da caixa de desenho, junto com o resto
-          da cena: e assim que ela pode ser arrastada no editor. No modo editor
-          ela sai da frente - as caixas ficam a mostra para você mexer. */}
-      {!editor && (
-        <div
-          className="menu-world menu-ui"
+          da cena: é assim que ela pode ser arrastada no editor.
+
+          Ela também é desenhada COM o editor aberto, e essa é a correção: antes
+          o bloco inteiro saía da tela no modo editor, então as quatro peças
+          editáveis (o Juggler, o título, os botões e a vinheta) viravam caixas
+          invisíveis — dava para arrastar no escuro e só. Agora elas continuam
+          à vista; o que muda é que param de responder ao mouse, para o clique
+          chegar no editor e não no botão CONTINUAR. */}
+      <div
+          className={`menu-world menu-ui${editor ? ' editando' : ''}`}
           style={{
             width: MENU_W,
             height: MENU_H,
@@ -248,8 +253,7 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
               EDITOR DO MENU
             </button>
           </MenuSlot>
-        </div>
-      )}
+      </div>
 
       {!editor && (
         <div className="title-foot">
