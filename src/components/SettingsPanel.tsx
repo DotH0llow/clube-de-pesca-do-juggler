@@ -76,7 +76,7 @@ export function SettingsApp() {
 
   return (
     <>
-      <div className="section-title">Audio</div>
+      <div className="section-title">Áudio</div>
       <Toggle
         label="Silenciar tudo"
         desc="Corta o som sem perder os volumes ajustados."
@@ -88,7 +88,7 @@ export function SettingsApp() {
       />
       <Slider label="Volume geral" value={s.master} disabled={s.muted} onChange={(v) => patch({ master: v })} />
       <Slider
-        label="Musica e ambiencia"
+        label="Música e ambiência"
         value={s.music}
         disabled={s.muted}
         onChange={(v) => {
@@ -117,10 +117,10 @@ export function SettingsApp() {
         </button>
       </div>
 
-      <div className="section-title">Imagem e animacao</div>
+      <div className="section-title">Imagem e animação</div>
       <Toggle
         label="Animacoes"
-        desc="Ondas, boia balancando, transicoes e brilho dos popups."
+        desc="Ondas, boia balançando, transições e brilho dos popups."
         value={s.animations}
         onChange={(v) => patch({ animations: v })}
       />
@@ -149,7 +149,7 @@ export function SettingsApp() {
       />
       <Toggle
         label="Confirmar gasto de Olhos"
-        desc="Pede confirmacao antes de gastar Olhos da Hydra."
+        desc="Pede confirmação antes de gastar Olhos da Hydra."
         value={s.confirmEyes}
         onChange={(v) => patch({ confirmEyes: v })}
       />
@@ -159,15 +159,15 @@ export function SettingsApp() {
         <div className="grow">
           <div className="title">Progresso atual</div>
           <div className="desc">
-            {game.stats.casts.toLocaleString('pt-BR')} lancamentos &middot;{' '}
-            {Object.keys(game.album).length} especies &middot; {game.achievements.length} conquistas
+            {game.stats.casts.toLocaleString('pt-BR')} lançamentos &middot;{' '}
+            {Object.keys(game.album).length} espécies &middot; {game.achievements.length} conquistas
           </div>
         </div>
       </div>
       <div className="row">
         <div className="grow">
-          <div className="title">Restaurar configuracoes</div>
-          <div className="desc">Volta som, animacoes e ajudas para o padrao. Nao mexe no progresso.</div>
+          <div className="title">Restaurar configurações</div>
+          <div className="desc">Volta som, animações e ajudas para o padrão. Não mexe no progresso.</div>
         </div>
         <button
           className="btn small"
@@ -186,8 +186,8 @@ export function SettingsApp() {
           </div>
           <div className="desc">
             {confirmWipe
-              ? 'Isso apaga album, moedas, upgrades e conquistas. Nao tem volta.'
-              : 'Comeca tudo de novo, do zero.'}
+              ? 'Isso apaga álbum, moedas, upgrades e conquistas. Não tem volta.'
+              : 'Começa tudo de novo, do zero.'}
           </div>
         </div>
         {confirmWipe ? (

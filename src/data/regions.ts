@@ -8,7 +8,7 @@ export const REGIONS: Record<RegionId, Region> = {
   enseada: {
     id: 'enseada',
     name: 'Enseada do Coral',
-    subtitle: 'Agua rasa, sol a pino, peixe manso.',
+    subtitle: 'Água rasa, sol a pino, peixe manso.',
     unlock: null,
     valueMultiplier: 1,
     rarityBonus: 0,
@@ -28,7 +28,7 @@ export const REGIONS: Record<RegionId, Region> = {
   recife: {
     id: 'recife',
     name: 'Recife Neon',
-    subtitle: 'Por do sol eterno e cardume que brilha no escuro.',
+    subtitle: 'Pôr do sol eterno e cardume que brilha no escuro.',
     unlock: { currency: 'sazoncoins', cost: 6000 },
     valueMultiplier: 1.35,
     rarityBonus: 0.15,
@@ -47,8 +47,8 @@ export const REGIONS: Record<RegionId, Region> = {
   },
   naufragio: {
     id: 'naufragio',
-    name: 'Naufragio do Cargueiro',
-    subtitle: 'Ferro velho, oleo na agua e bicho grande embaixo.',
+    name: 'Naufrágio do Cargueiro',
+    subtitle: 'Ferro velho, óleo na água e bicho grande embaixo.',
     unlock: { currency: 'sazoncoins', cost: 30000 },
     valueMultiplier: 1.8,
     rarityBonus: 0.32,
@@ -68,7 +68,7 @@ export const REGIONS: Record<RegionId, Region> = {
   fossa: {
     id: 'fossa',
     name: 'Fossa da Hydra',
-    subtitle: 'Tres sombras no fundo. Nenhuma delas e peixe.',
+    subtitle: 'Três sombras no fundo. Nenhuma delas é peixe.',
     unlock: { currency: 'hydraEyes', cost: 12 },
     valueMultiplier: 2.6,
     rarityBonus: 0.6,

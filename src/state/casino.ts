@@ -99,7 +99,7 @@ function patchSession(p: Partial<SessionState>) {
 
 /** Zera o que e da sessao. Chamado ao sair da pescaria ou voltar ao titulo. */
 export function resetSession(): void {
-  loseStreak('sessao encerrada');
+  loseStreak('sessão encerrada');
   session = emptySession();
   emit();
 }
@@ -362,7 +362,7 @@ export function loseStreak(_reason: string): number {
   const c = casino();
   if (c.streak.current === 0 && c.streak.pendingCoins === 0) return 0;
 
-  // "Pescador Implacavel" segura a sequencia por uma falha, cobrando metade
+  // "Pescador Implacável" segura a sequencia por uma falha, cobrando metade
   const shielded = hasCard('pescador-implacavel');
   const lost = shielded ? Math.floor(c.streak.pendingCoins / 2) : c.streak.pendingCoins;
 

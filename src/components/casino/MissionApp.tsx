@@ -44,7 +44,7 @@ export function MissionApp() {
 
       <div className="row">
         <div className="grow">
-          <div className="title">PROXIMA RECOMPENSA</div>
+          <div className="title">PRÓXIMA RECOMPENSA</div>
           <div className="desc">
             {board.fullyCompleted
               ? 'CARTELA COMPLETA. PEGUE UMA NOVA.'
@@ -61,14 +61,14 @@ export function MissionApp() {
       <div className="section-title">PROBABILIDADES</div>
       <div className="row">
         <div className="grow desc">
-          Tudo o que sorteia esta aqui. Nenhuma probabilidade muda por compra -
-          nao existe compra de giro nem dinheiro real neste jogo.
+          Tudo o que sorteia está aqui. Nenhuma probabilidade muda por compra -
+          não existe compra de giro nem dinheiro real neste jogo.
         </div>
       </div>
 
       <div className="row odds">
         <div className="grow">
-          <div className="title">SEQUENCIA</div>
+          <div className="title">SEQUÊNCIA</div>
           {STREAK_TIERS.map((t) => (
             <div className="desc" key={t.catches}>
               {t.catches} CAPTURAS &rarr; X{t.multiplier}
@@ -79,7 +79,7 @@ export function MissionApp() {
 
       <div className="row odds">
         <div className="grow">
-          <div className="title">RODA DA MARE</div>
+          <div className="title">RODA DA MARÉ</div>
           {TIDE_WHEEL_REWARDS.map((r) => (
             <div className="desc" key={r.id}>
               {r.label} &mdash; {r.weight}%
@@ -108,11 +108,11 @@ export function MissionApp() {
               {k.toUpperCase()} &mdash; X{JACKPOT_TIERS[k].multiplier} ({JACKPOT_TIERS[k].weight}% dos jackpots)
             </div>
           ))}
-          <div className="desc">MEDIDOR CHEIO GARANTE O PROXIMO ENCONTRO.</div>
+          <div className="desc">MEDIDOR CHEIO GARANTE O PRÓXIMO ENCONTRO.</div>
         </div>
       </div>
 
-      <div className="section-title">ESTATISTICAS</div>
+      <div className="section-title">ESTATÍSTICAS</div>
       <div className="row odds">
         <div className="grow desc">
           BONUS SACADO: {s.casino.statistics.totalPendingCoinsCashedOut.toLocaleString('pt-BR')}

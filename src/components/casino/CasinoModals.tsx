@@ -19,7 +19,7 @@ import { Sprite } from '../Sprite';
 // ============================================================ pescar ou sacar
 
 /**
- * Decisao de risco. O botao de sacar e o primeiro, o maior e o mais claro -
+ * Decisao de risco. O botão de sacar e o primeiro, o maior e o mais claro -
  * nunca escondido, como manda a spec de transparencia.
  */
 export function CashOutModal({ onClose }: { onClose: () => void }) {
@@ -31,7 +31,7 @@ export function CashOutModal({ onClose }: { onClose: () => void }) {
       <div className="sheet risk-sheet">
         <div className="sheet-body daily-body">
           <div className="headline" style={{ color: 'var(--coin)' }}>
-            MARE FAVORAVEL
+            MARÉ FAVORÁVEL
           </div>
           <Sprite path="fx/reward-glow" size={80} />
           <div className="risk-lines">
@@ -46,8 +46,8 @@ export function CashOutModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <div className="flavor">
-            O bonus pendente e perdido se a proxima pescaria falhar. Suas
-            Sazoncoins ja garantidas nunca sao tocadas.
+            O bônus pendente é perdido se a próxima pescaria falhar. Suas
+            Sazoncoins já garantidas nunca são tocadas.
           </div>
           <button
             className="btn primary"
@@ -111,7 +111,7 @@ export function TideWheelModal({ onClose }: { onClose: () => void }) {
     <div className="modal-backdrop" onClick={spinning ? undefined : onClose}>
       <div className="sheet wheel-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head">
-          <h2>RODA DA MARE</h2>
+          <h2>RODA DA MARÉ</h2>
           <button className="btn ghost small" onClick={onClose} disabled={spinning}>
             FECHAR
           </button>
@@ -137,7 +137,7 @@ export function TideWheelModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="flavor">
-            {done ? done : spinning ? 'A MARE ESTA GIRANDO...' : `GIROS DISPONIVEIS: ${spins}`}
+            {done ? done : spinning ? 'A MARÉ ESTÁ GIRANDO...' : `GIROS DISPONÍVEIS: ${spins}`}
           </div>
 
           <div className="wheel-legend">
@@ -188,7 +188,7 @@ export function LuckyCardPicker({ cards }: { cards: LuckyCard[] }) {
                 {c.durationType === 'instant'
                   ? 'IMEDIATO'
                   : c.durationType === 'session'
-                    ? 'ATE O FIM DA SESSAO'
+                    ? 'ATÉ O FIM DA SESSÃO'
                     : `${c.durationValue} ${c.durationType === 'next-catch' ? 'CAPTURA' : 'LANCAMENTOS'}`}
               </div>
             </button>
@@ -292,7 +292,7 @@ export function PrizeLadderModal({
     <div className="modal-backdrop">
       <div className="sheet ladder-sheet">
         <div className="sheet-head">
-          <h2>ESCADA DE PREMIOS</h2>
+          <h2>ESCADA DE PRÊMIOS</h2>
           <span style={{ fontSize: 13 }}>ETAPA {Math.min(step + 1, PRIZE_LADDER.length)}/4</span>
         </div>
         <div className="sheet-body daily-body">
@@ -302,7 +302,7 @@ export function PrizeLadderModal({
                 ERROU A JANELA
               </div>
               <div className="flavor">
-                O bonus da escada foi embora. O peixe e o valor-base continuam seus.
+                O bônus da escada foi embora. O peixe e o valor-base continuam seus.
               </div>
               <button className="btn primary" onClick={onClose}>
                 VOLTAR
@@ -333,9 +333,9 @@ export function PrizeLadderModal({
 
               <div className="flavor">
                 {maxed
-                  ? 'VOCE LIMPOU A ESCADA INTEIRA.'
+                  ? 'VOCÊ LIMPOU A ESCADA INTEIRA.'
                   : running
-                    ? 'TOQUE OU ESPACO QUANDO O MARCADOR ESTIVER NA ZONA.'
+                    ? 'TOQUE OU ESPAÇO QUANDO O MARCADOR ESTIVER NA ZONA.'
                     : 'ETAPA VENCIDA. SACAR OU SUBIR?'}
               </div>
 

@@ -27,8 +27,8 @@ export function PlaylistApp() {
       <div className="now-playing">
         <Sprite path="props/pier-lantern" size={44} />
         <div className="grow">
-          <div className="title">{track ? track.title : 'NADA TOCANDO'}</div>
-          <div className="desc">{track ? track.artist : 'ESCOLHA UMA FAIXA'}</div>
+          <div className="title">{track ? track.title: 'NADA TOCANDO'}</div>
+          <div className="desc">{track ? track.artist: 'ESCOLHA UMA FAIXA'}</div>
         </div>
       </div>
 
@@ -46,7 +46,7 @@ export function PlaylistApp() {
           className={`btn small${radio.shuffle ? ' primary' : ''}`}
           onClick={() => setShuffle(!radio.shuffle)}
         >
-          ALEATORIO
+          ALEATÓRIO
         </button>
       </div>
 
@@ -63,7 +63,7 @@ export function PlaylistApp() {
             step={5}
             value={Math.round(settings.music * 100)}
             onChange={(e) => updateSettings({ music: Number(e.target.value) / 100 })}
-            aria-label="Volume da musica"
+            aria-label="Volume da música"
           />
         </div>
       </div>
@@ -86,7 +86,7 @@ export function PlaylistApp() {
       <div className="section-title">RESTAURANTE</div>
       <div className="row">
         <div className="grow desc">
-          Guardado. Estas faixas ja estao no projeto, mas so entram quando o
+          Guardado. Estas faixas já estão no projeto, mas só entram quando o
           restaurante existir no jogo.
         </div>
       </div>

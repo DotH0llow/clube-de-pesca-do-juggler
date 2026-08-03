@@ -22,7 +22,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'mao_firme',
-    name: 'Mao Firme',
+    name: 'Mão Firme',
     desc: 'Capture 10 peixes seguidos sem falhar.',
     category: 'sorte',
     goal: 10,
@@ -32,7 +32,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'monstro_do_lago',
     name: 'Monstro do Lago',
-    desc: 'Capture um peixe lendario.',
+    desc: 'Capture um peixe lendário.',
     category: 'sorte',
     goal: 1,
     progress: (s) => s.stats.rarityCounts.lendario + s.stats.rarityCounts.mitico,
@@ -41,7 +41,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'pescador_persistente',
     name: 'Pescador Persistente',
-    desc: 'Faca 1.000 lancamentos.',
+    desc: 'Faça 1.000 lançamentos.',
     category: 'persistencia',
     goal: 1000,
     progress: (s) => s.stats.casts,
@@ -49,8 +49,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'aquecendo',
-    name: 'Aquecendo o Braco',
-    desc: 'Faca 100 lancamentos.',
+    name: 'Aquecendo o Braço',
+    desc: 'Faça 100 lançamentos.',
     category: 'persistencia',
     goal: 100,
     progress: (s) => s.stats.casts,
@@ -59,7 +59,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'colecionador',
     name: 'Colecionador',
-    desc: 'Complete uma familia inteira do album.',
+    desc: 'Complete uma família inteira do álbum.',
     category: 'colecao',
     goal: 1,
     progress: completedFamilies,
@@ -67,8 +67,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'album_metade',
-    name: 'Meio Album',
-    desc: 'Registre 12 especies diferentes.',
+    name: 'Meio Álbum',
+    desc: 'Registre 12 espécies diferentes.',
     category: 'colecao',
     goal: 12,
     progress: albumSize,
@@ -76,8 +76,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'album_completo',
-    name: 'Album Completo',
-    desc: 'Registre todas as especies do clube.',
+    name: 'Álbum Completo',
+    desc: 'Registre todas as espécies do clube.',
     category: 'lendaria',
     goal: FISH.length,
     progress: albumSize,
@@ -95,7 +95,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'catador',
     name: 'Catador de Praia',
-    desc: 'Pesque 50 pecas de lixo.',
+    desc: 'Pesque 50 peças de lixo.',
     category: 'azar',
     goal: 50,
     progress: (s) => s.stats.junk,
@@ -112,8 +112,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'cacador_de_baus',
-    name: 'Cacador de Baus',
-    desc: 'Abra 15 baus afundados.',
+    name: 'Caçador de Baús',
+    desc: 'Abra 15 baús afundados.',
     category: 'economia',
     goal: 15,
     progress: (s) => s.stats.chests,
@@ -148,8 +148,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'lancamento_perfeito',
-    name: 'Braco de Ouro',
-    desc: 'Acerte 25 lancamentos perfeitos.',
+    name: 'Braço de Ouro',
+    desc: 'Acerte 25 lançamentos perfeitos.',
     category: 'persistencia',
     goal: 25,
     progress: (s) => s.stats.perfectCasts,
@@ -175,7 +175,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'sombra_no_lago',
-    name: 'Sombra na Agua',
+    name: 'Sombra na Água',
     desc: 'Testemunhe 5 Eventos Hydra.',
     category: 'prestigio',
     goal: 5,
@@ -185,7 +185,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'mitico',
     name: 'Ela Te Viu',
-    desc: 'Capture uma criatura mitica.',
+    desc: 'Capture uma criatura mítica.',
     category: 'lendaria',
     goal: 1,
     progress: (s) => s.stats.rarityCounts.mitico,
@@ -193,7 +193,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'linha_arrebentada',
-    name: 'Ficou a Historia',
+    name: 'Ficou a História',
     desc: 'Arrebente a linha 25 vezes.',
     category: 'azar',
     goal: 25,

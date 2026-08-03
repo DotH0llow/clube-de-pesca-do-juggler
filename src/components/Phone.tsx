@@ -11,31 +11,31 @@ import { MissionApp } from './casino/MissionApp';
 import { PlaylistApp } from './PlaylistApp';
 import { Sprite } from './Sprite';
 
-type AppId = 'album' | 'cartela' | 'radio' | 'cais' | 'conquistas' | 'ajustes' | 'ajuda';
+type AppId = 'album' | 'cartela' | 'radio' | 'cais' | 'conquistas' | 'config' | 'ajuda';
 
 const APPS: { id: AppId; label: string; icon: string }[] = [
-  { id: 'album', label: 'ALBUM', icon: 'ui/fish-album-icon' },
+  { id: 'album', label: 'ÁLBUM', icon: 'ui/fish-album-icon' },
   { id: 'cartela', label: 'CARTELA', icon: 'ui/rarity-rare' },
-  { id: 'radio', label: 'RADIO', icon: 'ui/depth-indicator' },
+  { id: 'radio', label: 'RÁDIO', icon: 'ui/depth-indicator' },
   { id: 'cais', label: 'CAIS', icon: 'ui/upgrade-icon' },
-  { id: 'conquistas', label: 'TROFEUS', icon: 'ui/ranking-icon' },
-  { id: 'ajustes', label: 'AJUSTES', icon: 'ui/settings-icon' },
+  { id: 'conquistas', label: 'TROFÉUS', icon: 'ui/ranking-icon' },
+  { id: 'config', label: 'CONFIG', icon: 'ui/settings-icon' },
   { id: 'ajuda', label: 'AJUDA', icon: 'ui/tooltip' },
 ];
 
 const TITLE: Record<AppId, string> = {
-  album: 'ALBUM DO PESCADOR',
+  album: 'ÁLBUM DO PESCADOR',
   cartela: 'CARTELA E ODDS',
-  radio: 'RADIO DO CLUBE',
+  radio: 'RÁDIO DO CLUBE',
   cais: 'CAIS DO CLUBE',
   conquistas: 'CONQUISTAS',
-  ajustes: 'AJUSTES',
+  config: 'CONFIGURAÇÕES',
   ajuda: 'COMO JOGAR',
 };
 
 /**
- * O celular do Juggler. Abre com ESC e concentra album, cais, conquistas,
- * ajustes e ajuda. Tamanho fixo: a tela nunca cresce com o conteudo, so rola.
+ * O celular do Juggler. Abre com ESC e concentra álbum, cais, conquistas,
+ * configurações e ajuda. Tamanho fixo: a tela nunca cresce com o conteudo, so rola.
  */
 export function Phone({ onClose }: { onClose: () => void }) {
   const s = useGame();
@@ -76,7 +76,7 @@ export function Phone({ onClose }: { onClose: () => void }) {
               {app === 'radio' && <PlaylistApp />}
               {app === 'cais' && <ShopApp />}
               {app === 'conquistas' && <AchievementsApp />}
-              {app === 'ajustes' && <SettingsApp />}
+              {app === 'config' && <SettingsApp />}
               {app === 'ajuda' && <ControlsApp />}
             </div>
 

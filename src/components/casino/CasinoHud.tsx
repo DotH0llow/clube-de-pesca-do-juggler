@@ -7,7 +7,7 @@ import { useGame } from '../../state/store';
 import { Sprite } from '../Sprite';
 
 /**
- * HUD das mecanicas de risco/recompensa.
+ * HUD das mecânicas de risco/recompensa.
  *
  * Prioridade em tela pequena (spec 15): bonus pendente > multiplicador >
  * medidor > tempo de evento. O resto entra num painel recolhivel.
@@ -42,7 +42,7 @@ export function CasinoHud({ fishing }: { fishing: boolean }) {
     <div className={`casino-hud${open ? ' open' : ''}`}>
       {/* --------------------------------------------------- prioridade 1 */}
       {streak.pendingCoins > 0 && (
-        <div className="hud-pending" title="Bonus ainda nao garantido">
+        <div className="hud-pending" title="Bônus ainda não garantido">
           EM RISCO <strong>{streak.pendingCoins.toLocaleString('pt-BR')}</strong> SZ
         </div>
       )}
@@ -54,22 +54,22 @@ export function CasinoHud({ fishing }: { fishing: boolean }) {
         <div className="hud-bar">
           <div className="fill" style={{ width: `${tierProgress * 100}%` }} />
         </div>
-        <small>{tier ? `${tier.catches} CAPTURAS = X${tier.multiplier}` : 'MULTIPLICADOR MAXIMO'}</small>
+        <small>{tier ? `${tier.catches} CAPTURAS = X${tier.multiplier}` : 'MULTIPLICADOR MÁXIMO'}</small>
       </div>
 
       {/* --------------------------------------------------- prioridade 3 */}
       <div className={`hud-meter${meter.jackpotReady ? ' ready' : ''}`}>
-        <span>MARE DA FORTUNA</span>
+        <span>MARÉ DA FORTUNA</span>
         <div className="hud-bar">
           <div className="fill gold" style={{ width: `${(meter.value / JACKPOT_METER_MAX) * 100}%` }} />
         </div>
-        <small>{meter.jackpotReady ? 'A MARE DA FORTUNA ESTA COMPLETA' : `${Math.round(meter.value)}%`}</small>
+        <small>{meter.jackpotReady ? 'A MARÉ DA FORTUNA ESTÁ COMPLETA' : `${Math.round(meter.value)}%`}</small>
       </div>
 
       {/* --------------------------------------------------- prioridade 4 */}
       {schoolOn && (
         <div className="hud-school">
-          CARDUME BONUS
+          CARDUME BÔNUS
           <strong>{Math.max(0, Math.ceil((school.endsAt - now) / 1000))}s</strong>
           <small>{school.catches} PEIXES</small>
         </div>
@@ -83,7 +83,7 @@ export function CasinoHud({ fishing }: { fishing: boolean }) {
         <div className="hud-extra">
           <div className="hud-line">
             GIRO EM {wheel.catchesUntilNextSpin} CAPTURAS
-            {wheel.availableSpins > 0 && <b> &middot; {wheel.availableSpins} DISPONIVEL</b>}
+            {wheel.availableSpins > 0 && <b> &middot; {wheel.availableSpins} DISPONÍVEL</b>}
           </div>
           <div className="hud-line">
             CARTELA {s.casino.missionBoard.tiles.filter((t) => t.completed).length}/9

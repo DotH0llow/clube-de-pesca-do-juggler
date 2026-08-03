@@ -18,8 +18,8 @@ export interface LuckyCard {
 export const LUCKY_CARDS: LuckyCard[] = [
   {
     id: 'mare-favoravel',
-    name: 'MARE FAVORAVEL',
-    description: 'A proxima captura concede x2 no valor.',
+    name: 'MARÉ FAVORÁVEL',
+    description: 'A próxima captura concede x2 no valor.',
     rarity: 'uncommon',
     durationType: 'next-catch',
     durationValue: 1,
@@ -27,8 +27,8 @@ export const LUCKY_CARDS: LuckyCard[] = [
   },
   {
     id: 'linha-abencoada',
-    name: 'LINHA ABENCOADA',
-    description: 'Reduz em 25% a perda de tensao durante tres lancamentos.',
+    name: 'LINHA ABENÇOADA',
+    description: 'Reduz em 25% a perda de tensão durante três lançamentos.',
     rarity: 'common',
     durationType: 'next-casts',
     durationValue: 3,
@@ -37,7 +37,7 @@ export const LUCKY_CARDS: LuckyCard[] = [
   {
     id: 'isca-dourada',
     name: 'ISCA DOURADA',
-    description: 'Aumenta a chance de peixe raro nos proximos tres lancamentos.',
+    description: 'Aumenta a chance de peixe raro nos próximos três lançamentos.',
     rarity: 'uncommon',
     durationType: 'next-casts',
     durationValue: 3,
@@ -46,7 +46,7 @@ export const LUCKY_CARDS: LuckyCard[] = [
   {
     id: 'venda-dupla',
     name: 'VENDA DUPLA',
-    description: 'O proximo peixe vendido concede duas vezes o valor-base, ja garantido.',
+    description: 'O próximo peixe vendido concede duas vezes o valor-base, já garantido.',
     rarity: 'rare',
     durationType: 'next-catch',
     durationValue: 1,
@@ -55,15 +55,15 @@ export const LUCKY_CARDS: LuckyCard[] = [
   {
     id: 'cardume-repentino',
     name: 'CARDUME REPENTINO',
-    description: 'Ativa imediatamente um Cardume Bonus.',
+    description: 'Ativa imediatamente um Cardume Bônus.',
     rarity: 'rare',
     durationType: 'instant',
     icon: 'props/decorative-fish-school',
   },
   {
     id: 'mao-firme',
-    name: 'MAO FIRME',
-    description: 'Aumenta a zona segura da tensao durante cinco lancamentos.',
+    name: 'MÃO FIRME',
+    description: 'Aumenta a zona segura da tensão durante cinco lançamentos.',
     rarity: 'common',
     durationType: 'next-casts',
     durationValue: 5,
@@ -79,8 +79,8 @@ export const LUCKY_CARDS: LuckyCard[] = [
   },
   {
     id: 'pescador-implacavel',
-    name: 'PESCADOR IMPLACAVEL',
-    description: 'A proxima falha nao encerra a sequencia, mas leva metade do bonus pendente.',
+    name: 'PESCADOR IMPLACÁVEL',
+    description: 'A próxima falha não encerra a sequência, mas leva metade do bônus pendente.',
     rarity: 'rare',
     durationType: 'session',
     durationValue: 1,
@@ -89,7 +89,7 @@ export const LUCKY_CARDS: LuckyCard[] = [
   {
     id: 'coroa-do-mar',
     name: 'COROA DO MAR',
-    description: 'Aumenta a chance de multiplicador escondido nos proximos cinco peixes.',
+    description: 'Aumenta a chance de multiplicador escondido nos próximos cinco peixes.',
     rarity: 'uncommon',
     durationType: 'next-casts',
     durationValue: 5,

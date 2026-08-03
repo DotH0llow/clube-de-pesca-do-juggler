@@ -70,7 +70,7 @@ export function CastBar({ onLock }: Props) {
         />
         <div className="needle" style={{ left: `calc(${pos}% - 3px)` }} />
       </div>
-      <p className="reel-hint">Toque (ou espaco) para travar a forca do lancamento</p>
+      <p className="reel-hint">Toque (ou espaço) para travar a força do lançamento</p>
       <div className="btn-row" style={{ marginTop: 8 }}>
         <button className="btn primary" onClick={lock}>
           TRAVAR

@@ -10,6 +10,8 @@ import {
   DebugPanel,
 } from './components/casino/CasinoModals';
 import { CatchPopup } from './components/CatchPopup';
+import { MarketApp } from './components/MarketPanel';
+import { Sheet } from './components/Sheet';
 import { Phone } from './components/Phone';
 import { ReelMinigame } from './components/ReelMinigame';
 import { Sprite } from './components/Sprite';
@@ -54,6 +56,7 @@ export default function App() {
     { catches: number; coinsSecured: number; coinsBonus: number; bestMultiplier: number } | null
   >(null);
   const [showDebug, setShowDebug] = useState(false);
+  const [showMarket, setShowMarket] = useState(false);
   const toastId = useRef(0);
   const session = useSession();
 
@@ -80,7 +83,7 @@ export default function App() {
       }
 
       // ------------------------------------------- mecanicas de sequencia
-      if (o.casino?.gotSpin) pushToast('GIRO NA RODA DA MARE DISPONIVEL', 'ach');
+      if (o.casino?.gotSpin) pushToast('GIRO NA RODA DA MARÉ DISPONÍVEL', 'ach');
       if (o.casino?.tierUp) {
         pushToast(`MULTIPLICADOR X${o.casino.multiplier}`, 'coin');
         window.setTimeout(() => playSfx('unlock'), 200);
@@ -96,7 +99,14 @@ export default function App() {
   const loop = useFishingLoop(handleOutcome);
   const { phase, pending, outcome, startCast, lockPower, hook, finishReel, dismiss, abort } = loop;
 
-  const busy = phoneOpen || showDaily || showCashOut || showWheel || ladderBase !== null || Boolean(session.cardOffer);
+  const busy =
+    phoneOpen ||
+    showDaily ||
+    showCashOut ||
+    showWheel ||
+    showMarket ||
+    ladderBase !== null ||
+    Boolean(session.cardOffer);
   const player = usePlayer({ active: view === 'mundo' && !busy, fishing });
 
   // ---------------------------------------------------- ambiencia liga/desliga
@@ -127,6 +137,11 @@ export default function App() {
     setFishing(true);
   }, []);
 
+  const openMarket = useCallback(() => {
+    playSfx('ui');
+    setShowMarket(true);
+  }, []);
+
   const stopFishing = useCallback(() => {
     abort();
     setFishing(false);
@@ -152,10 +167,17 @@ export default function App() {
         return;
       }
       if (busy) return;
-      if (e.code === 'KeyE' && player.nearRod && !fishing) {
-        e.preventDefault();
-        startFishing();
-        return;
+      if (e.code === 'KeyE' && !fishing) {
+        if (player.nearRod) {
+          e.preventDefault();
+          startFishing();
+          return;
+        }
+        if (player.nearMarket) {
+          e.preventDefault();
+          openMarket();
+          return;
+        }
       }
       if (!fishing) return;
       if (e.code !== 'Enter' && e.code !== 'Space') return;
@@ -173,7 +195,20 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [view, phase, busy, fishing, player.nearRod, startCast, hook, dismiss, abort, startFishing]);
+  }, [
+    view,
+    phase,
+    busy,
+    fishing,
+    player.nearRod,
+    player.nearMarket,
+    startCast,
+    hook,
+    dismiss,
+    abort,
+    startFishing,
+    openMarket,
+  ]);
 
   const enterGame = () => {
     setView('mundo');
@@ -274,10 +309,14 @@ export default function App() {
               <button className="btn primary" onClick={startFishing} style={{ fontSize: 20 }}>
                 PESCAR &nbsp;<span className="key">E</span>
               </button>
+            ) : player.nearMarket ? (
+              <button className="btn primary" onClick={openMarket} style={{ fontSize: 20 }}>
+                MERCADO &nbsp;<span className="key">E</span>
+              </button>
             ) : (
               settings.hints && (
                 <div className="hint-strip">
-                  SETAS OU A/D PARA ANDAR &middot; SHIFT CORRE &middot; ESPACO PULA &middot; ESC ABRE O CELULAR
+                  SETAS OU A/D PARA ANDAR &middot; SHIFT CORRE &middot; ESPAÇO PULA &middot; ESC ABRE O CELULAR
                 </div>
               )
             )}
@@ -320,7 +359,7 @@ export default function App() {
                   onClick={startCast}
                   style={{ fontSize: 22, padding: '18px 34px' }}
                 >
-                  LANCAR
+                  LANÇAR
                 </button>
                 <div className="btn-row">
                   {s.casino.streak.pendingCoins > 0 && (
@@ -343,7 +382,7 @@ export default function App() {
             {phase === 'power' && <CastBar onLock={lockPower} />}
 
             {phase === 'waiting' && settings.hints && (
-              <div className="hint-strip">LINHA NA AGUA. ESPERE A BOIA MEXER...</div>
+              <div className="hint-strip">LINHA NA ÁGUA. ESPERE A BOIA MEXER...</div>
             )}
 
             {phase === 'bite' && (
@@ -378,6 +417,18 @@ export default function App() {
 
       {phoneOpen && <Phone onClose={() => setPhoneOpen(false)} />}
 
+      {showMarket && (
+        <Sheet title="MERCADO DE PEIXE" onClose={() => setShowMarket(false)}>
+          <MarketApp
+            onPaid={(coins, eyes) => {
+              pushToast(`Encomenda entregue: +${coins.toLocaleString('pt-BR')} SZ`, 'coin');
+              if (eyes > 0) pushToast(`+${eyes} Olhos da Hydra`, 'eye');
+              setShowMarket(false);
+            }}
+          />
+        </Sheet>
+      )}
+
       {showCashOut && <CashOutModal onClose={() => setShowCashOut(false)} />}
       {showWheel && <TideWheelModal onClose={() => setShowWheel(false)} />}
       {session.cardOffer && <LuckyCardPicker cards={session.cardOffer} />}
@@ -391,7 +442,7 @@ export default function App() {
         <DebugPanel
           onClose={() => setShowDebug(false)}
           actions={{
-            'SEQUENCIA 8': () => debugActions.setStreak(8),
+            'SEQUÊNCIA 8': () => debugActions.setStreak(8),
             '+500 PENDENTE': () => debugActions.addPending(500),
             'MEDIDOR CHEIO': debugActions.fillMeter,
             'GANHAR GIRO': debugActions.grantSpin,

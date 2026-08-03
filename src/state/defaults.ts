@@ -1,8 +1,8 @@
 import { generateBoard } from '../data/missions';
 import type { CasinoMechanicsState } from './casinoTypes';
-import type { GameState, GameStats, PityState } from './types';
+import type { GameState, GameStats, MarketState, PityState } from './types';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 export const SAVE_KEY = 'juggler-fishing/save/v1';
 
 export const emptyStats = (): GameStats => ({
@@ -58,6 +58,12 @@ export const emptyCasino = (): CasinoMechanicsState => ({
   },
 });
 
+export const emptyMarket = (): MarketState => ({
+  day: '',
+  progress: 0,
+  claimed: false,
+});
+
 export const createInitialState = (): GameState => ({
   version: SAVE_VERSION,
   sazoncoins: 0,
@@ -76,4 +82,5 @@ export const createInitialState = (): GameState => ({
   createdAt: Date.now(),
   lifetimeValue: 0,
   casino: emptyCasino(),
+  market: emptyMarket(),
 });

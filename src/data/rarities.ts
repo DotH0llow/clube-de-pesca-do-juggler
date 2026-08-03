@@ -38,7 +38,7 @@ export const RARITIES: Record<Rarity, RarityMeta> = {
   },
   epico: {
     id: 'epico',
-    label: 'Epico',
+    label: 'Épico',
     color: '#c77dff',
     glow: 'rgba(199,125,255,0.65)',
     order: 3,
@@ -46,7 +46,7 @@ export const RARITIES: Record<Rarity, RarityMeta> = {
   },
   lendario: {
     id: 'lendario',
-    label: 'Lendario',
+    label: 'Lendário',
     color: '#ffb703',
     glow: 'rgba(255,183,3,0.7)',
     order: 4,
@@ -54,7 +54,7 @@ export const RARITIES: Record<Rarity, RarityMeta> = {
   },
   mitico: {
     id: 'mitico',
-    label: 'Mitico',
+    label: 'Mítico',
     color: '#ff2e63',
     glow: 'rgba(255,46,99,0.75)',
     order: 5,

@@ -19,7 +19,7 @@ const REGION_SKY: Record<RegionId, string> = {
 };
 
 /**
- * Botao de compra. Gastos em Olhos da Hydra pedem um segundo clique,
+ * Botão de compra. Gastos em Olhos da Hydra pedem um segundo clique,
  * se a configuracao "Confirmar gasto de Olhos" estiver ligada.
  */
 function BuyButton({
@@ -86,7 +86,7 @@ export function ShopApp() {
                 <div className="title">{u.name}</div>
                 <div className="desc">{u.desc}</div>
                 <div className="desc" style={{ color: 'var(--neon)' }}>
-                  {level > 0 ? u.effectText(level) : 'Sem bonus ainda'}
+                  {level > 0 ? u.effectText(level) : 'Sem bônus ainda'}
                 </div>
                 <div className="pips">
                   {Array.from({ length: u.maxLevel }, (_, i) => (
@@ -108,7 +108,7 @@ export function ShopApp() {
         <>
           <div className="row">
             <div className="grow desc">
-              O Altar so aceita Olhos da Hydra. Cada compra e unica e permanente.
+              O Altar só aceita Olhos da Hydra. Cada compra é única e permanente.
             </div>
           </div>
           {RELICS.map((r) => {

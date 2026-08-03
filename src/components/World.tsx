@@ -8,16 +8,21 @@ import {
   BEACH,
   BOBBER_X,
   BOBBER_Y,
+  CABANA,
   FOREST,
+  FOREST_START,
+  MARKET,
+  MARKET_X,
   PIER_END,
   PIER_PROPS,
+  PIER_RAMP,
   PIER_START,
   PIER_Y,
   ROD_X,
   SAND_Y,
   SEAFLOOR,
-  SEA_START,
   SHORE,
+  SHORE_X,
   UNDERWATER_LIFE,
   WATER_Y,
   WORLD_H,
@@ -70,9 +75,9 @@ const Props = memo(function Props({ list }: { list: Prop[] }) {
 });
 
 /**
- * O mundo inteiro: ceu, camadas de parallax, praia, pier, corte da agua e o
- * Juggler. Nada aqui re-renderiza por quadro - camera e personagem sao movidos
- * direto no DOM pelo `usePlayer`.
+ * O mundo inteiro: céu, camadas de parallax, mar aberto, píer, praia, mercado,
+ * cabana, treeline e o Juggler. Nada aqui re-renderiza por quadro - câmera e
+ * personagem sao movidos direto no DOM pelo `usePlayer`.
  */
 export function World({
   region,
@@ -91,6 +96,7 @@ export function World({
   const inWater = fishing && (phase === 'waiting' || phase === 'bite' || phase === 'reeling');
   const biting = phase === 'bite';
   const reeling = phase === 'reeling';
+  const posts = Math.floor((PIER_END - 60 - (PIER_START - 30)) / 210) + 1;
 
   return (
     <div className="stage">
@@ -134,12 +140,12 @@ export function World({
 
         {/* ---------------------------------------------------- plano do jogo */}
         <div className="layer" ref={cameraRef}>
-          {/* ------------------------------------------------------ o mar */}
+          {/* ------------------------------------ o mar, na metade esquerda */}
           <div
             className="sea"
             style={{
-              left: SEA_START - 180,
-              width: WORLD_W - SEA_START + 180,
+              left: -400,
+              width: SHORE_X + 400,
               top: WATER_Y,
               height: WORLD_H - WATER_Y,
               background: `linear-gradient(180deg, ${p.seaTop} 0%, ${p.seaTop} 12%, ${p.seaBottom} 78%, #02131f 100%)`,
@@ -148,9 +154,9 @@ export function World({
             {/* raios de luz atravessando a coluna de agua */}
             {!REGIONS[region].palette.sun.startsWith('#ff2') && (
               <>
-                <img className="ray" src={asset('props/light-ray-strip')} alt="" style={{ left: 320, height: 210 }} />
-                <img className="ray ray-b" src={asset('props/light-ray-strip')} alt="" style={{ left: 700, height: 180 }} />
-                <img className="ray" src={asset('props/light-ray-strip')} alt="" style={{ left: 1090, height: 230 }} />
+                <img className="ray" src={asset('props/light-ray-strip')} alt="" style={{ left: 520, height: 210 }} />
+                <img className="ray ray-b" src={asset('props/light-ray-strip')} alt="" style={{ left: 900, height: 180 }} />
+                <img className="ray" src={asset('props/light-ray-strip')} alt="" style={{ left: 1300, height: 230 }} />
               </>
             )}
             {/* areia do fundo */}
@@ -167,8 +173,8 @@ export function World({
           <div
             className="surf"
             style={{
-              left: SEA_START - 220,
-              width: WORLD_W - SEA_START + 220,
+              left: -400,
+              width: SHORE_X + 400,
               top: WATER_Y - 20,
             }}
           >
@@ -178,29 +184,29 @@ export function World({
             <div className="glint" style={{ backgroundImage: `url(${asset('fx/sun-glint-strip')})` }} />
           </div>
 
-          {/* ---------------------------------------------------- a terra */}
+          {/* -------------------------------- a terra, da praia para a direita */}
           <div
             className="sand"
-            style={{ left: -40, width: SEA_START + 90, top: SAND_Y, height: WORLD_H - SAND_Y }}
+            style={{ left: SHORE_X - 60, width: WORLD_W - SHORE_X + 160, top: SAND_Y, height: WORLD_H - SAND_Y }}
           />
-          <div className="sand-slope" style={{ left: SEA_START + 40, top: SAND_Y }} />
-          <div className="tide-line" style={{ left: SEA_START - 420, width: 480, top: SAND_Y + 26 }} />
+          {/* a areia nao termina num corte reto: desce em rampa para dentro da agua */}
+          <div className="sand-slope" style={{ left: SHORE_X - 460, top: SAND_Y }} />
+          <div className="tide-line" style={{ left: SHORE_X - 300, width: 330, top: SAND_Y + 18 }} />
           <Props list={SHORE} />
-
-          <Props list={FOREST} />
-          <Props list={BEACH} />
 
           {/* --------------------------------------------------- o pier */}
           <div
             className="pier-deck"
             style={{
               left: PIER_START - 70,
-              width: PIER_END - PIER_START + 140,
+              width: PIER_END - PIER_START + 80,
               top: PIER_Y,
               backgroundImage: `url(${asset('props/pier-board-side')})`,
             }}
           />
-          {Array.from({ length: Math.ceil((PIER_END - PIER_START) / 210) + 1 }, (_, i) => (
+          {/* rampinha do deck para a areia */}
+          <div className="pier-ramp" style={{ left: PIER_END, width: PIER_RAMP + 10, top: PIER_Y }} />
+          {Array.from({ length: posts }, (_, i) => (
             <img
               key={`post${i}`}
               className="pier-post"
@@ -213,16 +219,32 @@ export function World({
             className="wprop"
             src={asset('props/pier-ladder-side')}
             alt=""
-            style={{ left: PIER_START + 120, top: PIER_Y + 20, height: 120 }}
+            style={{ left: PIER_START + 300, top: PIER_Y + 20, height: 120 }}
           />
 
           <Props list={PIER_PROPS} />
 
-          {/* barco ancorado no fim do pier */}
-          <div className={`anchored-boat${settings.animations ? ' rocking' : ''}`} style={{ left: PIER_END + 40 }}>
+          {/* barco ancorado do lado de fora do pier, no mar aberto */}
+          <div className={`anchored-boat${settings.animations ? ' rocking' : ''}`} style={{ left: PIER_START - 460 }}>
             <img className="boat-frame boat-a" src={asset('props/fishing-boat-idle-side')} alt="" />
             <img className="boat-frame boat-b" src={asset('props/fishing-boat-rocking-side')} alt="" />
           </div>
+
+          {/* ------------------------------ praia, mercado, cabana e floresta */}
+          {/* massa de mata fechando o mapa: fica ATRAS dos props da praia */}
+          <div
+            className="treeline"
+            style={{
+              left: FOREST_START - 90,
+              width: WORLD_W - FOREST_START + 190,
+              top: SAND_Y - 268,
+              height: 272,
+            }}
+          />
+          <Props list={BEACH} />
+          <Props list={MARKET} />
+          <Props list={CABANA} />
+          <Props list={FOREST} />
 
           {/* --------------------------------------- a vara fincada no deck */}
           <img
@@ -249,7 +271,7 @@ export function World({
               )}
               {reeling && pending?.fish && (
                 <div className="hooked">
-                  <FishSprite fish={pending.fish} size={70} flip />
+                  <FishSprite fish={pending.fish} size={70} />
                 </div>
               )}
             </div>
@@ -260,12 +282,15 @@ export function World({
             <img
               ref={spriteRef}
               className="player-sprite"
-              src={asset('char/side-idle-right/00')}
+              src={asset('char/side-idle-left/00')}
               alt="Juggler"
               style={{ height: PLAYER_H }}
             />
             <div className="player-shadow" />
           </div>
+
+          {/* marcador discreto do balcao do mercado */}
+          <div className="spot-mark" style={{ left: MARKET_X, top: SAND_Y - 6 }} />
         </div>
       </div>
     </div>

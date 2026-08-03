@@ -69,21 +69,21 @@ export const MISSION_POOL: MissionDef[] = [
   },
   {
     id: 'lixo-2',
-    description: 'ENCONTRE 2 PECAS DE LIXO',
+    description: 'ENCONTRE 2 PEÇAS DE LIXO',
     target: 2,
     tier: 'facil',
     matches: (e) => e.type === 'junk',
   },
   {
     id: 'lancamentos-5',
-    description: 'FACA 5 LANCAMENTOS',
+    description: 'FAÇA 5 LANÇAMENTOS',
     target: 5,
     tier: 'facil',
     matches: (e) => e.type === 'cast',
   },
   {
     id: 'lancamentos-12',
-    description: 'FACA 12 LANCAMENTOS',
+    description: 'FAÇA 12 LANÇAMENTOS',
     target: 12,
     tier: 'facil',
     matches: (e) => e.type === 'cast',
@@ -111,7 +111,7 @@ export const MISSION_POOL: MissionDef[] = [
   },
   {
     id: 'saque-1',
-    description: 'SAQUE UM BONUS DE SEQUENCIA',
+    description: 'SAQUE UM BÔNUS DE SEQUÊNCIA',
     target: 1,
     tier: 'media',
     matches: (e) => e.type === 'cash-out',

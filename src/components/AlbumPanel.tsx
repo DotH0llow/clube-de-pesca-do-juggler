@@ -16,7 +16,7 @@ export function AlbumApp() {
   return (
     <>
       <div className="app-summary">
-        {known}/{FISH.length} ESPECIES REGISTRADAS
+        {known}/{FISH.length} ESPÉCIES REGISTRADAS
       </div>
       <div className="tabs">
         <button className={`tab${tab === 'todos' ? ' active' : ''}`} onClick={() => setTab('todos')}>
@@ -36,7 +36,7 @@ export function AlbumApp() {
       {tab !== 'todos' && (
         <div className="row">
           <div className="grow">
-            <div className="title">Recompensa de familia</div>
+            <div className="title">Recompensa de família</div>
             <div className="desc">
               {FAMILIES.find((f) => f.id === tab)?.desc} Completar rende{' '}
               {FAMILIES.find((f) => f.id === tab)?.reward.sazoncoins} SZ e{' '}
@@ -73,7 +73,7 @@ export function AlbumApp() {
                 )}
               </div>
               <div className="name" style={{ color: entry ? rar.color : undefined }}>
-                {entry ? f.name : '???'}
+                {entry ? f.name: '???'}
               </div>
               <div className="rarity-line">
                 <Sprite path={rarityBadge(f.rarity)} size={22} />
@@ -90,7 +90,7 @@ export function AlbumApp() {
                   {f.regions.map((r) => REGIONS[r].name).join(', ')}
                 </div>
               ) : (
-                <div className="meta">Ainda nao registrado.</div>
+                <div className="meta">Ainda não registrado.</div>
               )}
             </div>
           );

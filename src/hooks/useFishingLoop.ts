@@ -83,7 +83,7 @@ export function useFishingLoop(onOutcome?: (o: Outcome) => void) {
       pendingLost = loseStreak('peixe escapou');
       bonusSchoolPenalty();
     } else if (result.category === 'nada') {
-      pendingLost = loseStreak('lancamento vazio');
+      pendingLost = loseStreak('lançamento vazio');
       bonusSchoolPenalty();
     } else if (result.category === 'lixo') {
       registerJunk();

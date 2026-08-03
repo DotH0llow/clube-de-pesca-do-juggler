@@ -8,7 +8,7 @@ interface Props {
 
 /**
  * Janela de tamanho FIXO usada fora do jogo (tela de titulo).
- * O tamanho nao muda com a quantidade de conteudo: o corpo rola por dentro.
+ * O tamanho não muda com a quantidade de conteudo: o corpo rola por dentro.
  * Regra valida para qualquer tela nova daqui pra frente.
  */
 export function Sheet({ title, onClose, children }: Props) {

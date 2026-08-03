@@ -6,7 +6,7 @@ import './styles/global.css';
 
 /**
  * As molduras do kit entram como border-image via CSS vars: o Vite versiona
- * os arquivos, entao a URL final so existe em tempo de execucao.
+ * os arquivos, então a URL final so existe em tempo de execucao.
  */
 const root = document.documentElement.style;
 root.setProperty('--btn-frame', `url("${asset('ui/button')}")`);

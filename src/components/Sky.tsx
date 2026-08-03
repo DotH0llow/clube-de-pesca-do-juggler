@@ -3,10 +3,10 @@ import { asset } from '../assets';
 import type { RegionId } from '../state/types';
 
 /**
- * Ceu de fundo com nuvens e passaros.
+ * Céu de fundo com nuvens e passaros.
  *
  * Cada nuvem e cada bando sorteia tamanho, altura, opacidade, velocidade e
- * atraso inicial - o atraso negativo espalha todo mundo pelo ceu ja no primeiro
+ * atraso inicial - o atraso negativo espalha todo mundo pelo céu ja no primeiro
  * quadro, em vez de fazer fila entrando pela esquerda.
  *
  * Velocidades: nuvens a 30% do que era antes, passaros a 10%.

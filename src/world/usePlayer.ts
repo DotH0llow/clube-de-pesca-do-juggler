@@ -2,10 +2,24 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../assets';
 import { clamp } from '../engine/rng';
 import { getSettings } from '../state/settings';
-import { groundAt, ROD_REACH, ROD_X, WALK_MAX, WALK_MIN, WORLD_H, WORLD_W } from './layout';
+import { ANIM_SCALE, CHAR_CANVAS, FRAME_FIX } from './charFrames';
+import {
+  BOBBER_X,
+  groundAt,
+  MARKET_REACH,
+  MARKET_X,
+  ROD_REACH,
+  ROD_X,
+  WALK_MAX,
+  WALK_MIN,
+  WORLD_H,
+  WORLD_W,
+} from './layout';
 
 export type Facing = 'left' | 'right';
 export type AnimName = 'side-idle' | 'walk' | 'run' | 'jump' | 'fish-no-rod' | 'sit';
+/** Pontos do mundo em que o botao de interagir aparece. */
+export type Spot = 'vara' | 'mercado' | null;
 
 const FRAMES: Record<AnimName, number> = {
   'side-idle': 4,
@@ -30,11 +44,15 @@ const WALK_SPEED = 200;
 const RUN_SPEED = 360;
 const GRAVITY = 2000;
 const JUMP_V = 700;
-/** altura do Juggler em unidades de mundo */
+/** altura do Juggler em unidades de mundo, medida na animacao de referencia */
 export const PLAYER_H = 132;
 
+function clipName(anim: AnimName, facing: Facing): string {
+  return `${anim}-${facing}`;
+}
+
 function framePath(anim: AnimName, facing: Facing, i: number): string {
-  return `char/${anim}-${facing}/${String(i).padStart(2, '0')}`;
+  return `char/${clipName(anim, facing)}/${String(i).padStart(2, '0')}`;
 }
 
 /** Deixa todo quadro em cache antes de o jogador ver, para nao piscar na troca. */
@@ -65,6 +83,11 @@ interface Options {
  * O laco escreve direto no DOM (transform da camera, transform do jogador e src
  * do quadro). Sem isso, um `setState` por quadro re-renderizaria o cenario
  * inteiro 60 vezes por segundo.
+ *
+ * A arte vem com o boneco desenhado em posicoes e escalas diferentes dentro do
+ * canvas, entao cada quadro leva uma correcao de ancora e de tamanho vinda de
+ * `charFrames.ts` (gerado por scripts/measure-character.py). Sem isso o boneco
+ * parece deslizar de lado parado e mudar de tamanho ao trocar de animacao.
  */
 export function usePlayer({ active, fishing }: Options) {
   const cameraRef = useRef<HTMLDivElement | null>(null);
@@ -73,14 +96,14 @@ export function usePlayer({ active, fishing }: Options) {
   const playerRef = useRef<HTMLDivElement | null>(null);
   const spriteRef = useRef<HTMLImageElement | null>(null);
 
-  const [nearRod, setNearRod] = useState(false);
+  const [spot, setSpot] = useState<Spot>(null);
   const [scale, setScale] = useState(1);
 
-  const x = useRef(1180);
+  const x = useRef(1780);
   const vx = useRef(0);
   const y = useRef(0); // altura acima do chao
   const vy = useRef(0);
-  const facing = useRef<Facing>('right');
+  const facing = useRef<Facing>('left');
   const anim = useRef<AnimName>('side-idle');
   const frame = useRef(0);
   const frameT = useRef(0);
@@ -131,7 +154,8 @@ export function usePlayer({ active, fishing }: Options) {
   useEffect(() => {
     let raf = 0;
     let last = performance.now();
-    let lastNear = false;
+    let lastSpot: Spot = null;
+    let lastFrameKey = '';
 
     const step = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
@@ -162,8 +186,11 @@ export function usePlayer({ active, fishing }: Options) {
       // ------------------------------------------------- estado da animacao
       const airborne = y.current > 0.5;
       let next: AnimName;
-      if (fishingRef.current) next = 'fish-no-rod';
-      else if (airborne) next = 'jump';
+      if (fishingRef.current) {
+        next = 'fish-no-rod';
+        // o mar aberto fica a esquerda: pescando, o Juggler encara a agua
+        facing.current = 'left';
+      } else if (airborne) next = 'jump';
       else if (dir !== 0) next = running ? 'run' : 'walk';
       else next = 'side-idle';
 
@@ -181,9 +208,8 @@ export function usePlayer({ active, fishing }: Options) {
 
       // ------------------------------------------------------------ camera
       const view = window.innerWidth / (window.innerHeight / WORLD_H);
-      const target = fishingRef.current
-        ? clamp(ROD_X + 150 - view / 2, 0, Math.max(0, WORLD_W - view))
-        : clamp(x.current - view / 2, 0, Math.max(0, WORLD_W - view));
+      const focus = fishingRef.current ? (ROD_X + BOBBER_X) / 2 : x.current;
+      const target = clamp(focus - view / 2, 0, Math.max(0, WORLD_W - view));
       const smooth = getSettings().animations ? 1 - Math.pow(0.001, dt) : 1;
       camX.current += (target - camX.current) * smooth;
 
@@ -202,15 +228,29 @@ export function usePlayer({ active, fishing }: Options) {
         const gy = groundAt(x.current) - y.current;
         playerRef.current.style.transform = `translate3d(${x.current}px,${gy}px,0)`;
       }
-      if (spriteRef.current) {
-        const src = asset(framePath(anim.current, facing.current, frame.current));
-        if (spriteRef.current.getAttribute('src') !== src) spriteRef.current.src = src;
+      const clip = clipName(anim.current, facing.current);
+      const frameKey = `${clip}/${frame.current}`;
+      if (spriteRef.current && frameKey !== lastFrameKey) {
+        lastFrameKey = frameKey;
+        const el = spriteRef.current;
+        el.src = asset(framePath(anim.current, facing.current, frame.current));
+        // correcao de ancora: quadril no eixo do jogador, pe no chao
+        const h = PLAYER_H * (ANIM_SCALE[clip] ?? 1);
+        const k2 = h / CHAR_CANVAS.h;
+        const fix = FRAME_FIX[clip]?.[frame.current];
+        el.style.height = `${h}px`;
+        el.style.marginLeft = `${(fix?.dx ?? 0) * k2}px`;
+        el.style.marginBottom = `${(fix?.dy ?? 0) * k2}px`;
       }
 
-      const near = !fishingRef.current && Math.abs(x.current - ROD_X) < ROD_REACH;
-      if (near !== lastNear) {
-        lastNear = near;
-        setNearRod(near);
+      let near: Spot = null;
+      if (!fishingRef.current) {
+        if (Math.abs(x.current - ROD_X) < ROD_REACH) near = 'vara';
+        else if (Math.abs(x.current - MARKET_X) < MARKET_REACH) near = 'mercado';
+      }
+      if (near !== lastSpot) {
+        lastSpot = near;
+        setSpot(near);
       }
 
       raf = requestAnimationFrame(step);
@@ -220,5 +260,17 @@ export function usePlayer({ active, fishing }: Options) {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  return { cameraRef, farRef, midRef, playerRef, spriteRef, nearRod, scale, press, playerX: x };
+  return {
+    cameraRef,
+    farRef,
+    midRef,
+    playerRef,
+    spriteRef,
+    spot,
+    nearRod: spot === 'vara',
+    nearMarket: spot === 'mercado',
+    scale,
+    press,
+    playerX: x,
+  };
 }

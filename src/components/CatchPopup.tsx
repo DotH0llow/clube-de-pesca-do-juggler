@@ -82,11 +82,11 @@ export function CatchPopup({ outcome, onAgain }: Props) {
         )}
 
         {result.category === 'bau' && landed && (
-          <div className="flavor">Alguem afundou isso aqui faz tempo.</div>
+          <div className="flavor">Alguém afundou isso aqui faz tempo.</div>
         )}
 
         {result.category === 'evento' && !fish && (
-          <div className="flavor">Tres vultos passaram embaixo do barco. Nao voltaram.</div>
+          <div className="flavor">Três vultos passaram embaixo do barco. Não voltaram.</div>
         )}
 
         {result.category === 'nada' && <div className="flavor">{result.headline}</div>}
@@ -100,13 +100,13 @@ export function CatchPopup({ outcome, onAgain }: Props) {
 
         {result.pityTriggered && !failed && (
           <div className="flavor" style={{ color: 'var(--neon)' }}>
-            A mare virou a seu favor.
+            A maré virou a seu favor.
           </div>
         )}
 
         <div className="btn-row">
           <button className="btn primary" onClick={onAgain} autoFocus>
-            LANCAR DE NOVO
+            LANÇAR DE NOVO
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { ACHIEVEMENTS, ACHIEVEMENTS_BY_ID } from '../data/achievements';
 import { FAMILIES, FAMILY_MEMBERS } from '../data/fish';
+import { matchesOrder, orderForDay, type MarketOrder } from '../data/market';
 import { REGIONS } from '../data/regions';
 import { RELICS_BY_ID, UPGRADES_BY_ID, upgradeCost } from '../data/upgrades';
 import { shardGain } from '../engine/fishing';
@@ -11,6 +12,7 @@ import type {
   CastResult,
   FamilyId,
   GameState,
+  MarketState,
   RegionId,
   RelicId,
   UpgradeId,
@@ -46,6 +48,7 @@ function load(): GameState {
         rarityCounts: { ...base.stats.rarityCounts, ...parsed.stats?.rarityCounts },
       },
       pity: { ...base.pity, ...parsed.pity },
+      market: { ...base.market, ...parsed.market },
       lifetimeValue: parsed.lifetimeValue ?? parsed.stats?.totalEarned ?? 0,
       casino: {
         ...base.casino,
@@ -210,8 +213,13 @@ export function applyCast(
   const isFish = Boolean(result.fish);
   const won = landed && (isFish || result.category === 'bau' || result.category === 'evento');
 
+  let market = marketToday(s.market);
+
   if (isFish && landed && result.fish) {
     const f = result.fish;
+    if (matchesOrder(orderForDay(market.day), f)) {
+      market = { ...market, progress: market.progress + 1 };
+    }
     stats.catches += 1;
     stats.rarityCounts[f.rarity] += 1;
     stats.currentCatchStreak += 1;
@@ -302,6 +310,7 @@ export function applyCast(
     album,
     stats,
     pity,
+    market,
     lifetimeValue: s.lifetimeValue + credited,
   };
 
@@ -374,6 +383,54 @@ export function setRegion(id: RegionId): void {
 }
 
 // --------------------------------------------------------------- bonus diario
+
+// ------------------------------------------------------------------- mercado
+
+/**
+ * A encomenda vira junto com o dia. Se o save ficou parado desde ontem, o
+ * progresso zera aqui em vez de a barraca aceitar peixe velho.
+ */
+function marketToday(m: MarketState): MarketState {
+  const day = todayKey();
+  if (m.day === day) return m;
+  return { day, progress: 0, claimed: false };
+}
+
+export interface MarketView {
+  order: MarketOrder;
+  progress: number;
+  claimed: boolean;
+  /** encomenda completa e ainda nao retirada */
+  ready: boolean;
+}
+
+/** O que a barraca esta pedindo agora e como esta o progresso. */
+export function marketView(s: GameState = state): MarketView {
+  const m = marketToday(s.market);
+  const order = orderForDay(m.day);
+  const progress = Math.min(m.progress, order.target);
+  return { order, progress, claimed: m.claimed, ready: progress >= order.target && !m.claimed };
+}
+
+/** Retira a recompensa no balcao. Devolve a encomenda paga, ou null. */
+export function claimMarketOrder(): MarketOrder | null {
+  const view = marketView(state);
+  if (!view.ready) return null;
+  const m = marketToday(state.market);
+  set({
+    ...state,
+    sazoncoins: state.sazoncoins + view.order.reward.sazoncoins,
+    hydraEyes: state.hydraEyes + (view.order.reward.hydraEyes ?? 0),
+    lifetimeValue: state.lifetimeValue + view.order.reward.sazoncoins,
+    stats: {
+      ...state.stats,
+      totalEarned: state.stats.totalEarned + view.order.reward.sazoncoins,
+      eyesEarned: state.stats.eyesEarned + (view.order.reward.hydraEyes ?? 0),
+    },
+    market: { ...m, claimed: true },
+  });
+  return view.order;
+}
 
 export function todayKey(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

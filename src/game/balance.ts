@@ -50,7 +50,7 @@ export const JACKPOT_BONUS_TO_PENDING_WHILE_STREAKING = true;
 
 // ============================================================ medidor
 
-/** "Mare da Fortuna": 0 a 100. */
+/** "Maré da Fortuna": 0 a 100. */
 export const JACKPOT_METER_MAX = 100;
 
 export const METER_GAIN_BY_RARITY: Record<Rarity, number> = {
@@ -100,9 +100,9 @@ export const CROWN_CARD_CHANCE_MULTIPLIER = 3;
 export const TIDE_WHEEL_REWARDS = [
   { id: 'coins-small', label: '50 SAZONCOINS', weight: 30, coins: 50 },
   { id: 'coins-medium', label: '150 SAZONCOINS', weight: 20, coins: 150 },
-  { id: 'temporary-multiplier', label: 'X2 NA PROXIMA CAPTURA', weight: 16 },
-  { id: 'rare-bait', label: 'ISCA RARA POR 3 LANCAMENTOS', weight: 14 },
-  { id: 'bonus-school', label: 'CARDUME BONUS', weight: 10 },
+  { id: 'temporary-multiplier', label: 'X2 NA PRÓXIMA CAPTURA', weight: 16 },
+  { id: 'rare-bait', label: 'ISCA RARA POR 3 LANÇAMENTOS', weight: 14 },
+  { id: 'bonus-school', label: 'CARDUME BÔNUS', weight: 10 },
   { id: 'lucky-card', label: 'CARTA DE SORTE', weight: 7 },
   { id: 'jackpot-progress', label: '+20% NO MEDIDOR', weight: 3, meter: 20 },
 ] as const;

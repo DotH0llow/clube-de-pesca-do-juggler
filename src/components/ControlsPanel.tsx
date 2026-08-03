@@ -2,38 +2,38 @@
 const STEPS = [
   {
     n: '1',
-    title: 'Lancar',
-    touch: 'Toque em LANCAR e depois em qualquer lugar da barra para travar.',
-    keys: 'Espaco ou Enter',
-    tip: 'Travar na faixa dourada do meio vale lancamento perfeito: mais chance de peixe bom e +15% no valor da venda.',
+    title: 'Lançar',
+    touch: 'Toque em LANÇAR e depois em qualquer lugar da barra para travar.',
+    keys: 'Espaço ou Enter',
+    tip: 'Travar na faixa dourada do meio vale lançamento perfeito: mais chance de peixe bom e +15% no valor da venda.',
   },
   {
     n: '2',
     title: 'Esperar',
-    touch: 'Nada a fazer. A boia fica na agua por um tempo aleatorio.',
+    touch: 'Nada a fazer. A boia fica na água por um tempo aleatório.',
     keys: '-',
-    tip: 'Se voltar vazio, o jogo compensa: cada lancamento seco aumenta a chance do proximo dar peixe.',
+    tip: 'Se voltar vazio, o jogo compensa: cada lançamento seco aumenta a chance do próximo dar peixe.',
   },
   {
     n: '3',
     title: 'Fisgar',
     touch: 'Toque em FISGAR! assim que a boia mexer.',
-    keys: 'Espaco ou Enter',
-    tip: 'A janela e de pouco mais de um segundo. Perdeu, perdeu o peixe.',
+    keys: 'Espaço ou Enter',
+    tip: 'A janela é de pouco mais de um segundo. Perdeu, perdeu o peixe.',
   },
   {
     n: '4',
     title: 'Puxar',
     touch: 'Segure o dedo na tela para a faixa verde subir, solte para descer.',
-    keys: 'Segurar Espaco',
+    keys: 'Segurar Espaço',
     tip: 'Mantenha o vulto do peixe dentro da faixa para encher a barra da direita. Peixe raro se debate mais.',
   },
   {
     n: '5',
     title: 'Vender e colecionar',
-    touch: 'O peixe vira Sazoncoins e entra no Album automaticamente.',
-    keys: 'Espaco lanca de novo',
-    tip: 'Cada especie nova guarda seu recorde de peso e tamanho. Familia completa paga premio.',
+    touch: 'O peixe vira Sazoncoins e entra no Álbum automaticamente.',
+    keys: 'Espaço lança de novo',
+    tip: 'Cada espécie nova guarda seu recorde de peso e tamanho. Família completa paga prêmio.',
   },
 ];
 
@@ -42,7 +42,7 @@ export function ControlsApp() {
     <>
       <div className="row">
         <div className="grow desc">
-          Cinco passos. Da para jogar so com a barra de espaco ou so com o dedo.
+          Cinco passos. Dá para jogar só com a barra de espaço ou só com o dedo.
         </div>
       </div>
 
@@ -71,7 +71,7 @@ export function ControlsApp() {
             Sazoncoins
           </div>
           <div className="desc">
-            Moeda comum. Vem de peixe vendido, lixo, baus e conquistas. Paga upgrades e pesqueiros novos.
+            Moeda comum. Vem de peixe vendido, lixo, baús e conquistas. Paga upgrades e pesqueiros novos.
           </div>
         </div>
       </div>
@@ -81,7 +81,7 @@ export function ControlsApp() {
             Olhos da Hydra
           </div>
           <div className="desc">
-            Moeda de prestigio. Vem de peixe epico pra cima, baus, Eventos Hydra e conquistas. So o Altar
+            Moeda de prestígio. Vem de peixe épico pra cima, baús, Eventos Hydra e conquistas. So o Altar
             da Hydra aceita.
           </div>
         </div>
@@ -90,8 +90,8 @@ export function ControlsApp() {
       <div className="section-title">Pesqueiros</div>
       <div className="row">
         <div className="grow desc">
-          Cada pesqueiro tem um teto de raridade. A Enseada do Coral nao tem lendario nenhum, por mais
-          que voce pesque. Trocar de regiao no CAIS e o que abre raridade nova.
+          Cada pesqueiro tem um teto de raridade. A Enseada do Coral não tem lendário nenhum, por mais
+          que você pesque. Trocar de região no CAIS é o que abre raridade nova.
         </div>
       </div>
     </>

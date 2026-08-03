@@ -32,7 +32,7 @@ export const FISH: FishSpecies[] = [
     baseValue: 11,
     sprite: 'fish/manjuba',
     color: '#dfe9f2',
-    flavor: 'Cabe uma duzia na palma da mao. Pescou onze.',
+    flavor: 'Cabe uma dúzia na palma da mão. Pescou onze.',
   },
   {
     id: 'anchovy',
@@ -45,7 +45,7 @@ export const FISH: FishSpecies[] = [
     baseValue: 18,
     sprite: 'fish/anchovy',
     color: '#c8d8e0',
-    flavor: 'Briga como se fosse tres vezes maior.',
+    flavor: 'Briga como se fosse três vezes maior.',
   },
   {
     id: 'mullet',
@@ -86,7 +86,7 @@ export const FISH: FishSpecies[] = [
     baseValue: 76,
     sprite: 'fish/corvina',
     color: '#cfd8c8',
-    flavor: 'Ronca embaixo d agua. Serio, ela ronca.',
+    flavor: 'Ronca embaixo d água. Sério, ela ronca.',
   },
   {
     id: 'snook',
@@ -99,11 +99,11 @@ export const FISH: FishSpecies[] = [
     baseValue: 105,
     sprite: 'fish/snook',
     color: '#e2e9ef',
-    flavor: 'A listra preta e a assinatura. Briga bem e sabe disso.',
+    flavor: 'A listra preta é a assinatura. Briga bem e sabe disso.',
   },
   {
     id: 'jack-trevally',
-    name: 'Xareu',
+    name: 'Xaréu',
     rarity: 'incomum',
     family: 'recifais',
     regions: ['recife', 'enseada'],
@@ -125,7 +125,7 @@ export const FISH: FishSpecies[] = [
     baseValue: 112,
     sprite: 'fish/triggerfish',
     color: '#f2c14e',
-    flavor: 'Rouba isca com precisao cirurgica desde 1994.',
+    flavor: 'Rouba isca com precisão cirúrgica desde 1994.',
   },
   {
     id: 'yellow-weakfish',
@@ -138,7 +138,7 @@ export const FISH: FishSpecies[] = [
     baseValue: 118,
     sprite: 'fish/yellow-weakfish',
     color: '#e8d08a',
-    flavor: 'Amarelada, gorda e perfeita para o almoco de domingo.',
+    flavor: 'Amarelada, gorda e perfeita para o almoço de domingo.',
   },
 
   // ----------------------------------------------------------------- raros
@@ -153,7 +153,7 @@ export const FISH: FishSpecies[] = [
     baseValue: 330,
     sprite: 'fish/amberjack',
     color: '#e8c56a',
-    flavor: 'Puxa como caminhao. Voce e o caminhao pequeno.',
+    flavor: 'Puxa como caminhão. Você é o caminhão pequeno.',
   },
   {
     id: 'great-barracuda',
@@ -179,7 +179,7 @@ export const FISH: FishSpecies[] = [
     baseValue: 310,
     sprite: 'fish/flounder',
     color: '#c9b98a',
-    flavor: 'Estava ali o tempo todo. Voce que nao viu.',
+    flavor: 'Estava ali o tempo todo. Você que não viu.',
   },
   {
     id: 'porcupine-pufferfish',
@@ -205,7 +205,7 @@ export const FISH: FishSpecies[] = [
     baseValue: 300,
     sprite: 'fish/toothed-sea-bream',
     color: '#dfe3e8',
-    flavor: 'Sorriso de gente. E isso e o problema.',
+    flavor: 'Sorriso de gente. E isso é o problema.',
   },
 
   // --------------------------------------------------------------- epicos
@@ -220,7 +220,7 @@ export const FISH: FishSpecies[] = [
     baseValue: 1250,
     sprite: 'fish/mahi-mahi',
     color: '#4ee08a',
-    flavor: 'Verde e dourado no anzol, cinza no balde. Curta enquanto da.',
+    flavor: 'Verde e dourado no anzol, cinza no balde. Curta enquanto dá.',
   },
   {
     id: 'yellowfin-tuna',
@@ -259,7 +259,7 @@ export const FISH: FishSpecies[] = [
     baseValue: 1320,
     sprite: 'fish/green-moray',
     color: '#7fa83c',
-    flavor: 'Sai de um buraco que voce jurava ser pequeno demais.',
+    flavor: 'Sai de um buraco que você jurava ser pequeno demais.',
   },
 
   // ------------------------------------------------------------- lendarios
@@ -274,7 +274,7 @@ export const FISH: FishSpecies[] = [
     baseValue: 5600,
     sprite: 'fish/blue-marlin',
     color: '#3d7ce0',
-    flavor: 'Salta tres vezes so para voce entender o tamanho do erro.',
+    flavor: 'Salta três vezes só para você entender o tamanho do erro.',
   },
   {
     id: 'swordfish',
@@ -287,7 +287,7 @@ export const FISH: FishSpecies[] = [
     baseValue: 5900,
     sprite: 'fish/swordfish',
     color: '#5a7fd6',
-    flavor: 'Vem armado de fabrica.',
+    flavor: 'Vem armado de fábrica.',
   },
   {
     id: 'goliath-grouper',
@@ -300,7 +300,7 @@ export const FISH: FishSpecies[] = [
     baseValue: 6400,
     sprite: 'fish/goliath-grouper',
     color: '#a88a5c',
-    flavor: 'Nao briga. So desce. E voce vai junto se nao soltar.',
+    flavor: 'Não briga. Só desce. E você vai junto se não soltar.',
   },
   {
     id: 'ocean-sunfish',
@@ -313,7 +313,7 @@ export const FISH: FishSpecies[] = [
     baseValue: 6800,
     sprite: 'fish/ocean-sunfish',
     color: '#c6cfd8',
-    flavor: 'Uma cabeca gigante que resolveu virar peixe. Deu certo.',
+    flavor: 'Uma cabeça gigante que resolveu virar peixe. Deu certo.',
   },
   {
     id: 'oarfish',
@@ -342,7 +342,7 @@ export const FISH: FishSpecies[] = [
     sprite: 'props/distant-underwater-silhouette',
     color: '#ff2e63',
     silhouette: true,
-    flavor: 'Passou embaixo do barco. Nao deu para ver o resto.',
+    flavor: 'Passou embaixo do barco. Não deu para ver o resto.',
   },
   {
     id: 'hydrinho-abissal',
@@ -356,7 +356,7 @@ export const FISH: FishSpecies[] = [
     sprite: 'props/distant-underwater-silhouette',
     color: '#ff2e4d',
     silhouette: true,
-    flavor: 'Tres cabecas, tres opinioes, zero paciencia.',
+    flavor: 'Três cabeças, três opiniões, zero paciência.',
   },
 ];
 
@@ -381,7 +381,7 @@ export const FAMILIES: Family[] = [
   {
     id: 'costeiros',
     name: 'Costeiros',
-    desc: 'O basico da beira. Quem completa aqui sabe pescar de verdade.',
+    desc: 'O básico da beira. Quem completa aqui sabe pescar de verdade.',
     icon: 'props/fishing-bucket',
     reward: { sazoncoins: 2500, hydraEyes: 1 },
   },
@@ -401,7 +401,7 @@ export const FAMILIES: Family[] = [
   },
   {
     id: 'miticos',
-    name: 'Miticos',
+    name: 'Míticos',
     desc: 'A Hydra em pessoa. Boa sorte.',
     icon: 'props/distant-underwater-silhouette',
     reward: { sazoncoins: 50000, hydraEyes: 15 },

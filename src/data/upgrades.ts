@@ -7,7 +7,7 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'vara',
     name: 'Vara Melhorada',
-    desc: 'Menos lancamentos voltando vazios.',
+    desc: 'Menos lançamentos voltando vazios.',
     currency: 'sazoncoins',
     maxLevel: 8,
     baseCost: 120,
@@ -17,7 +17,7 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'linha',
-    name: 'Linha Reforcada',
+    name: 'Linha Reforçada',
     desc: 'Aguenta tranco de bicho grande e arrebenta menos.',
     currency: 'sazoncoins',
     maxLevel: 6,
@@ -29,7 +29,7 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'isca',
     name: 'Isca Brilhante',
-    desc: 'Chama a atencao do que vale a pena.',
+    desc: 'Chama a atenção do que vale a pena.',
     currency: 'sazoncoins',
     maxLevel: 8,
     baseCost: 260,
@@ -40,7 +40,7 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'balde',
     name: 'Balde Maior',
-    desc: 'Cabe mais peixe, entao rende mais na venda.',
+    desc: 'Cabe mais peixe, então rende mais na venda.',
     currency: 'sazoncoins',
     maxLevel: 10,
     baseCost: 400,
@@ -51,7 +51,7 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'olho',
     name: 'Olho do Pescador',
-    desc: 'Voce comeca a reparar em vulto de bau no fundo.',
+    desc: 'Você começa a reparar em vulto de baú no fundo.',
     currency: 'sazoncoins',
     maxLevel: 5,
     baseCost: 900,
@@ -61,8 +61,8 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'bencao',
-    name: 'Bencao da Hydra',
-    desc: 'A Hydra passa a reparar em voce. Nem sempre e bom.',
+    name: 'Bênção da Hydra',
+    desc: 'A Hydra passa a reparar em você. Nem sempre é bom.',
     currency: 'hydraEyes',
     maxLevel: 5,
     baseCost: 3,
@@ -86,36 +86,36 @@ export function upgradeCost(id: UpgradeId, currentLevel: number): number {
 export const RELICS: Relic[] = [
   {
     id: 'radio_pirata',
-    name: 'Lanterna do Pier',
+    name: 'Lanterna do Píer',
     desc: 'Descarrega a noite toda com luz. Comprador paga +25% sem pechinchar.',
     cost: 6,
     icon: 'props/pier-lantern',
   },
   {
     id: 'vara_leviata',
-    name: 'Puca Reforcado',
-    desc: 'Peso de Epico e Lendario sobe 35%.',
+    name: 'Puçá Reforçado',
+    desc: 'Peso de Épico e Lendário sobe 35%.',
     cost: 9,
     icon: 'props/capture-net',
   },
   {
     id: 'amuleto_pity',
     name: 'Estrela Torta',
-    desc: 'A mare vira mais rapido: o pity acumula 60% mais depressa.',
+    desc: 'A maré vira mais rápido: o pity acumula 60% mais depressa.',
     cost: 11,
     icon: 'props/starfish',
   },
   {
     id: 'isca_mistica',
     name: 'Concha da Sereia',
-    desc: 'Peso de Lendario e Mitico quase dobra. Use com respeito.',
+    desc: 'Peso de Lendário e Mítico quase dobra. Use com respeito.',
     cost: 16,
     icon: 'props/seashell',
   },
   {
     id: 'skin_neon',
     name: 'Kit Neon do Clube',
-    desc: 'Cosmetico. Deixa o HUD do clube em neon anos 2000.',
+    desc: 'Cosmético. Deixa o HUD do clube em neon anos 2000.',
     cost: 4,
     icon: 'fx/rare-sparkles',
   },

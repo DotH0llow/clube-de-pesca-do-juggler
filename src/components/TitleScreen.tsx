@@ -46,7 +46,7 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
             <em>FISHING CLUB</em>
           </h1>
           <p className="title-sub">
-            Lanca a linha, fisga o que aparecer e reza pra nao ser a Hydra.
+            Lança a linha, fisga o que aparecer e reza pra não ser a Hydra.
           </p>
         </div>
 
@@ -58,12 +58,12 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
               onPlay();
             }}
           >
-            {hasProgress ? 'CONTINUAR' : 'COMECAR'}
+            {hasProgress ? 'CONTINUAR' : 'COMEÇAR'}
           </button>
           {hasProgress && (
             <div className="title-progress">
-              {s.stats.casts.toLocaleString('pt-BR')} lancamentos &middot;{' '}
-              {Object.keys(s.album).length} especies &middot; {s.sazoncoins.toLocaleString('pt-BR')} SZ
+              {s.stats.casts.toLocaleString('pt-BR')} lançamentos &middot;{' '}
+              {Object.keys(s.album).length} espécies &middot; {s.sazoncoins.toLocaleString('pt-BR')} SZ
             </div>
           )}
           <button
@@ -82,7 +82,7 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
               setOverlay('config');
             }}
           >
-            AJUSTES
+            CONFIGURAÇÕES
           </button>
         </div>
 
@@ -92,7 +92,7 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
         </div>
       </div>
 
-      {overlay === 'config' && <Sheet title="AJUSTES" onClose={() => setOverlay(null)}><SettingsApp /></Sheet>}
+      {overlay === 'config' && <Sheet title="CONFIGURAÇÕES" onClose={() => setOverlay(null)}><SettingsApp /></Sheet>}
       {overlay === 'controles' && (
         <Sheet title="COMO JOGAR" onClose={() => setOverlay(null)}>
           <ControlsApp />

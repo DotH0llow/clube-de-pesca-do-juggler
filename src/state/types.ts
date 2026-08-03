@@ -167,6 +167,16 @@ export interface PityState {
   legendaryShards: number;
 }
 
+/** Encomenda do mercado de peixe do dia. */
+export interface MarketState {
+  /** dia (YYYY-MM-DD) a que a encomenda pertence */
+  day: string;
+  /** peixes ja entregues nesta encomenda */
+  progress: number;
+  /** recompensa ja retirada no balcao */
+  claimed: boolean;
+}
+
 export interface GameState {
   version: number;
   sazoncoins: number;
@@ -188,6 +198,8 @@ export interface GameState {
   lifetimeValue: number;
   /** mecanicas de risco/recompensa */
   casino: CasinoMechanicsState;
+  /** encomenda do mercado de peixe */
+  market: MarketState;
 }
 
 /** Resultado completo de um lancamento, produzido pela engine. */

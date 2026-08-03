@@ -34,8 +34,8 @@ const CATEGORY_TO_RARITY: Partial<Record<OutcomeCategory, Rarity>> = {
 const NOTHING_LINES = [
   'A isca voltou limpa.',
   'Nem um toque na linha.',
-  'So mexeu a agua.',
-  'Peixe nenhum. So paisagem.',
+  'Só mexeu a água.',
+  'Peixe nenhum. Só paisagem.',
   'A boia nem piscou.',
 ];
 
@@ -155,7 +155,7 @@ export function resolveCast(
       result.junk = junk;
       result.value = Math.round(junk.value * mods.valueMultiplier);
       result.difficulty = 0.05;
-      result.headline = 'Veio pesado... e inutil.';
+      result.headline = 'Veio pesado... e inútil.';
       break;
     }
     case 'bau': {
@@ -163,7 +163,7 @@ export function resolveCast(
       result.value = Math.round(coins * region.valueMultiplier * mods.valueMultiplier);
       result.eyes = chance(CHEST_LOOT.eyeChance + mods.eyeBonus * 0.5) ? 1 : 0;
       result.difficulty = clamp(0.4 + region.difficulty * 0.5 - mods.reelAssist, 0.05, 0.8);
-      result.headline = 'Bau afundado!';
+      result.headline = 'Baú afundado!';
       break;
     }
     case 'evento': {
@@ -233,7 +233,7 @@ export function escapeLine(): string {
     'Ele soltou do anzol.',
     'Sumiu embaixo do barco.',
     'Deu um tranco e foi embora.',
-    'Ficou so a historia.',
+    'Ficou só a história.',
   ]);
 }
 
