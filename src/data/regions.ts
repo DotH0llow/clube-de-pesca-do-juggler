@@ -1,15 +1,22 @@
+import { DAY_ORDER } from '../world/dayCycle';
 import type { Region, RegionId } from '../state/types';
 
 /**
- * Quatro pesqueiros, do sol do meio-dia ate a escuridao da Hydra.
- * As paletas alimentam a cena inteira (ceu, mar, ilhas, HUD).
+ * As quatro fases de um dia no cais, da manha a madrugada.
+ *
+ * Antes isso era um mapa de quatro pesqueiros que o jogador comprava e trocava
+ * na loja. Agora e o mesmo lugar em quatro horarios: o relogio anda sozinho
+ * (24 minutos por dia, 6 por fase) e a fase que estiver valendo manda no ceu,
+ * na paleta, no valor do peixe e na raridade que aparece.
+ *
+ * Os ids continuam os antigos para nao invalidar save nem tabela de peixe.
  */
 export const REGIONS: Record<RegionId, Region> = {
   enseada: {
     id: 'enseada',
-    name: 'Enseada do Coral',
-    subtitle: 'Água rasa, sol a pino, peixe manso.',
-    unlock: null,
+    name: 'Manhã na Enseada',
+    subtitle: 'Água rasa, sol subindo, peixe manso.',
+    time: '06:00',
     valueMultiplier: 1,
     rarityBonus: 0,
     maxRarity: 'raro',
@@ -27,9 +34,9 @@ export const REGIONS: Record<RegionId, Region> = {
   },
   recife: {
     id: 'recife',
-    name: 'Recife Neon',
-    subtitle: 'Pôr do sol eterno e cardume que brilha no escuro.',
-    unlock: { currency: 'sazoncoins', cost: 6000 },
+    name: 'Entardecer no Recife',
+    subtitle: 'O sol cai e o cardume começa a brilhar.',
+    time: '18:00',
     valueMultiplier: 1.35,
     rarityBonus: 0.15,
     maxRarity: 'epico',
@@ -47,9 +54,9 @@ export const REGIONS: Record<RegionId, Region> = {
   },
   naufragio: {
     id: 'naufragio',
-    name: 'Naufrágio do Cargueiro',
-    subtitle: 'Ferro velho, óleo na água e bicho grande embaixo.',
-    unlock: { currency: 'sazoncoins', cost: 30000 },
+    name: 'Tarde de Temporal',
+    subtitle: 'Céu fechado, óleo na água e bicho grande embaixo.',
+    time: '12:00',
     valueMultiplier: 1.8,
     rarityBonus: 0.32,
     maxRarity: 'lendario',
@@ -67,9 +74,9 @@ export const REGIONS: Record<RegionId, Region> = {
   },
   fossa: {
     id: 'fossa',
-    name: 'Fossa da Hydra',
+    name: 'Madrugada na Fossa',
     subtitle: 'Três sombras no fundo. Nenhuma delas é peixe.',
-    unlock: { currency: 'hydraEyes', cost: 12 },
+    time: '00:00',
     valueMultiplier: 2.6,
     rarityBonus: 0.6,
     maxRarity: 'mitico',
@@ -87,4 +94,5 @@ export const REGIONS: Record<RegionId, Region> = {
   },
 };
 
-export const REGION_ORDER: RegionId[] = ['enseada', 'recife', 'naufragio', 'fossa'];
+/** A ordem em que as fases entram no ar. Mora no relogio, nao aqui. */
+export const REGION_ORDER: RegionId[] = DAY_ORDER;

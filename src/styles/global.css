@@ -1609,6 +1609,11 @@ button {
 
 /* ==========================================================================
    TELA DE TITULO
+
+   O menu e um pedaco do mundo visto da ponta do pier: mesmo ceu, mesmo mar e
+   mesma tralha de deck que o jogo desenha. As faixas de horizonte, o surf e as
+   estacas ficam empilhados em profundidade, e a arte do Juggler entra por cima
+   de tudo, no canto direito.
    ========================================================================== */
 
 .title-screen {
@@ -1619,62 +1624,222 @@ button {
   display: flex;
 }
 
+.title-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* o ceu vem do mesmo componente do jogo e ocupa a tela inteira */
+.title-scene .sky {
+  position: absolute;
+  inset: 0;
+}
+
+/* --------------------------------------------------------------- horizonte */
+
+.title-strip {
+  position: absolute;
+  left: -2%;
+  width: 104%;
+  object-fit: cover;
+  object-position: 50% 100%;
+  pointer-events: none;
+}
+
+.title-mountains {
+  bottom: 46%;
+  height: 12vh;
+  opacity: 0.45;
+  filter: saturate(0.7);
+}
+
+.title-islands {
+  bottom: 41%;
+  height: 11vh;
+  opacity: 0.9;
+}
+
+.title-haze {
+  bottom: 38%;
+  height: 6vh;
+  opacity: 0.5;
+}
+
+/* --------------------------------------------------------------------- mar */
+
 .title-sea {
   position: absolute;
   left: 0;
   right: 0;
-  top: 62%;
+  top: 59%;
   bottom: 0;
-  background: linear-gradient(180deg, #35c6e0 0%, #1487b8 45%, #06405f 100%);
+  background: linear-gradient(
+    180deg,
+    var(--sea-top, #35c6e0) 0%,
+    var(--sea-top, #35c6e0) 10%,
+    var(--sea-bottom, #06405f) 72%,
+    #02131f 100%
+  );
 }
 
-.title-islands {
+.title-boat {
+  position: absolute;
+  left: 12%;
+  bottom: 56%;
+  height: 9vh;
+  width: auto;
+  opacity: 0.9;
+  transform-origin: 50% 100%;
+  animation: obj-rock 5.5s ease-in-out infinite alternate;
+}
+
+.title-surf {
+  position: absolute;
+  left: -4%;
+  width: 108%;
+  top: 56%;
+  height: 16vh;
+  pointer-events: none;
+}
+
+.title-surf > div {
   position: absolute;
   left: 0;
-  width: 100%;
-  top: calc(62% - 7vh);
-  height: 8vh;
-  object-fit: cover;
-  object-position: 50% 100%;
-  opacity: 0.9;
+  right: 0;
+  background-repeat: repeat-x;
 }
 
-.title-waves {
-  position: absolute;
-  left: -4%;
-  width: 108%;
-  top: 64%;
-  height: 9vh;
-  object-fit: fill;
-  opacity: 0.5;
+.title-surf .foam {
+  top: 0;
+  height: 4vh;
+  background-size: auto 4vh;
+  opacity: 0.7;
+  animation: surf-drift 20s linear infinite;
 }
 
-.title-foam {
-  position: absolute;
-  left: -4%;
-  width: 108%;
-  top: 61%;
+.title-surf .swell {
+  top: 3vh;
   height: 5vh;
-  object-fit: fill;
-  opacity: 0.75;
+  background-size: auto 5vh;
+  opacity: 0.5;
+  animation: surf-drift 26s linear infinite reverse;
 }
+
+.title-surf .swell-b {
+  top: 6vh;
+  height: 6vh;
+  background-size: auto 6vh;
+  opacity: 0.38;
+  animation-duration: 38s;
+}
+
+.title-surf .glint {
+  top: 1.5vh;
+  height: 3vh;
+  background-size: auto 3vh;
+  opacity: 0.3;
+  animation: surf-drift 44s linear infinite;
+}
+
+/* ---------------------------------------------------------- primeiro plano */
+
+.title-posts {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26vh;
+}
+
+.title-posts img {
+  position: absolute;
+  bottom: 0;
+  height: 26vh;
+  width: auto;
+  opacity: 0.85;
+  filter: brightness(0.45) saturate(0.7);
+}
+
+.title-deck {
+  position: absolute;
+  left: -2%;
+  width: 104%;
+  bottom: 15vh;
+  height: 5vh;
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  filter: brightness(0.6) saturate(0.8);
+}
+
+.title-prop {
+  position: absolute;
+  width: auto;
+  bottom: 19vh;
+  filter: brightness(0.35) saturate(0.45);
+  opacity: 0.95;
+}
+
+.prop-lantern {
+  left: 6%;
+  height: 16vh;
+}
+
+.prop-net {
+  left: 22%;
+  height: 8vh;
+}
+
+.prop-barrel {
+  left: 33%;
+  height: 7vh;
+}
+
+.prop-basket {
+  left: 44%;
+  height: 6vh;
+  transform: scaleX(-1);
+}
+
+.title-palm {
+  position: absolute;
+  bottom: 8vh;
+  width: auto;
+  height: 62vh;
+  filter: brightness(0.32) saturate(0.4);
+  pointer-events: none;
+}
+
+.palm-left {
+  left: -6%;
+}
+
+.palm-right {
+  right: -8%;
+  transform: scaleX(-1);
+  height: 54vh;
+  opacity: 0.85;
+}
+
+/* ------------------------------------------------------- arte e conteudo */
 
 .title-art {
   position: absolute;
-  right: -2%;
+  right: 1%;
   bottom: 0;
-  height: 96%;
+  height: 92%;
   width: auto;
   object-fit: contain;
-  filter: drop-shadow(-8px 0 24px rgba(0, 0, 0, 0.55));
+  z-index: 1;
+  filter: drop-shadow(-10px 6px 18px rgba(0, 0, 0, 0.6));
 }
 
 .title-vignette {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(3, 12, 20, 0.9) 0%, rgba(3, 12, 20, 0.55) 38%, rgba(3, 12, 20, 0) 62%),
-    linear-gradient(0deg, rgba(3, 12, 20, 0.8) 0%, rgba(3, 12, 20, 0) 42%);
+    linear-gradient(90deg, rgba(3, 12, 20, 0.92) 0%, rgba(3, 12, 20, 0.6) 40%, rgba(3, 12, 20, 0) 66%),
+    linear-gradient(0deg, rgba(3, 12, 20, 0.82) 0%, rgba(3, 12, 20, 0) 45%);
 }
 
 .title-content {
@@ -1745,6 +1910,10 @@ button {
   opacity: 0.65;
 }
 
+.title-clock {
+  letter-spacing: 1px;
+}
+
 .founder-plate {
   font-size: 13px;
   letter-spacing: 3px;
@@ -1752,6 +1921,11 @@ button {
   color: #f3e2b0;
   background: linear-gradient(180deg, #8a6a2c, #4a3616);
   border: 2px solid #d8bd77;
+}
+
+.no-anim .title-boat,
+.no-anim .title-surf > div {
+  animation: none;
 }
 
 /* ==========================================================================
@@ -1785,9 +1959,12 @@ button {
     max-width: 100%;
   }
   .title-art {
-    height: 70%;
-    right: -10%;
-    opacity: 0.85;
+    height: 62%;
+    right: -12%;
+    opacity: 0.8;
+  }
+  .title-palm {
+    display: none;
   }
   .grid {
     grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));

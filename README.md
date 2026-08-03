@@ -21,10 +21,12 @@ ate a **ponta do pier**, com a camera arrastando junto com o Juggler.
 | `E` | Pescar (perto da vara) |
 | `ESC` | Abrir/fechar o celular |
 
-O Juggler usa as 13 animacoes do kit (parado, andar, correr, pular, pescar,
-sentar e idle de costas), com esquerda e direita separadas. Os quadros de pulo
-vieram com o colete rosa em vez do azul das outras poses; o importador detecta o
-matiz e remapeia, entao a animacao fica consistente.
+O Juggler usa os clipes montados por `scripts/import-character.py` a partir da
+arte nova (parado, andar, correr, pular, pescar, sentar e idle de costas), com
+esquerda e direita separadas - a direita e o espelho da esquerda, gerado na
+importacao. Correr e a mesma arte da caminhada rodando 25% mais rapido, e a
+pescaria nao roda em loop: cada fase do lance trava no seu quadro. Detalhes em
+`docs/animacoes-do-personagem.md`.
 
 A pescaria so abre quando o Juggler chega perto da vara fincada no fim do pier.
 Ali o personagem troca para a pose de pesca e o HUD de lancamento aparece.
@@ -94,6 +96,8 @@ upgrades, reliquias e familias).
 | `02_sprites/boats-and-pier` | barco em duas poses alternadas + sombra |
 | `03_sprites/fishing-gear` | icones dos upgrades (vara, carretel, isca, balde, chumbada) |
 | `01_sprites/environment` | floresta, cabana, corais, algas, caverna e a silhueta da Hydra |
+| `12_nature/trees` (pacote `new`) | `nature/`: 20 arvores da mata do fim do mapa |
+| `13_marine-life` (pacote `new`) | `marine/`: 53 bichos e corais do fundo do mar |
 | `02_sprites/boats-and-pier` (tabua, poste, escada) | o pier inteiro, montado por repeticao |
 | `11_characters/juggler` | 68 quadros do personagem jogavel |
 | `08_interface` | moldura dos paineis, botoes, selos de raridade, icones do HUD |
@@ -235,21 +239,28 @@ emocao e economia sem mexer na lista de peixes.
 A falha critica ("a linha arrebentou") nao e sorteada: ela nasce de perder o
 minigame de puxada, entao a culpa e sempre do jogador, nunca do dado.
 
-### Teto de raridade por regiao
+### O ciclo do dia
 
-Cada pesqueiro tem um teto. O peso do que passa do teto **desce para a maior
-raridade permitida ali** - por isso a Enseada tem muito peixe raro e nenhum
-lendario. Trocar de regiao e o que abre raridade nova, nao so multiplicador.
+Os quatro cenarios deixaram de ser mapas que o jogador compra e escolhe: viraram
+as quatro fases de um mesmo dia. **Um dia dura 24 minutos reais** e cada fase
+fica 6 minutos no ar, virando sozinha. O relogio vem de `Date.now()`
+(`src/world/dayCycle.ts`), entao o mundo continua girando com o jogo fechado -
+ninguem volta ao amanhecer so por reabrir a aba.
 
-| Regiao | Teto | Valor | Desbloqueio |
+Cada fase tem um teto de raridade. O peso do que passa do teto **desce para a
+maior raridade permitida ali** - por isso de manha tem muito peixe raro e nenhum
+lendario. Esperar a fase virar e o que abre raridade nova, nao so multiplicador.
+
+| Fase | Hora | Teto | Valor |
 |---|---|---|---|
-| Enseada do Coral | Raro | x1 | inicial |
-| Recife Neon | Epico | x1,35 | 6.000 SZ |
-| Naufragio do Cargueiro | Lendario | x1,8 | 30.000 SZ |
-| Fossa da Hydra | Mitico | x2,6 | 12 Olhos da Hydra |
+| Manha na Enseada | 06:00 | Raro | x1 |
+| Tarde de Temporal | 12:00 | Lendario | x1,8 |
+| Entardecer no Recife | 18:00 | Epico | x1,35 |
+| Madrugada na Fossa | 00:00 | Mitico | x2,6 |
 
-Cada pesqueiro tem ceu e clima proprios: dia limpo na Enseada, por do sol no
-Recife, tempestade com chuva e raio no Naufragio, noite estrelada na Fossa.
+Cada fase tem ceu e clima proprios: dia limpo de manha, tempestade com chuva e
+raio a tarde, por do sol no fim do dia, noite estrelada de madrugada. A aba
+`CICLO DO DIA` no celular mostra qual esta valendo e quanto cada uma muda.
 
 ### Pity e streak correction
 
@@ -306,8 +317,9 @@ resto do jogo nao sabe como o peixe e desenhado.
 A cena de fundo (`src/components/Scene.tsx`) e SVG puro, com a paleta vindo da
 regiao ativa. Trocar por spritesheet depois tambem e isolado ali.
 
-A capa (`src/assets/fundador.webp`, 933x1200, 181 KB) e a unica imagem do projeto.
-Tudo o mais e SVG ou CSS.
+A arte do menu (`src/assets/juggler-cutscene.webp`) e a unica imagem solta fora
+do registro de assets. O cenario do menu e montado com os mesmos sprites do jogo
+e segue a fase do dia.
 
 ## Roadmap curto
 

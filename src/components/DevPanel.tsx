@@ -1,6 +1,5 @@
 import { playSfx } from '../engine/audio';
-import { grantCheat, unlockRegion, useGame } from '../state/store';
-import { REGION_ORDER } from '../data/regions';
+import { grantCheat, useGame } from '../state/store';
 
 interface Props {
   onClose: () => void;
@@ -43,15 +42,6 @@ export function DevPanel({ onClose, onEditor }: Props) {
         </button>
         <button className="ebtn" onClick={() => pay(100000, 100000)}>
           +100K NOS DOIS
-        </button>
-        <button
-          className="ebtn"
-          onClick={() => {
-            for (const id of REGION_ORDER) unlockRegion(id);
-            playSfx('unlock');
-          }}
-        >
-          LIBERAR PESQUEIROS
         </button>
       </div>
 

@@ -11,9 +11,8 @@ import type { LayerId, SceneObject } from '../editor/types';
  * dentro. A separacao existe para as animacoes de CSS (cardume, bolha, barco)
  * poderem usar transform sem brigar com a rotacao do objeto.
  */
-function ObjectView({ o, casting }: { o: SceneObject; casting: boolean }) {
-  // a vara inclina quando o Juggler lanca: e so um angulo somado ao objeto
-  const rot = o.rot + (casting ? 14 : 0);
+function ObjectView({ o }: { o: SceneObject }) {
+  const rot = o.rot;
   const style: React.CSSProperties = {
     left: o.x,
     top: o.y,
@@ -42,10 +41,11 @@ function ObjectView({ o, casting }: { o: SceneObject; casting: boolean }) {
 
 export const SceneLayer = memo(function SceneLayer({
   layer,
-  casting = false,
+  hideRod = false,
 }: {
   layer: LayerId;
-  casting?: boolean;
+  /** esconde a vara fincada no deck (o Juggler esta com a dele na mao) */
+  hideRod?: boolean;
 }) {
   const scene = useScene();
   if (scene.hidden.includes(layer)) return null;
@@ -53,8 +53,9 @@ export const SceneLayer = memo(function SceneLayer({
     <div className={`scene-layer layer-${layer}`}>
       {scene.objects
         .filter((o) => o.layer === layer && o.kind === 'sprite')
+        .filter((o) => !(hideRod && o.role === 'vara'))
         .map((o) => (
-          <ObjectView key={o.id} o={o} casting={casting && o.role === 'vara'} />
+          <ObjectView key={o.id} o={o} />
         ))}
     </div>
   );

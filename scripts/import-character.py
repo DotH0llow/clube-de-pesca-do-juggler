@@ -1,93 +1,265 @@
 """
-Importa os quadros do Juggler.
+Importa a arte nova do Juggler e monta os clipes de animacao do jogo.
 
-Diferente dos props, aqui NAO da para recortar quadro a quadro: cada frame
-precisa do mesmo enquadramento, senao o personagem treme na animacao. Entao:
+    ANIM_DIR=~/juggler_new_anim FISH_DIR=~/fishing-left python3 scripts/import-character.py
 
-  1. todo quadro e colado num canvas comum, alinhado embaixo e centralizado;
-  2. calcula-se um unico bbox valido para a animacao inteira;
-  3. os quadros de pulo tem o colete rosa remapeado para o azul das demais poses.
+Por que este script e menos ingenuo que um "recorta e salva":
+
+  1. cada PNG de origem foi desenhado numa resolucao diferente, entao o boneco
+     tem tamanho diferente em cada arquivo. A escala e normalizada pela largura
+     do CHAPEU (a unica medida que nao muda com a pose) nas vistas de perfil, e
+     pela altura do corpo nas vistas de frente/costas;
+
+  2. os quadros de caminhada e de pescaria vieram com fundo branco chapado. O
+     fundo e removido por preenchimento a partir da borda, e nao por limiar
+     global - o boneco tem barba branca e flores brancas na camisa;
+
+  3. a vara de pescar e uma linha fina que atravessa metade do quadro. Ela
+     estragaria qualquer medida de ancora, entao o "corpo" e obtido erodindo a
+     mascara: o que sobra e so o volume do personagem;
+
+  4. todo quadro e colado num canvas unico com o QUADRIL no mesmo x e o PE no
+     mesmo y. Com isso o boneco nao desliza nem afunda ao trocar de clipe, e o
+     charFrames.ts sai com correcao constante em vez de uma tabela de gambiarra.
+
+Requer: pillow, numpy e scipy.
 """
-import glob, os, sys
+import os
+import sys
+
 import numpy as np
 from PIL import Image
+from scipy.ndimage import binary_erosion, label
 
-SRC = '/tmp/unz/chars/11_characters/juggler/final-dark-vest/frames'
-OUT = sys.argv[1]
-TARGET_H = 170
+ANIM = os.environ.get('ANIM_DIR', './juggler_new_anim')
+FISH = os.environ.get('FISH_DIR', './fishing-left')
+OUT = os.environ.get('OUT_DIR', './src/assets/game/char')
+FRAMES_TS = os.environ.get('FRAMES_TS', './src/world/charFrames.ts')
 
-def fix_vest(im):
-    """Os quadros de pulo vieram com colete rosa; joga o matiz para o azul."""
-    a = np.array(im).astype(np.float32)
-    rgb, al = a[..., :3] / 255, a[..., 3]
-    mx, mn = rgb.max(-1), rgb.min(-1)
-    d = mx - mn
-    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    h = np.zeros_like(mx)
-    m = d > 1e-6
-    i = (mx == r) & m; h[i] = ((g - b)[i] / d[i]) % 6
-    i = (mx == g) & m; h[i] = ((b - r)[i] / d[i]) + 2
-    i = (mx == b) & m; h[i] = ((r - g)[i] / d[i]) + 4
-    h *= 60
-    s = np.where(mx > 0, d / np.maximum(mx, 1e-6), 0)
-    sel = (al > 0) & (s > 0.12) & (h >= 295) & (h <= 358)
-    if not sel.any():
+# altura do corpo em pe, em unidades de mundo
+TARGET_BODY = 170.0
+# resolucao extra do arquivo em relacao ao tamanho de tela (nitidez no zoom)
+SUPERSAMPLE = 1.6
+
+P = lambda *a: os.path.join(ANIM, *a)
+F = lambda *a: os.path.join(FISH, *a)
+
+# vista lateral: escala pela largura do chapeu. frontal/costas: pela altura.
+SIDE, FRONT = 'side', 'front'
+
+# clipe -> (lista de quadros de origem, vista, espelhar para gerar o par)
+CLIPS = {
+    'side-idle': ([P('03_left_profile.png')], SIDE),
+    'walk': (
+        [
+            P('andando', '01_left_foot_forward.png'),
+            P('03_left_profile.png'),
+            P('andando', '02_right_foot_forward.png'),
+            P('03_left_profile.png'),
+        ],
+        SIDE,
+    ),
+    # correr e a mesma arte da caminhada, so que 25% mais rapida (ver usePlayer)
+    'run': (
+        [
+            P('andando', '01_left_foot_forward.png'),
+            P('03_left_profile.png'),
+            P('andando', '02_right_foot_forward.png'),
+            P('03_left_profile.png'),
+        ],
+        SIDE,
+    ),
+    'jump': ([P('pulo', '01_takeoff.png'), P('pulo', '02_landing.png')], SIDE),
+    'sit': ([P('sentado', '03_lateral_esquerda_sentado.png')], SIDE),
+    'fish': (
+        [
+            F('01_ready.png'),
+            F('02_cast_backswing.png'),
+            F('03_cast_forward.png'),
+            F('04_wait_reel.png'),
+            F('05_hook_set.png'),
+            F('06_reel_in.png'),
+        ],
+        SIDE,
+    ),
+}
+# clipes sem par espelhado
+SINGLE = {'back-idle': ([P('01_back.png')], FRONT)}
+
+# a arte de origem olha para a esquerda; a direita e o espelho
+BASE_FACING = 'left'
+
+
+# --------------------------------------------------------------- leitura
+
+def load_rgba(path):
+    """Abre o PNG ja com alfa. Fundo branco chapado vira transparencia."""
+    im = Image.open(path)
+    if im.mode == 'RGBA':
         return im
-    # rosa (~325) -> azul-petroleo (~190), mantendo luminancia e saturacao
-    h2 = np.where(sel, 190.0, h)
-    hp = h2 / 60.0
-    c = mx * s
-    x = c * (1 - np.abs(hp % 2 - 1))
-    z = np.zeros_like(c)
-    seg = np.floor(hp).astype(int) % 6
-    r2 = np.select([seg == 0, seg == 1, seg == 2, seg == 3, seg == 4, seg == 5], [c, x, z, z, x, c])
-    g2 = np.select([seg == 0, seg == 1, seg == 2, seg == 3, seg == 4, seg == 5], [x, c, c, x, z, z])
-    b2 = np.select([seg == 0, seg == 1, seg == 2, seg == 3, seg == 4, seg == 5], [z, z, x, c, c, x])
-    m0 = mx - c
-    out = np.stack([r2 + m0, g2 + m0, b2 + m0], -1)
-    out = np.where(sel[..., None], out, rgb)
-    a[..., :3] = np.clip(out * 255, 0, 255)
-    return Image.fromarray(a.astype(np.uint8), 'RGBA')
+    rgb = np.array(im.convert('RGB'))
+    light = rgb.min(-1) >= 216
+    lab, n = label(light)
+    if n:
+        edge = np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))
+        edge = edge[edge > 0]
+        bg = np.isin(lab, edge)
+    else:
+        bg = np.zeros(light.shape, bool)
+    alpha = np.where(bg, 0, 255).astype(np.uint8)
+    return Image.fromarray(np.dstack([rgb, alpha]), 'RGBA')
 
-anims = sorted(os.path.basename(d) for d in glob.glob(f'{SRC}/*') if os.path.isdir(d))
-frames = {}
-CW, CH = 0, 0
-for a in anims:
-    for f in sorted(glob.glob(f'{SRC}/{a}/*.png')):
-        im = Image.open(f).convert('RGBA')
-        CW, CH = max(CW, im.size[0]), max(CH, im.size[1])
 
-for a in anims:
-    frames[a] = []
-    for f in sorted(glob.glob(f'{SRC}/{a}/*.png')):
-        im = Image.open(f).convert('RGBA')
-        if a.startswith('jump'):
-            im = fix_vest(im)
-        canvas = Image.new('RGBA', (CW, CH), (0, 0, 0, 0))
-        canvas.paste(im, ((CW - im.size[0]) // 2, CH - im.size[1]), im)
-        frames[a].append(canvas)
+def body_mask(alpha, frac=0.012):
+    """Volume do personagem: erode a mascara ate a vara fina desaparecer."""
+    m = alpha > 40
+    r = max(2, int(round(min(m.shape) * frac)))
+    eroded = binary_erosion(m, np.ones((r, r), bool))
+    lab, n = label(eroded)
+    if n == 0:
+        return m
+    sizes = np.bincount(lab.ravel())
+    sizes[0] = 0
+    return lab == sizes.argmax()
 
-# bbox unico para tudo
-box = None
-for a in anims:
-    for im in frames[a]:
-        bb = im.getbbox()
-        if not bb:
-            continue
-        box = bb if box is None else (min(box[0], bb[0]), min(box[1], bb[1]),
-                                      max(box[2], bb[2]), max(box[3], bb[3]))
-bw, bh = box[2] - box[0], box[3] - box[1]
-scale = TARGET_H / bh
-size = (max(1, round(bw * scale)), TARGET_H)
-print('canvas', (CW, CH), 'bbox', box, '->', size)
 
-total = 0
-for a in anims:
-    for i, im in enumerate(frames[a]):
-        out = im.crop(box).resize(size, Image.LANCZOS)
-        dst = f'{OUT}/char/{a}/{i:02d}.webp'
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        out.save(dst, 'WEBP', quality=80, method=5)
-        total += os.path.getsize(dst)
-    print(f'  {a}: {len(frames[a])} quadros')
-print(f'total {total/1024:.0f} KB')
+def metrics(im):
+    """Escala, quadril e pe de um quadro, medidos so no volume do corpo."""
+    a = np.array(im)[:, :, 3]
+    b = body_mask(a)
+    ys, xs = np.where(b)
+    top, bottom = int(ys.min()), int(ys.max())
+    h = bottom - top + 1
+    band = b[top:top + max(1, int(h * 0.16))]
+    hat = max((np.where(r)[0][-1] - np.where(r)[0][0] + 1) for r in band if r.any())
+    lo = top + int(h * 0.42)
+    hi = max(lo + 1, top + int(h * 0.60))
+    hip = b[lo:hi]
+    hx = np.where(hip.any(0))[0]
+    return {
+        'hip_x': float(hx.mean()) if len(hx) else float(xs.mean()),
+        'foot_y': float(bottom),
+        'hat': float(hat),
+        'body_h': float(h),
+        'full': np.array(im).shape,
+    }
+
+
+# ---------------------------------------------------------------- montagem
+
+def main():
+    jobs = {**CLIPS, **SINGLE}
+    loaded = {}
+    for clip, (paths, view) in jobs.items():
+        loaded[clip] = [(load_rgba(p), view) for p in paths]
+
+    # a referencia de tamanho e o perfil parado
+    ref_im, _ = loaded['side-idle'][0]
+    ref = metrics(ref_im)
+    unit = TARGET_BODY / ref['body_h']          # px de origem -> unidade de mundo
+    hat_ref = ref['hat'] * unit                 # largura do chapeu no mundo
+
+    placed = {}
+    for clip, frames in loaded.items():
+        placed[clip] = []
+        for im, view in frames:
+            m = metrics(im)
+            k = (hat_ref / m['hat']) if view == SIDE else (TARGET_BODY / m['body_h'])
+            k *= SUPERSAMPLE
+            w = max(1, round(im.width * k))
+            h = max(1, round(im.height * k))
+            scaled = im.resize((w, h), Image.LANCZOS)
+            placed[clip].append({
+                'im': scaled,
+                'hip': m['hip_x'] * k,
+                'foot': m['foot_y'] * k,
+            })
+
+    # canvas comum: cabe todo mundo, com o quadril no mesmo x e o pe no mesmo y
+    left = right = up = down = 0.0
+    for frames in placed.values():
+        for f in frames:
+            left = max(left, f['hip'])
+            right = max(right, f['im'].width - f['hip'])
+            up = max(up, f['foot'])
+            down = max(down, f['im'].height - f['foot'])
+    pad = 2
+    half = int(np.ceil(max(left, right))) + pad     # canvas simetrico no eixo x
+    CW = half * 2
+    CH = int(np.ceil(up)) + int(np.ceil(down)) + pad * 2
+    AX, AY = half, int(np.ceil(up)) + pad           # ancora dentro do canvas
+    print(f'canvas {CW}x{CH}  ancora ({AX},{AY})  unidade {unit:.4f}')
+
+    total = 0
+    for clip, frames in placed.items():
+        outs = [(clip, False)] if clip in SINGLE else [
+            (f'{clip}-{BASE_FACING}', False),
+            (f'{clip}-{"right" if BASE_FACING == "left" else "left"}', True),
+        ]
+        for name, mirror in outs:
+            for i, f in enumerate(frames):
+                canvas = Image.new('RGBA', (CW, CH), (0, 0, 0, 0))
+                src = f['im']
+                canvas.paste(src, (round(AX - f['hip']), round(AY - f['foot'])), src)
+                if mirror:
+                    canvas = canvas.transpose(Image.FLIP_LEFT_RIGHT)
+                dst = os.path.join(OUT, name, f'{i:02d}.webp')
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                canvas.save(dst, 'WEBP', quality=82, method=5)
+                total += os.path.getsize(dst)
+            print(f'  {name}: {len(frames)} quadros')
+
+    # ------------------------------------------------------- charFrames.ts
+    # a ancora ja esta baked; sobra so levar o ponto (AX,AY) para o
+    # canto de baixo/centro, que e onde o renderizador ancora a imagem.
+    dx = CW / 2 - AX
+    dy = -(CH - AY)
+    # 1 px do canvas vale 1/SUPERSAMPLE unidade de mundo (a escala ja foi
+    # normalizada la em cima), entao a altura do quadro sai direto da divisao.
+    player_h = CH / SUPERSAMPLE
+    names = sorted(
+        [n for c in CLIPS for n in (f'{c}-left', f'{c}-right')] + list(SINGLE)
+    )
+    counts = {}
+    for c, (paths, _) in {**CLIPS, **SINGLE}.items():
+        if c in SINGLE:
+            counts[c] = len(paths)
+        else:
+            counts[f'{c}-left'] = counts[f'{c}-right'] = len(paths)
+
+    lines = [
+        '/**',
+        ' * GERADO por scripts/import-character.py - nao edite na mao.',
+        ' *',
+        ' * Todo quadro ja sai do importador alinhado pelo quadril e pelo pe dentro',
+        ' * de um canvas unico, entao nao existe mais tabela de correcao por quadro:',
+        ' * basta levar a ancora do canvas ate o ponto onde o renderizador encosta o',
+        ' * sprite (centro embaixo).',
+        ' */',
+        '',
+        '/** tamanho do arquivo de cada quadro, em px */',
+        f'export const CHAR_CANVAS = {{ w: {CW}, h: {CH} }};',
+        '',
+        '/** altura do quadro inteiro, em unidades de mundo */',
+        f'export const CHAR_FRAME_H = {player_h:.1f};',
+        '',
+        '/**',
+        ' * Deslocamento do quadro, em px do canvas, para o quadril cair no eixo do',
+        ' * jogador e o pe encostar no chao.',
+        ' */',
+        f'export const CHAR_ANCHOR = {{ dx: {dx:.1f}, dy: {dy:.1f} }};',
+        '',
+        '/** quantos quadros cada clipe tem */',
+        'export const CLIP_FRAMES: Record<string, number> = {',
+    ]
+    for n in names:
+        lines.append(f"  '{n}': {counts[n]},")
+    lines += ['};', '']
+
+    with open(FRAMES_TS, 'w', encoding='utf-8') as fh:
+        fh.write('\n'.join(lines))
+    print(f'escrito {FRAMES_TS}  altura do quadro {player_h:.1f}  total {total / 1024:.0f} KB')
+
+
+if __name__ == '__main__':
+    main()

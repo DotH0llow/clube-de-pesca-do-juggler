@@ -3,39 +3,57 @@ import { asset } from '../assets';
 import { clamp } from '../engine/rng';
 import { getSettings } from '../state/settings';
 import { inZone, rodX } from '../editor/scene';
-import { ANIM_SCALE, CHAR_CANVAS, FRAME_FIX } from './charFrames';
+import { CHAR_ANCHOR, CHAR_CANVAS, CHAR_FRAME_H, CLIP_FRAMES } from './charFrames';
 import { groundAt, WALK_MAX, WALK_MIN, WORLD_H, WORLD_W } from './layout';
 
 export type Facing = 'left' | 'right';
-export type AnimName = 'side-idle' | 'walk' | 'run' | 'jump' | 'fish-no-rod' | 'sit';
+export type AnimName = 'side-idle' | 'walk' | 'run' | 'jump' | 'fish' | 'sit';
 /** Pontos do mundo em que o botao de interagir aparece. */
 export type Spot = 'vara' | 'mercado' | null;
 
-const FRAMES: Record<AnimName, number> = {
-  'side-idle': 4,
-  walk: 6,
-  run: 6,
-  jump: 6,
-  'fish-no-rod': 6,
-  sit: 4,
+/**
+ * Duracao de cada quadro, em ms.
+ *
+ * A caminhada tem 4 quadros (pe esquerdo -> perfil -> pe direito -> perfil), o
+ * que da dois passos por ciclo. Correr usa exatamente a mesma arte, 25% mais
+ * rapida - foi assim que a animacao foi pedida.
+ */
+const WALK_FRAME_MS = 170;
+export const RUN_ANIM_SPEEDUP = 1.25;
+
+const FRAME_MS: Record<AnimName, number> = {
+  'side-idle': 1000,
+  walk: WALK_FRAME_MS,
+  run: WALK_FRAME_MS / RUN_ANIM_SPEEDUP,
+  jump: 1000, // o pulo nao roda no tempo: o quadro sai da velocidade vertical
+  fish: 1000, // a pescaria nao roda no tempo: o quadro sai da fase do lance
+  sit: 1000,
 };
 
-/** Duracao de cada quadro, em ms. */
-const FRAME_MS: Record<AnimName, number> = {
-  'side-idle': 220,
-  walk: 100,
-  run: 78,
-  jump: 110,
-  'fish-no-rod': 150,
-  sit: 260,
+/**
+ * Quadro da pescaria por fase do lance. A arte veio com uma pose para cada
+ * momento, entao nao faz sentido rodar em loop: cada fase trava no seu quadro.
+ * A fase `waiting` passa rapido pelo arremesso antes de assentar na espera.
+ */
+export type FishPose = 'idle' | 'power' | 'cast' | 'waiting' | 'bite' | 'reeling';
+const FISH_FRAME: Record<FishPose, number> = {
+  idle: 0, // 01_ready
+  power: 1, // 02_cast_backswing
+  cast: 2, // 03_cast_forward
+  waiting: 3, // 04_wait_reel
+  bite: 4, // 05_hook_set
+  reeling: 5, // 06_reel_in
 };
+/** quanto tempo o arremesso fica na tela antes de virar espera */
+const CAST_HOLD_MS = 380;
 
 const WALK_SPEED = 200;
 const RUN_SPEED = 360;
 const GRAVITY = 2000;
 const JUMP_V = 700;
-/** altura do Juggler em unidades de mundo, medida na animacao de referencia */
-export const PLAYER_H = 175;
+
+/** Altura do quadro inteiro em unidades de mundo (inclui a vara). */
+export const PLAYER_H = CHAR_FRAME_H;
 
 function clipName(anim: AnimName, facing: Facing): string {
   return `${anim}-${facing}`;
@@ -50,12 +68,10 @@ let preloaded = false;
 function preload() {
   if (preloaded || typeof Image === 'undefined') return;
   preloaded = true;
-  for (const anim of Object.keys(FRAMES) as AnimName[]) {
-    for (const facing of ['left', 'right'] as Facing[]) {
-      for (let i = 0; i < FRAMES[anim]; i++) {
-        const img = new Image();
-        img.src = asset(framePath(anim, facing, i));
-      }
+  for (const clip of Object.keys(CLIP_FRAMES)) {
+    for (let i = 0; i < CLIP_FRAMES[clip]; i++) {
+      const img = new Image();
+      img.src = asset(`char/${clip}/${String(i).padStart(2, '0')}`);
     }
   }
 }
@@ -63,8 +79,10 @@ function preload() {
 interface Options {
   /** false enquanto o celular ou um modal esta aberto */
   active: boolean;
-  /** true quando o Juggler esta pescando: fica parado na pose de pesca */
+  /** true quando o Juggler esta com a vara na mao */
   fishing: boolean;
+  /** em que momento do lance ele esta: define o quadro da pescaria */
+  fishPose?: FishPose;
   /** congela o mundo inteiro: fisica, animacao e camera (a musica continua) */
   paused?: boolean;
 }
@@ -76,12 +94,11 @@ interface Options {
  * do quadro). Sem isso, um `setState` por quadro re-renderizaria o cenario
  * inteiro 60 vezes por segundo.
  *
- * A arte vem com o boneco desenhado em posicoes e escalas diferentes dentro do
- * canvas, entao cada quadro leva uma correcao de ancora e de tamanho vinda de
- * `charFrames.ts` (gerado por scripts/measure-character.py). Sem isso o boneco
- * parece deslizar de lado parado e mudar de tamanho ao trocar de animacao.
+ * Os quadros ja saem do importador alinhados pelo quadril e pelo pe dentro de
+ * um canvas unico, entao a correcao de ancora e uma constante (`CHAR_ANCHOR`)
+ * em vez de uma tabela por quadro.
  */
-export function usePlayer({ active, fishing, paused = false }: Options) {
+export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }: Options) {
   const cameraRef = useRef<HTMLDivElement | null>(null);
   const farRef = useRef<HTMLDivElement | null>(null);
   const midRef = useRef<HTMLDivElement | null>(null);
@@ -104,9 +121,16 @@ export function usePlayer({ active, fishing, paused = false }: Options) {
   const activeRef = useRef(active);
   const fishingRef = useRef(fishing);
   const pausedRef = useRef(paused);
+  const poseRef = useRef<FishPose>(fishPose);
+  /** ha quanto tempo a fase da pescaria mudou: segura o quadro de arremesso */
+  const poseT = useRef(0);
   activeRef.current = active;
   fishingRef.current = fishing;
   pausedRef.current = paused;
+  if (poseRef.current !== fishPose) {
+    poseRef.current = fishPose;
+    poseT.current = 0;
+  }
 
   useEffect(preload, []);
 
@@ -177,6 +201,7 @@ export function usePlayer({ active, fishing, paused = false }: Options) {
 
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
+      poseT.current += dt * 1000;
 
       const k = keys.current;
       const canMove = activeRef.current && !fishingRef.current;
@@ -204,7 +229,7 @@ export function usePlayer({ active, fishing, paused = false }: Options) {
       const airborne = y.current > 0.5;
       let next: AnimName;
       if (fishingRef.current) {
-        next = 'fish-no-rod';
+        next = 'fish';
         // o mar aberto fica a esquerda: pescando, o Juggler encara a agua
         facing.current = 'left';
       } else if (airborne) next = 'jump';
@@ -216,11 +241,26 @@ export function usePlayer({ active, fishing, paused = false }: Options) {
         frame.current = 0;
         frameT.current = 0;
       }
-      frameT.current += dt * 1000;
-      const dur = FRAME_MS[anim.current];
-      while (frameT.current >= dur) {
-        frameT.current -= dur;
-        frame.current = (frame.current + 1) % FRAMES[anim.current];
+
+      const count = CLIP_FRAMES[clipName(anim.current, facing.current)] ?? 1;
+      if (anim.current === 'fish') {
+        // quadro colado na fase do lance, com uma passada rapida pelo arremesso
+        const pose = poseRef.current;
+        const shown =
+          pose === 'waiting' && poseT.current < CAST_HOLD_MS ? 'cast' : pose;
+        frame.current = Math.min(count - 1, FISH_FRAME[shown]);
+      } else if (anim.current === 'jump') {
+        // subindo mostra o impulso, descendo mostra a aterrissagem
+        frame.current = vy.current > 0 ? 0 : Math.min(1, count - 1);
+      } else if (count > 1) {
+        frameT.current += dt * 1000;
+        const dur = FRAME_MS[anim.current];
+        while (frameT.current >= dur) {
+          frameT.current -= dur;
+          frame.current = (frame.current + 1) % count;
+        }
+      } else {
+        frame.current = 0;
       }
 
       // ------------------------------------------------------------ camera
@@ -241,13 +281,6 @@ export function usePlayer({ active, fishing, paused = false }: Options) {
         lastFrameKey = frameKey;
         const el = spriteRef.current;
         el.src = asset(framePath(anim.current, facing.current, frame.current));
-        // correcao de ancora: quadril no eixo do jogador, pe no chao
-        const h = PLAYER_H * (ANIM_SCALE[clip] ?? 1);
-        const k2 = h / CHAR_CANVAS.h;
-        const fix = FRAME_FIX[clip]?.[frame.current];
-        el.style.height = `${h}px`;
-        el.style.marginLeft = `${(fix?.dx ?? 0) * k2}px`;
-        el.style.marginBottom = `${(fix?.dy ?? 0) * k2}px`;
       }
 
       let near: Spot = null;
@@ -283,3 +316,13 @@ export function usePlayer({ active, fishing, paused = false }: Options) {
     playerX: x,
   };
 }
+
+/**
+ * Estilo fixo do sprite do jogador: a ancora do canvas e constante, entao da
+ * para calcular uma vez so em vez de reescrever a cada quadro.
+ */
+export const PLAYER_SPRITE_STYLE = {
+  height: PLAYER_H,
+  marginLeft: (CHAR_ANCHOR.dx * PLAYER_H) / CHAR_CANVAS.h,
+  marginBottom: (CHAR_ANCHOR.dy * PLAYER_H) / CHAR_CANVAS.h,
+};

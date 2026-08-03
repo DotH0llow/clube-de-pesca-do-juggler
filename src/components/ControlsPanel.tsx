@@ -71,7 +71,7 @@ export function ControlsApp() {
             Sazoncoins
           </div>
           <div className="desc">
-            Moeda comum. Vem de peixe vendido, lixo, baús e conquistas. Paga upgrades e pesqueiros novos.
+            Moeda comum. Vem de peixe vendido, lixo, baús e conquistas. Paga upgrades e melhorias.
           </div>
         </div>
       </div>
@@ -87,11 +87,13 @@ export function ControlsApp() {
         </div>
       </div>
 
-      <div className="section-title">Pesqueiros</div>
+      <div className="section-title">Ciclo do dia</div>
       <div className="row">
         <div className="grow desc">
-          Cada pesqueiro tem um teto de raridade. A Enseada do Coral não tem lendário nenhum, por mais
-          que você pesque. Trocar de região no CAIS é o que abre raridade nova.
+          O dia no cais dura 24 minutos e não para: manhã, tarde de temporal, entardecer e madrugada,
+          6 minutos cada. Cada fase tem um teto de raridade — de manhã não sai lendário nenhum, por
+          mais que você pesque. Esperar a fase virar é o que abre raridade nova. O celular mostra que
+          horas são na aba CICLO DO DIA.
         </div>
       </div>
     </>

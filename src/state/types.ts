@@ -61,8 +61,8 @@ export interface Region {
   id: RegionId;
   name: string;
   subtitle: string;
-  /** custo de desbloqueio; null = liberada desde o inicio */
-  unlock: { currency: 'sazoncoins' | 'hydraEyes'; cost: number } | null;
+  /** hora ficticia em que a fase comeca, so para mostrar na tela */
+  time: string;
   /** multiplicador de valor dos peixes vendidos aqui */
   valueMultiplier: number;
   /** deslocamento de peso para raridades altas (0 = neutro) */
@@ -181,8 +181,8 @@ export interface GameState {
   version: number;
   sazoncoins: number;
   hydraEyes: number;
+  /** fase do dia que esta no ar; quem escreve e o relogio, nao o jogador */
   region: RegionId;
-  unlockedRegions: RegionId[];
   upgrades: Record<UpgradeId, number>;
   relics: RelicId[];
   album: Record<string, AlbumEntry>;

@@ -96,7 +96,7 @@ export const BEACH: Prop[] = [
   { sprite: 'props/wooden-oar', x: 1780, y: SAND_Y + 2, h: 100 },
   { sprite: 'props/coastal-rocks', x: 1880, y: SAND_Y + 10, h: 80 },
   { sprite: 'props/sand-grass-patch', x: 1960, y: SAND_Y + 4, h: 44 },
-  { sprite: 'props/palm-tree-side', x: 2050, y: SAND_Y, h: 300 },
+  { sprite: 'nature/fan-palm', x: 2050, y: SAND_Y, h: 300 },
   { sprite: 'props/pier-bench-side', x: 2140, y: SAND_Y + 2, h: 74 },
   { sprite: 'props/seashell', x: 1830, y: SAND_Y + 6, h: 26 },
   { sprite: 'props/starfish', x: 2000, y: SAND_Y + 6, h: 30 },
@@ -113,26 +113,32 @@ export const MARKET: Prop[] = [
 
 /** Cabana do clube, com coqueiro e tralha na frente. */
 export const CABANA: Prop[] = [
-  { sprite: 'props/palm-tree-side', x: 2640, y: SAND_Y, h: 320, flip: true },
+  { sprite: 'nature/coconut-palm', x: 2640, y: SAND_Y, h: 320, flip: true },
   { sprite: 'props/beach-cabana-side', x: 2760, y: SAND_Y + 4, h: 260 },
   { sprite: 'props/pier-bench-side', x: 2900, y: SAND_Y + 2, h: 74, flip: true },
   { sprite: 'props/fishing-line-spool', x: 2700, y: SAND_Y + 2, h: 40 },
   { sprite: 'props/seashell', x: 2900, y: SAND_Y + 6, h: 24, flip: true },
 ];
 
-/** Treeline do fim do mapa: vegetacao fechada, sem passagem. */
+/**
+ * Treeline do fim do mapa: vegetacao fechada, sem passagem.
+ *
+ * A mata mistura especies do pacote `nature` para nao virar um paredao de
+ * coqueiro clonado: mangue e ipe atras, palmeira e amendoeira na frente.
+ */
 export const FOREST: Prop[] = [
-  { sprite: 'props/palm-tree-side', x: FOREST_START + 40, y: SAND_Y + 4, h: 330 },
-  { sprite: 'props/palm-tree-side', x: FOREST_START + 130, y: SAND_Y + 10, h: 290, flip: true, depth: 0.9 },
-  { sprite: 'props/palm-tree-side', x: FOREST_START + 220, y: SAND_Y + 2, h: 350 },
-  { sprite: 'props/palm-tree-side', x: FOREST_START + 320, y: SAND_Y + 8, h: 300, flip: true },
-  { sprite: 'props/palm-tree-side', x: FOREST_START + 410, y: SAND_Y + 4, h: 340, depth: 0.88 },
+  { sprite: 'nature/coconut-palm', x: FOREST_START + 40, y: SAND_Y + 4, h: 330 },
+  { sprite: 'nature/tropical-almond', x: FOREST_START + 130, y: SAND_Y + 10, h: 290, flip: true, depth: 0.9 },
+  { sprite: 'nature/royal-palm', x: FOREST_START + 220, y: SAND_Y + 2, h: 350 },
+  { sprite: 'nature/sea-hibiscus', x: FOREST_START + 320, y: SAND_Y + 8, h: 260, flip: true },
+  { sprite: 'nature/coconut-palm', x: FOREST_START + 410, y: SAND_Y + 4, h: 340, depth: 0.88 },
   { sprite: 'props/coastal-rocks', x: FOREST_START + 60, y: SAND_Y + 12, h: 90 },
   { sprite: 'props/sand-grass-patch', x: FOREST_START - 20, y: SAND_Y + 6, h: 46 },
   { sprite: 'props/sand-grass-patch', x: FOREST_START + 180, y: SAND_Y + 8, h: 42, flip: true },
-  { sprite: 'props/palm-tree-side', x: FOREST_START + 90, y: SAND_Y + 14, h: 260, depth: 0.85, opacity: 0.95 },
-  { sprite: 'props/palm-tree-side', x: FOREST_START + 270, y: SAND_Y + 16, h: 250, flip: true, depth: 0.85, opacity: 0.95 },
-  { sprite: 'props/palm-tree-side', x: FOREST_START + 370, y: SAND_Y + 12, h: 270, depth: 0.86, opacity: 0.95 },
+  { sprite: 'nature/yellow-ipe', x: FOREST_START + 90, y: SAND_Y + 14, h: 280, depth: 0.85, opacity: 0.95 },
+  { sprite: 'nature/black-mangrove', x: FOREST_START + 270, y: SAND_Y + 16, h: 250, flip: true, depth: 0.85, opacity: 0.95 },
+  { sprite: 'nature/casuarina', x: FOREST_START + 370, y: SAND_Y + 12, h: 300, depth: 0.86, opacity: 0.95 },
+  { sprite: 'nature/twisted-trunk', x: FOREST_START + 470, y: SAND_Y + 6, h: 210, depth: 0.9 },
   { sprite: 'props/coastal-rocks', x: FOREST_START + 250, y: SAND_Y + 14, h: 70, flip: true },
 ];
 
@@ -150,6 +156,15 @@ export const SEAFLOOR: Prop[] = [
   { sprite: 'props/seafloor-rocks', x: 1280, y: 708, h: 110, flip: true },
   { sprite: 'props/seashell', x: 1400, y: 704, h: 28 },
   { sprite: 'props/seafloor-hole', x: 1440, y: 712, h: 60, opacity: 0.8 },
+  // bicho de fundo do pacote `marine`: coral, ourico, anemona e companhia
+  { sprite: 'marine/brain-coral', x: 440, y: 708, h: 52 },
+  { sprite: 'marine/staghorn-coral', x: 700, y: 710, h: 76 },
+  { sprite: 'marine/sea-anemone', x: 960, y: 708, h: 44 },
+  { sprite: 'marine/sea-urchin', x: 1080, y: 706, h: 30 },
+  { sprite: 'marine/crab', x: 590, y: 706, h: 34, flip: true },
+  { sprite: 'marine/sea-sponge', x: 1210, y: 708, h: 42 },
+  { sprite: 'marine/sea-cucumber', x: 330, y: 706, h: 26 },
+  { sprite: 'marine/lobster', x: 830, y: 706, h: 32, flip: true },
 ];
 
 /** Detalhe solto na faixa de areia da frente, para a praia nao ficar vazia. */
@@ -161,6 +176,8 @@ export const SHORE: Prop[] = [
   { sprite: 'props/sand-grass-patch', x: 2750, y: SAND_Y + 165, h: 34, opacity: 0.8 },
   { sprite: 'props/starfish', x: 3050, y: SAND_Y + 235, h: 22, flip: true, opacity: 0.8 },
   { sprite: 'props/seashell', x: 1620, y: SAND_Y + 250, h: 20, opacity: 0.75 },
+  { sprite: 'marine/blue-crab', x: 1740, y: SAND_Y + 128, h: 26, opacity: 0.9 },
+  { sprite: 'marine/hermit-crab', x: 2320, y: SAND_Y + 205, h: 22, flip: true, opacity: 0.85 },
   { sprite: 'props/coastal-rocks', x: 1560, y: SAND_Y + 120, h: 54, opacity: 0.9 },
 ];
 
@@ -171,4 +188,7 @@ export const UNDERWATER_LIFE: Prop[] = [
   { sprite: 'fx/underwater-bubbles', x: 620, y: 660, h: 90, opacity: 0.6, className: 'rise' },
   { sprite: 'fx/underwater-bubbles', x: 1180, y: 690, h: 70, opacity: 0.45, className: 'rise slow' },
   { sprite: 'fx/underwater-current-streaks', x: 840, y: 560, h: 60, opacity: 0.3 },
+  { sprite: 'marine/sea-turtle', x: 520, y: 610, h: 54, opacity: 0.8, className: 'drift-slower' },
+  { sprite: 'marine/jellyfish', x: 1260, y: 600, h: 40, opacity: 0.6, className: 'rise slow' },
+  { sprite: 'marine/squid', x: 160, y: 650, h: 44, opacity: 0.55, flip: true, className: 'drift-slow' },
 ];

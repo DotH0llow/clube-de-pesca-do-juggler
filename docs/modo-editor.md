@@ -29,19 +29,32 @@ original de `src/world/layout.ts`, que continua sendo a semente.
 
 ## Controles
 
+**Selecionar e arrastar é só com o botão esquerdo.** O direito não mexe na
+seleção: ele abre o menu de contexto do objeto que está embaixo do cursor.
+
 | Ação | Como |
 | --- | --- |
-| Selecionar | clique no objeto |
-| Mover | arrastar |
+| Selecionar | clique **esquerdo** no objeto |
+| Mover | arrastar com o **esquerdo** |
 | Redimensionar | alças brancas (canto mantém a proporção) |
 | Rotacionar | bolinha azul acima da seleção |
+| Desfazer | `Ctrl+Z` |
+| Refazer | `Ctrl+Shift+Z` ou `Ctrl+Y` |
 | Apagar | `Del` ou menu do botão direito |
 | Ajuste fino | setas (`Shift` = 10 px) |
-| Navegar o mapa | arrastar o fundo vazio |
+| Navegar o mapa | arrastar o fundo vazio, ou o botão do meio em qualquer lugar |
 | Menu | botão direito no objeto |
 | Sair da seleção | `Esc` |
 
 O menu do botão direito tem cadeado, troca de camada, duplicar e apagar.
+
+## Desfazer
+
+`Ctrl+Z` volta um passo; `Ctrl+Shift+Z` (ou `Ctrl+Y`) refaz. Um arrasto inteiro
+conta como **um** passo — a pilha guarda o estado de antes de você pegar o
+objeto, não um estado por quadro do mouse. Esconder ou mostrar uma camada é
+visualização, não edição, e por isso fica fora do histórico. O histórico vive na
+sessão: fechar o jogo zera a pilha (a cena, essa sim, continua salva).
 
 ## Interagíveis
 

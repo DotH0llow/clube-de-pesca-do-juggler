@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { REGION_ORDER, REGIONS } from '../data/regions';
+import { clockLabel, PHASE_MS, useDayPhase } from '../world/dayCycle';
 import type { RegionId } from '../state/types';
 import { RELICS, UPGRADES, upgradeCost } from '../data/upgrades';
 import { playSfx } from '../engine/audio';
 import { useSettings } from '../state/settings';
-import { buyRelic, buyUpgrade, setRegion, unlockRegion, useGame } from '../state/store';
+import { buyRelic, buyUpgrade, useGame } from '../state/store';
 import { Sprite } from './Sprite';
 import { asset } from '../assets';
 
-type Tab = 'loja' | 'altar' | 'mapa';
+type Tab = 'loja' | 'altar' | 'dia';
 
-/** Miniatura do ceu de cada pesqueiro no mapa. */
+/** Miniatura do ceu de cada fase do dia. */
 const REGION_SKY: Record<RegionId, string> = {
   enseada: 'bg/sky-day',
   recife: 'bg/sky-sunset',
@@ -67,8 +68,8 @@ export function ShopApp() {
         <button className={`tab${tab === 'altar' ? ' active' : ''}`} onClick={() => setTab('altar')}>
           ALTAR DA HYDRA
         </button>
-        <button className={`tab${tab === 'mapa' ? ' active' : ''}`} onClick={() => setTab('mapa')}>
-          MAPA
+        <button className={`tab${tab === 'dia' ? ' active' : ''}`} onClick={() => setTab('dia')}>
+          CICLO DO DIA
         </button>
       </div>
 
@@ -132,54 +133,51 @@ export function ShopApp() {
         </>
       )}
 
-      {tab === 'mapa' &&
-        REGION_ORDER.map((id) => {
-          const r = REGIONS[id];
-          const unlocked = s.unlockedRegions.includes(id);
-          const active = s.region === id;
-          const cost = r.unlock;
-          const canBuy =
-            !unlocked &&
-            cost !== null &&
-            (cost.currency === 'sazoncoins' ? s.sazoncoins : s.hydraEyes) >= cost.cost;
-          return (
-            <div className="row" key={id}>
-              <div
-                className="region-thumb"
-                style={{ backgroundImage: `url(${asset(REGION_SKY[id])})` }}
-              />
-              <div className="grow">
-                <div className="title" style={{ color: active ? 'var(--neon)' : undefined }}>
-                  {r.name}
-                </div>
-                <div className="desc">{r.subtitle}</div>
-                <div className="desc">
-                  Valor x{r.valueMultiplier} &middot; raridade +{Math.round(r.rarityBonus * 100)}%
-                  &middot; dificuldade +{Math.round(r.difficulty * 100)}%
-                </div>
+      {tab === 'dia' && <DayCycle />}
+    </>
+  );
+}
+
+/**
+ * O relogio do dia.
+ *
+ * Nao ha nada para comprar aqui: as quatro fases entram no ar sozinhas, 6
+ * minutos cada, e a tela so mostra qual esta valendo e o que ela muda no jogo.
+ */
+function DayCycle() {
+  const phase = useDayPhase();
+  return (
+    <>
+      <div className="desc" style={{ padding: '4px 2px 10px' }}>
+        Um dia no cais dura 24 minutos e nao para: cada fase fica{' '}
+        {Math.round(PHASE_MS / 60000)} minutos no ar e passa a vez sozinha. Agora sao{' '}
+        <strong>{clockLabel()}</strong>.
+      </div>
+      {REGION_ORDER.map((id) => {
+        const r = REGIONS[id];
+        const active = phase === id;
+        return (
+          <div className="row" key={id}>
+            <div
+              className="region-thumb"
+              style={{ backgroundImage: `url(${asset(REGION_SKY[id])})` }}
+            />
+            <div className="grow">
+              <div className="title" style={{ color: active ? 'var(--neon)' : undefined }}>
+                {r.name}
               </div>
-              {unlocked ? (
-                <button
-                  className="btn small"
-                  disabled={active}
-                  onClick={() => {
-                    setRegion(id);
-                    playSfx('ui');
-                  }}
-                >
-                  {active ? 'AQUI' : 'IR'}
-                </button>
-              ) : (
-                <BuyButton
-                  label={`${cost?.cost} ${cost?.currency === 'sazoncoins' ? 'SZ' : 'OLHOS'}`}
-                  disabled={!canBuy}
-                  needsConfirm={settings.confirmEyes && cost?.currency === 'hydraEyes'}
-                  onBuy={() => unlockRegion(id)}
-                />
-              )}
+              <div className="desc">{r.subtitle}</div>
+              <div className="desc">
+                Valor x{r.valueMultiplier} &middot; raridade +{Math.round(r.rarityBonus * 100)}%
+                &middot; dificuldade +{Math.round(r.difficulty * 100)}%
+              </div>
             </div>
-          );
-        })}
+            <span className="chip" style={{ opacity: active ? 1 : 0.55 }}>
+              {active ? 'AGORA' : r.time}
+            </span>
+          </div>
+        );
+      })}
     </>
   );
 }

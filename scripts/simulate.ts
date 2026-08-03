@@ -47,7 +47,6 @@ const CASTS = Number(process.argv[2] ?? 200_000);
 function baseState(p: Profile): GameState {
   const s = createInitialState();
   s.region = p.region;
-  s.unlockedRegions = ['enseada', 'recife', 'naufragio', 'fossa'];
   s.upgrades = { ...s.upgrades, ...p.upgrades };
   return s;
 }

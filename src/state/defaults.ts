@@ -69,7 +69,6 @@ export const createInitialState = (): GameState => ({
   sazoncoins: 0,
   hydraEyes: 0,
   region: 'enseada',
-  unlockedRegions: ['enseada'],
   upgrades: { vara: 0, linha: 0, isca: 0, balde: 0, olho: 0, bencao: 0 },
   relics: [],
   album: {},

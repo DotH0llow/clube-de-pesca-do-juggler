@@ -1,71 +1,88 @@
-# Padrão das animações do Juggler
+# Animações do Juggler
 
-Documento de referência para os quadros do personagem.
+Como a arte do personagem entra no jogo e por que o importador é do jeito que é.
 
-## Estado atual (arte de camisa azul)
+## De onde vem a arte
 
-A arte nova entrou: canvas de `512x512` no original, reduzida para `256x256` em
-webp dentro de `src/assets/game/char/`. As escalas medidas ficaram todas dentro
-de ±6% da referência, então a compensação de tamanho está desligada
-(`ANIM_SCALE = 1.000`) e sobra só o ajuste fino de âncora, de poucos pixels.
+Dois pacotes, ambos desenhados olhando para a **esquerda** (o mar aberto fica à
+esquerda do mapa; a direita é espelhada no importador):
 
-## O problema que a arte antiga tinha (para não repetir)
+* `juggler_new_anim/` — poses estáticas (frente, costas, perfis e três-quartos),
+  `andando/` com dois quadros, `pulo/` com impulso e aterrissagem, e `sentado/`
+  com cinco poses;
+* `fishing-left/` — seis quadros da pescaria, um por momento do lance:
+  `01_ready`, `02_cast_backswing`, `03_cast_forward`, `04_wait_reel`,
+  `05_hook_set`, `06_reel_in`.
 
-Os arquivos eram `113x170`, mas o boneco foi **desenhado em posições e escalas
-diferentes dentro do canvas**:
+## Clipes que o jogo monta
 
-| animação | altura do corpo no canvas | escala relativa ao idle |
+| clipe | quadros | de onde sai |
 |---|---|---|
-| `side-idle` | 170 px (encosta em cima e embaixo) | 1,00 |
-| `walk` | 141 px | 1,21 |
-| `run` | 122 px | 1,27 |
-| `fish-no-rod` | 133 px | 1,19 |
-| `jump` | 100 px | 1,43 |
-| `sit` | 142 px | 1,05 |
+| `side-idle` | 1 | perfil esquerdo parado |
+| `walk` | 4 | pé esquerdo → perfil → pé direito → perfil |
+| `run` | 4 | a mesma arte da caminhada, 25% mais rápida |
+| `jump` | 2 | impulso subindo, aterrissagem descendo |
+| `sit` | 1 | perfil sentado |
+| `fish` | 6 | um quadro por fase do lance |
+| `back-idle` | 1 | vista de costas |
 
-Além disso, dentro do próprio `side-idle` o boneco anda **37 px de lado** entre o
-quadro 00 e o 03 — era isso que fazia ele parecer teletransportar parado.
+Cada clipe vira duas pastas, `-left` e `-right`; a versão da direita é o espelho
+da esquerda, gerado na importação.
 
-## O que qualquer arte nova precisa entregar
+### Correr é caminhar acelerado
 
-1. **Canvas fixo e igual para todos os quadros.** Sugestão: `160x220`, com folga
-   em cima e embaixo (o `113x170` atual corta o chapéu e as sandálias do idle).
-2. **Linha do chão fixa.** O pé de apoio sempre encostando na mesma linha, por
-   exemplo `y = 208` (12 px de folga embaixo). Vale para `side-idle`, `walk`,
-   `run`, `fish-no-rod` e `sit`.
-3. **Eixo vertical fixo.** O quadril sempre na mesma coluna, no centro do canvas
-   (`x = 80`). Braço, vara e cabelo podem passar do centro à vontade; o quadril
-   não.
-4. **Mesma escala de corpo em todas as animações.** Referência: altura do
-   personagem em pé, do chão ao topo do chapéu, de `170 px` no canvas de 220.
-   Correr e pular podem ficar mais baixos pela pose — nunca pelo tamanho do
-   desenho.
-5. **No pulo, o boneco não sobe dentro do canvas.** Quem levanta o personagem é
-   a física do jogo. No quadro do ar, o que muda é a perna encolhendo, com o
-   quadril na mesma altura do quadro de impulso.
-6. **Quadros por animação** (mantendo o que o código já espera):
-   `side-idle` 4 · `walk` 6 · `run` 6 · `jump` 6 · `fish-no-rod` 6 · `sit` 4.
-7. **Pastas e nomes** continuam iguais:
-   `src/assets/game/char/<anim>-<left|right>/00.webp` … e as versões `left` são
-   desenhadas de verdade (o jogo não espelha por CSS).
-8. **Sem pixel solto.** Alguns quadros de `walk` e `run` têm respingo de pixel
-   longe do corpo; isso vira sujeira na tela e bagunça qualquer medição
-   automática.
+`RUN_ANIM_SPEEDUP = 1.25` em `src/world/usePlayer.ts`. O clipe de corrida usa
+exatamente os mesmos quadros da caminhada, só com o tempo de quadro dividido por
+1,25. A velocidade de deslocamento (`RUN_SPEED`) é outra coisa e continua sendo
+decisão de jogabilidade — se um dia o deslize dos pés incomodar, é esse número
+que se mexe.
 
-## Como o jogo compensa hoje
+### A pescaria não roda em loop
 
-`scripts/measure-character.py` mede cada quadro e gera `src/world/charFrames.ts`
-com dois ajustes que o `usePlayer` aplica na hora de trocar o quadro:
+Como a arte tem uma pose por momento do lance, o quadro sai da fase e não do
+relógio: `idle` mostra a pose de espera, `power` o movimento para trás, `bite` a
+fisgada, e por aí vai. A fase `waiting` passa rápido pelo arremesso
+(`CAST_HOLD_MS`) antes de assentar. Enquanto o Juggler está com a vara na mão, a
+vara fincada no deck some — a arte já traz uma.
 
-* `FRAME_FIX[clip][i] = { dx, dy }` — desloca o quadro para o quadril cair no
-  eixo do jogador e o pé no chão;
-* `ANIM_SCALE[clip]` — corrige o tamanho do boneco por animação.
+### O pulo segue a física, não o cronômetro
 
-Depois de trocar a arte, rode:
+Subindo mostra o impulso, descendo mostra a aterrissagem. Quem decide é o sinal
+da velocidade vertical.
+
+## O que o importador resolve
+
+`scripts/import-character.py` existe porque a arte crua não é utilizável direto:
+
+1. **Escala.** Cada PNG foi desenhado numa resolução diferente, então o boneco
+   tem tamanho diferente em cada arquivo. A normalização usa a **largura do
+   chapéu** nas vistas de perfil (é a única medida que não muda com a pose) e a
+   altura do corpo nas vistas de frente e de costas.
+2. **Fundo branco.** Os quadros de caminhada e de pescaria vieram com fundo
+   chapado. A remoção é por preenchimento a partir da borda, nunca por limiar
+   global — o Juggler tem barba branca e flores brancas na camisa.
+3. **A vara.** É uma linha fina que atravessa metade do quadro e estragaria
+   qualquer medida de âncora. O "corpo" sai de uma erosão da máscara: o que
+   sobra é só o volume do personagem.
+4. **Alinhamento.** Todo quadro é colado num canvas único com o quadril no mesmo
+   x e o pé no mesmo y. Por isso `charFrames.ts` não tem mais tabela de correção
+   por quadro: sobrou uma constante (`CHAR_ANCHOR`).
+
+## Rodando de novo
 
 ```bash
-python3 scripts/measure-character.py
+ANIM_DIR=~/juggler_new_anim FISH_DIR=~/fishing-left python3 scripts/import-character.py
 ```
 
-Com os quadros padronizados os `dx/dy` ficam perto de zero e as escalas viram
-`1.000`. Aí dá para simplesmente apagar a compensação, se quiser.
+O script reescreve `src/assets/game/char/` e `src/world/charFrames.ts`
+(canvas, altura do quadro em unidades de mundo, âncora e contagem de quadros).
+Requer `pillow`, `numpy` e `scipy`.
+
+## Se a arte mudar de novo
+
+O importador aguenta canvas de tamanhos diferentes, mas ajuda muito se a arte
+nova vier com:
+
+* o personagem sempre de perfil olhando para a **esquerda** nos clipes laterais;
+* fundo transparente (ou branco chapado, que o script resolve);
+* nenhum pixel solto longe do corpo — vira sujeira e bagunça a medição.

@@ -184,6 +184,19 @@ let state: SceneState = typeof localStorage === 'undefined' ? seedScene() : load
 const listeners = new Set<() => void>();
 let saveTimer: number | undefined;
 
+/**
+ * Historico de desfazer.
+ *
+ * Cada alteracao empilha o estado ANTERIOR em `past`. Arrastar um objeto
+ * dispara uma alteracao por quadro do mouse, entao o arrasto inteiro entra num
+ * lote (`beginBatch`/`endBatch`): a pilha guarda so o estado de antes de pegar
+ * o objeto, e um Ctrl+Z devolve tudo de uma vez.
+ */
+const HISTORY_MAX = 120;
+let past: SceneState[] = [];
+let future: SceneState[] = [];
+let batching = false;
+
 function persist() {
   if (typeof localStorage === 'undefined') return;
   if (saveTimer !== undefined) clearTimeout(saveTimer);
@@ -196,10 +209,58 @@ function persist() {
   }, 200);
 }
 
-function set(next: SceneState) {
-  state = next;
+function notify() {
   persist();
   for (const l of listeners) l();
+}
+
+function set(next: SceneState, record = true) {
+  if (record && !batching) {
+    past.push(state);
+    if (past.length > HISTORY_MAX) past.shift();
+    future = [];
+  }
+  state = next;
+  notify();
+}
+
+/** Abre um lote: o arrasto inteiro vira um unico passo do desfazer. */
+export function beginBatch(): void {
+  if (batching) return;
+  past.push(state);
+  if (past.length > HISTORY_MAX) past.shift();
+  future = [];
+  batching = true;
+}
+
+export function endBatch(): void {
+  batching = false;
+}
+
+export function undo(): boolean {
+  const prev = past.pop();
+  if (!prev) return false;
+  future.push(state);
+  state = prev;
+  notify();
+  return true;
+}
+
+export function redo(): boolean {
+  const next = future.pop();
+  if (!next) return false;
+  past.push(state);
+  state = next;
+  notify();
+  return true;
+}
+
+export function canUndo(): boolean {
+  return past.length > 0;
+}
+
+export function canRedo(): boolean {
+  return future.length > 0;
 }
 
 export function getScene(): SceneState {
@@ -269,7 +330,7 @@ export function toggleLayer(layer: LayerId): void {
   const hidden = state.hidden.includes(layer)
     ? state.hidden.filter((l) => l !== layer)
     : [...state.hidden, layer];
-  set({ ...state, hidden });
+  set({ ...state, hidden }, false);
 }
 
 export function resetScene(): void {

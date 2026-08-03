@@ -35,8 +35,9 @@ import {
 } from './state/casino';
 import { debugEnabled } from './game/balance';
 import { useSettings } from './state/settings';
-import { claimDaily, dailyAvailable, dailyPreview, useGame } from './state/store';
-import { usePlayer } from './world/usePlayer';
+import { claimDaily, dailyAvailable, dailyPreview, syncRegion, useGame } from './state/store';
+import { usePlayer, type FishPose } from './world/usePlayer';
+import { clockLabel, useDayPhase } from './world/dayCycle';
 
 interface Toast {
   id: number;
@@ -75,6 +76,20 @@ export default function App() {
     setToasts((t) => [...t.slice(-3), { id, text, kind }]);
     window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3600);
   }, []);
+
+  // o dia anda sozinho: o save so acompanha a fase que esta no ar
+  const dayPhase = useDayPhase();
+  const firstPhase = useRef(true);
+  useEffect(() => {
+    syncRegion(dayPhase);
+    // a primeira passada e so o estado inicial: nao vira aviso de virada
+    if (firstPhase.current) {
+      firstPhase.current = false;
+      return;
+    }
+    pushToast(`${REGIONS[dayPhase].name.toUpperCase()} - ${clockLabel()}`, 'ach');
+    playSfx('ui');
+  }, [dayPhase, pushToast]);
 
   const handleOutcome = useCallback(
     (o: Outcome) => {
@@ -118,9 +133,12 @@ export default function App() {
     showMarket ||
     ladderBase !== null ||
     Boolean(session.cardOffer);
+  // a arte da pescaria tem uma pose por momento do lance
+  const fishPose: FishPose = phase === 'result' ? 'idle' : phase;
   const player = usePlayer({
     active: view === 'mundo' && !busy,
     fishing,
+    fishPose,
     paused: phoneOpen || editor,
   });
 
@@ -237,7 +255,7 @@ export default function App() {
     if (dailyAvailable()) setShowDaily(true);
   };
 
-  const region = REGIONS[s.region];
+  const region = REGIONS[dayPhase];
   const styleVars = useMemo(
     () =>
       ({
@@ -273,7 +291,7 @@ export default function App() {
   return (
     <div className={rootClass} style={styleVars}>
       <World
-        region={s.region}
+        region={dayPhase}
         phase={phase}
         pending={pending}
         fishing={fishing}
@@ -315,7 +333,9 @@ export default function App() {
           </button>
           <div className="region-tag">
             {region.name}
-            <small>{region.subtitle}</small>
+            <small>
+              {clockLabel()} &middot; {region.subtitle}
+            </small>
           </div>
         </div>
 

@@ -3,14 +3,20 @@ import { asset } from '../assets';
 import { ASSET_LIST } from '../assets/dims';
 import {
   addSprite,
+  beginBatch,
+  canRedo,
+  canUndo,
   duplicateObject,
+  endBatch,
   exportScene,
   importScene,
   moveToLayer,
+  redo,
   removeObject,
   resetScene,
   toggleLayer,
   toggleLock,
+  undo,
   updateObject,
   useScene,
 } from './scene';
@@ -51,6 +57,10 @@ function useLibrary() {
  * Regras que valem aqui:
  *   - o jogo fica parado; nada de andar ou pescar;
  *   - so da para pegar objeto da camada ativa, e objeto travado nao responde;
+ *   - selecionar e arrastar e coisa do botao ESQUERDO. O direito so abre o
+ *     menu de contexto, sem mexer no que esta selecionado;
+ *   - Ctrl+Z desfaz e Ctrl+Shift+Z (ou Ctrl+Y) refaz. Um arrasto inteiro conta
+ *     como um passo so;
  *   - tudo o que muda vai direto para a cena, que e a mesma que o jogo desenha.
  */
 export function EditorOverlay({ camXRef, scale, onExit }: Props) {
@@ -97,6 +107,16 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+
+      // desfazer / refazer valem mesmo sem nada selecionado
+      if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyZ' || e.code === 'KeyY')) {
+        e.preventDefault();
+        const wantRedo = e.code === 'KeyY' || e.shiftKey;
+        if (wantRedo) redo();
+        else undo();
+        return;
+      }
+
       if (e.code === 'Escape') {
         setMenu(null);
         setSelected(null);
@@ -135,22 +155,30 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
     const px = e.clientX - rect.left;
     const py = e.clientY - rect.top;
     const w = toWorld(px, py);
-    const found = hit(w.x, w.y);
 
+    // botao direito: so o menu de contexto, sem mexer na selecao
     if (e.button === 2) {
       const any = scene.objects
         .filter((o) => o.layer === layer && !scene.hidden.includes(o.layer))
         .reverse()
         .find((o) => w.x >= o.x && w.x <= o.x + o.w && w.y >= o.y && w.y <= o.y + o.h);
-      if (any) {
-        setSelected(any.locked ? null : any.id);
-        setMenu({ x: px, y: py, id: any.id });
-      }
+      if (any) setMenu({ x: px, y: py, id: any.id });
       return;
     }
 
+    // botao do meio: so navega pelo mapa
+    if (e.button === 1) {
+      drag.current = { mode: 'pan', px, cam };
+      return;
+    }
+
+    // daqui para baixo e so o botao esquerdo
+    if (e.button !== 0) return;
+
+    const found = hit(w.x, w.y);
     if (found) {
       setSelected(found.id);
+      beginBatch();
       drag.current = { mode: 'move', id: found.id, ox: found.x, oy: found.y, px, py };
     } else {
       setSelected(null);
@@ -226,6 +254,7 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
 
     const onUp = (ev: PointerEvent) => {
       drag.current = null;
+      endBatch();
       if (!dragAsset) return;
       const el = host();
       const rect = el?.getBoundingClientRect();
@@ -256,8 +285,9 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
   }, [dragAsset, scale, cam, layer, toWorld]);
 
   const startHandle = (e: React.PointerEvent, handle: Handle) => {
-    if (!sel) return;
+    if (!sel || e.button !== 0) return;
     e.stopPropagation();
+    beginBatch();
     const host = (e.currentTarget as HTMLElement).closest('.editor-canvas') as HTMLElement;
     const rect = host.getBoundingClientRect();
     drag.current = {
@@ -271,8 +301,9 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
   };
 
   const startRotate = (e: React.PointerEvent) => {
-    if (!sel) return;
+    if (!sel || e.button !== 0) return;
     e.stopPropagation();
+    beginBatch();
     const host = (e.currentTarget as HTMLElement).closest('.editor-canvas') as HTMLElement;
     const rect = host.getBoundingClientRect();
     const c = toScreen(sel.x + sel.w / 2, sel.y + sel.h / 2);
@@ -361,6 +392,12 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
       {/* ------------------------------------------------------------ topo */}
       <div className="editor-bar">
         <span className="editor-badge">MODO EDITOR</span>
+        <button className="ebtn" disabled={!canUndo()} onClick={() => undo()} title="Ctrl+Z">
+          DESFAZER
+        </button>
+        <button className="ebtn" disabled={!canRedo()} onClick={() => redo()} title="Ctrl+Shift+Z">
+          REFAZER
+        </button>
         <button className="ebtn" onClick={() => setPanel(panel === 'biblioteca' ? null : 'biblioteca')}>
           BIBLIOTECA
         </button>
@@ -386,7 +423,8 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
         </button>
         <div className="grow" />
         <span className="editor-tip">
-          ARRASTA MOVE &middot; ALÇAS REDIMENSIONAM &middot; BOTÃO DIREITO ABRE O MENU &middot; DEL APAGA
+          CLIQUE ESQUERDO SELECIONA E ARRASTA &middot; ALÇAS REDIMENSIONAM &middot; BOTÃO DIREITO
+          ABRE O MENU &middot; CTRL+Z DESFAZ &middot; DEL APAGA
         </span>
         <button className="ebtn primary" onClick={onExit}>
           SAIR DO EDITOR
@@ -457,6 +495,7 @@ export function EditorOverlay({ camXRef, scale, onExit }: Props) {
                       className="elib-item"
                       title={path}
                       onPointerDown={(e) => {
+                        if (e.button !== 0) return;
                         e.preventDefault();
                         setDragAsset(path);
                         setGhost({ x: e.clientX, y: e.clientY });

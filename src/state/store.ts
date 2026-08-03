@@ -2,7 +2,6 @@ import { useSyncExternalStore } from 'react';
 import { ACHIEVEMENTS, ACHIEVEMENTS_BY_ID } from '../data/achievements';
 import { FAMILIES, FAMILY_MEMBERS } from '../data/fish';
 import { matchesOrder, orderForDay, type MarketOrder } from '../data/market';
-import { REGIONS } from '../data/regions';
 import { RELICS_BY_ID, UPGRADES_BY_ID, upgradeCost } from '../data/upgrades';
 import { shardGain } from '../engine/fishing';
 import { SHARDS_FOR_LEGENDARY } from '../engine/outcomes';
@@ -357,28 +356,15 @@ export function buyRelic(id: RelicId): boolean {
   return true;
 }
 
-export function unlockRegion(id: RegionId): boolean {
-  const s = state;
-  const region = REGIONS[id];
-  if (!region.unlock || s.unlockedRegions.includes(id)) return false;
-  const { currency, cost } = region.unlock;
-  if (currency === 'sazoncoins' && s.sazoncoins < cost) return false;
-  if (currency === 'hydraEyes' && s.hydraEyes < cost) return false;
-
-  let next: GameState = {
-    ...s,
-    sazoncoins: currency === 'sazoncoins' ? s.sazoncoins - cost : s.sazoncoins,
-    hydraEyes: currency === 'hydraEyes' ? s.hydraEyes - cost : s.hydraEyes,
-    unlockedRegions: [...s.unlockedRegions, id],
-    region: id,
-  };
-  next = grantAchievements(next).state;
-  set(next);
-  return true;
-}
-
-export function setRegion(id: RegionId): void {
-  if (!state.unlockedRegions.includes(id) || state.region === id) return;
+/**
+ * Sincroniza o save com a fase do dia que esta no ar.
+ *
+ * O jogador nao escolhe mais onde pesca: o relogio escolhe por ele. O campo
+ * `region` continua existindo porque a pescaria, o album e o mercado leem dali
+ * - so quem escreve mudou.
+ */
+export function syncRegion(id: RegionId): void {
+  if (state.region === id) return;
   set({ ...state, region: id });
 }
 

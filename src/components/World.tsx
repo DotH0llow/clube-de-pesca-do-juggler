@@ -16,7 +16,7 @@ import {
   WORLD_H,
   WORLD_W,
 } from '../world/layout';
-import { PLAYER_H } from '../world/usePlayer';
+import { PLAYER_SPRITE_STYLE } from '../world/usePlayer';
 import { SceneLayer } from './SceneLayer';
 import { FishSprite } from './Sprite';
 import { Sky } from './Sky';
@@ -167,8 +167,9 @@ export function World({
           {/* cenario: pier, praia, mercado, cabana e a mata do fim do mapa */}
           <SceneLayer layer="cenario" />
 
-          {/* objetos soltos, inclusive a vara fincada no deck */}
-          <SceneLayer layer="objetos" casting={fishing} />
+          {/* objetos soltos. A vara fincada some quando o Juggler pega a dele:
+              a arte da pescaria ja vem com vara na mao. */}
+          <SceneLayer layer="objetos" hideRod={fishing} />
 
           {/* ------------------------------------------- linha, boia, peixe */}
           {inWater && (
@@ -200,7 +201,7 @@ export function World({
               className="player-sprite"
               src={asset('char/side-idle-left/00')}
               alt="Juggler"
-              style={{ height: PLAYER_H }}
+              style={PLAYER_SPRITE_STYLE}
             />
             <div className="player-shadow" />
           </div>

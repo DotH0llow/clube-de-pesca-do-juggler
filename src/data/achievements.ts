@@ -158,19 +158,19 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'turista_recife',
     name: 'Passaporte Neon',
-    desc: 'Desbloqueie o Recife Neon.',
+    desc: 'Pesque durante o Entardecer no Recife.',
     category: 'prestigio',
     goal: 1,
-    progress: (s) => (s.unlockedRegions.includes('recife') ? 1 : 0),
+    progress: (s) => (s.region === 'recife' ? 1 : 0),
     reward: { sazoncoins: 1000 },
   },
   {
     id: 'mergulho_fossa',
     name: 'Fundo do Fundo',
-    desc: 'Desbloqueie a Fossa da Hydra.',
+    desc: 'Pesque durante a Madrugada na Fossa.',
     category: 'prestigio',
     goal: 1,
-    progress: (s) => (s.unlockedRegions.includes('fossa') ? 1 : 0),
+    progress: (s) => (s.region === 'fossa' ? 1 : 0),
     reward: { sazoncoins: 20000 },
   },
   {
