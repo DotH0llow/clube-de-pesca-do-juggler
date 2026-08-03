@@ -9,25 +9,21 @@ import {
   CASH_OUT_MIN_STREAK,
   CASH_OUT_RELEVANT_BONUS,
   CASH_OUT_REPEAT_EVERY,
-  CATCHES_PER_SPIN,
   JACKPOT_METER_MAX,
   METER_GAIN_BY_RARITY,
   METER_GAIN_MISSION_LINE,
   METER_GAIN_NEW_RECORD,
   METER_GAIN_PERFECT_CAST,
-  TIDE_WHEEL_REWARDS,
   bonusSchoolMultiplier,
-  type TideWheelRewardId,
 } from '../game/balance';
 import {
   calculateCatchReward,
   streakMultiplierFor,
-  weightedPickFrom,
   type RewardBreakdown,
 } from '../game/systems/RewardCalculator';
 import type { HiddenFishModifier, JackpotTier } from '../game/balance';
 import { getState, updateState } from './store';
-import type { CasinoMechanicsState, LuckyCardId, TideWheelResult } from './casinoTypes';
+import type { CasinoMechanicsState, LuckyCardId } from './casinoTypes';
 import type { Rarity } from './types';
 
 /**
@@ -57,7 +53,6 @@ interface SessionState {
   /** cartas oferecidas aguardando escolha */
   cardOffer: LuckyCard[] | null;
   /** resultado da roda ja sorteado, esperando a animacao */
-  wheelResult: TideWheelResult | null;
   lastSummary: { secured: number; pending: number; multiplier: number } | null;
 }
 
@@ -66,7 +61,6 @@ const emptySession = (): SessionState => ({
   temporaryMultiplier: 1,
   rareBaitCasts: 0,
   cardOffer: null,
-  wheelResult: null,
   lastSummary: null,
 });
 
@@ -209,7 +203,6 @@ export interface CatchOutcome {
   tierUp: boolean;
   offerCashOut: boolean;
   offerLadder: boolean;
-  gotSpin: boolean;
 }
 
 /**
@@ -248,14 +241,13 @@ export function registerCatch(ctx: CatchContext): CatchOutcome {
   if (ctx.newRecord) meterGain += METER_GAIN_NEW_RECORD;
   if (ctx.perfect) meterGain += METER_GAIN_PERFECT_CAST;
 
-  // --- roda
-  const spinsBefore = c.tideWheel.availableSpins;
-  let catchesUntilNextSpin = c.tideWheel.catchesUntilNextSpin - 1;
-  let availableSpins = c.tideWheel.availableSpins;
-  if (catchesUntilNextSpin <= 0) {
-    availableSpins += 1;
-    catchesUntilNextSpin = CATCHES_PER_SPIN;
-  }
+  /*
+   * A roda da mare saiu do jogo.
+   *
+   * `c.tideWheel` continua no save de proposito: apagar o campo invalidaria
+   * progresso de quem ja jogou, e nao ha ganho nenhum nisso. Ele so nao e mais
+   * alimentado nem lido.
+   */
 
   patchCasino((cur) => ({
     ...cur,
@@ -270,7 +262,6 @@ export function registerCatch(ctx: CatchContext): CatchOutcome {
       value: Math.min(JACKPOT_METER_MAX, cur.jackpotMeter.value + meterGain),
       jackpotReady: cur.jackpotMeter.value + meterGain >= JACKPOT_METER_MAX || cur.jackpotMeter.jackpotReady,
     },
-    tideWheel: { availableSpins, catchesUntilNextSpin },
     statistics: {
       ...cur.statistics,
       highestStreakMultiplier: Math.max(cur.statistics.highestStreakMultiplier, multiplier),
@@ -324,7 +315,6 @@ export function registerCatch(ctx: CatchContext): CatchOutcome {
     tierUp,
     offerCashOut,
     offerLadder: ['raro', 'epico', 'lendario', 'mitico'].includes(ctx.rarity),
-    gotSpin: availableSpins > spinsBefore,
   };
 }
 
@@ -392,60 +382,7 @@ export function loseStreak(_reason: string): number {
  * Sorteia o premio ANTES da animacao, como manda a spec: a interface so recebe
  * um resultado pronto e gira ate ele.
  */
-export function spinTideWheel(): TideWheelResult | null {
-  const c = casino();
-  if (c.tideWheel.availableSpins <= 0) return null;
-
-  const reward = weightedPickFrom(TIDE_WHEEL_REWARDS);
-  const index = TIDE_WHEEL_REWARDS.findIndex((r) => r.id === reward.id);
-  const result: TideWheelResult = { id: reward.id, label: reward.label, index };
-
-  patchCasino((cur) => ({
-    ...cur,
-    tideWheel: { ...cur.tideWheel, availableSpins: cur.tideWheel.availableSpins - 1 },
-    statistics: { ...cur.statistics, tideWheelSpins: cur.statistics.tideWheelSpins + 1 },
-  }));
-  patchSession({ wheelResult: result });
-  return result;
-}
-
 /** Aplica o premio depois que a animacao termina. */
-export function applyWheelReward(id: TideWheelRewardId): void {
-  const reward = TIDE_WHEEL_REWARDS.find((r) => r.id === id);
-  if (!reward) return;
-
-  const coins = 'coins' in reward ? reward.coins : 0;
-  if (coins) {
-    updateState((s) => ({
-      ...s,
-      sazoncoins: s.sazoncoins + coins,
-      lifetimeValue: s.lifetimeValue + coins,
-      stats: { ...s.stats, totalEarned: s.stats.totalEarned + coins },
-    }));
-  }
-
-  switch (id) {
-    case 'temporary-multiplier':
-      patchSession({ temporaryMultiplier: 2 });
-      break;
-    case 'rare-bait':
-      patchSession({ rareBaitCasts: 3 });
-      break;
-    case 'bonus-school':
-      startBonusSchool();
-      break;
-    case 'lucky-card':
-      offerCards();
-      break;
-    case 'jackpot-progress':
-      addMeter(20);
-      break;
-    default:
-      break;
-  }
-  patchSession({ wheelResult: null });
-}
-
 // ==================================================== cardume bonus
 
 export function startBonusSchool(): void {
@@ -522,7 +459,6 @@ function grantLineReward(lines: number): void {
     stats: { ...s.stats, totalEarned: s.stats.totalEarned + coins },
     casino: {
       ...s.casino,
-      tideWheel: { ...s.casino.tideWheel, availableSpins: s.casino.tideWheel.availableSpins + 1 },
     },
   }));
   addMeter(METER_GAIN_MISSION_LINE);
@@ -617,9 +553,6 @@ export const debugActions = {
   },
   fillMeter() {
     patchCasino((c) => ({ ...c, jackpotMeter: { value: JACKPOT_METER_MAX, jackpotReady: true } }));
-  },
-  grantSpin() {
-    patchCasino((c) => ({ ...c, tideWheel: { ...c.tideWheel, availableSpins: c.tideWheel.availableSpins + 1 } }));
   },
   grantCard: offerCards,
   startSchool: startBonusSchool,

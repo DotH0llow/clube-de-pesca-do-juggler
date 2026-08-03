@@ -1,17 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { asset } from '../../assets';
 import type { LuckyCard } from '../../data/luckyCards';
-import { PRIZE_LADDER, TIDE_WHEEL_REWARDS } from '../../game/balance';
-import { playCatch, playSfx } from '../../engine/audio';
+import { PRIZE_LADDER } from '../../game/balance';
+import { playSfx } from '../../engine/audio';
 import {
-  applyWheelReward,
   cashOut,
   chooseCard,
   creditLadder,
   dismissCardOffer,
   registerLadderStep,
-  spinTideWheel,
-  useSession,
 } from '../../state/casino';
 import { useGame } from '../../state/store';
 import { Sprite } from '../Sprite';
@@ -65,96 +62,6 @@ export function CashOutModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ============================================================ roda da mare
-
-/**
- * Roda da Mare. O premio JA foi sorteado por `spinTideWheel` antes de a
- * animacao comecar; aqui a roda so gira ate o segmento certo.
- */
-export function TideWheelModal({ onClose }: { onClose: () => void }) {
-  const s = useGame();
-  const session = useSession();
-  const [angle, setAngle] = useState(0);
-  const [spinning, setSpinning] = useState(false);
-  const [done, setDone] = useState<string | null>(null);
-  const timer = useRef<number | undefined>(undefined);
-
-  useEffect(() => () => window.clearTimeout(timer.current), []);
-
-  const slice = 360 / TIDE_WHEEL_REWARDS.length;
-
-  const spin = () => {
-    if (spinning) return;
-    const result = spinTideWheel();
-    if (!result) return;
-    setSpinning(true);
-    setDone(null);
-    playSfx('unlock');
-    // 5 voltas cheias + o segmento sorteado
-    const target = 360 * 5 + (360 - result.index * slice - slice / 2);
-    setAngle(target);
-    timer.current = window.setTimeout(() => {
-      applyWheelReward(result.id);
-      setDone(result.label);
-      setSpinning(false);
-      playCatch('raro');
-    }, 3400);
-  };
-
-  const spins = s.casino.tideWheel.availableSpins;
-
-  return (
-    <div className="modal-backdrop" onClick={spinning ? undefined : onClose}>
-      <div className="sheet wheel-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-head">
-          <h2>RODA DA MARÉ</h2>
-          <button className="btn ghost small" onClick={onClose} disabled={spinning}>
-            FECHAR
-          </button>
-        </div>
-        <div className="sheet-body daily-body">
-          <div className="wheel-wrap">
-            <div className="wheel-pin" />
-            <div
-              className="wheel"
-              style={{
-                transform: `rotate(${angle}deg)`,
-                transition: spinning ? 'transform 3.3s cubic-bezier(.17,.67,.24,1)' : 'none',
-              }}
-            >
-              {TIDE_WHEEL_REWARDS.map((r, i) => (
-                <div
-                  key={r.id}
-                  className={`wheel-slice s${i % 4}`}
-                  style={{ transform: `rotate(${i * slice}deg) skewY(${90 - slice}deg)` }}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="flavor">
-            {done ? done : spinning ? 'A MARÉ ESTÁ GIRANDO...' : `GIROS DISPONÍVEIS: ${spins}`}
-          </div>
-
-          <div className="wheel-legend">
-            {TIDE_WHEEL_REWARDS.map((r) => (
-              <div key={r.id} className="legend-line">
-                <span>{r.label}</span>
-                <b>{r.weight}%</b>
-              </div>
-            ))}
-          </div>
-
-          <button className="btn primary" onClick={spin} disabled={spinning || spins <= 0}>
-            {spins > 0 ? 'GIRAR' : 'SEM GIROS'}
-          </button>
-        </div>
-      </div>
-      {session.wheelResult && null}
     </div>
   );
 }

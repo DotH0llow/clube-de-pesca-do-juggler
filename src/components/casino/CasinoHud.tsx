@@ -29,7 +29,6 @@ export function CasinoHud({ fishing }: { fishing: boolean }) {
 
   const streak = s.casino.streak;
   const meter = s.casino.jackpotMeter;
-  const wheel = s.casino.tideWheel;
   const tier = nextStreakTier(streak.current);
 
   if (!fishing && streak.pendingCoins === 0 && !schoolOn) return null;
@@ -81,10 +80,6 @@ export function CasinoHud({ fishing }: { fishing: boolean }) {
 
       {open && (
         <div className="hud-extra">
-          <div className="hud-line">
-            GIRO EM {wheel.catchesUntilNextSpin} CAPTURAS
-            {wheel.availableSpins > 0 && <b> &middot; {wheel.availableSpins} DISPONÍVEL</b>}
-          </div>
           <div className="hud-line">
             CARTELA {s.casino.missionBoard.tiles.filter((t) => t.completed).length}/9
           </div>

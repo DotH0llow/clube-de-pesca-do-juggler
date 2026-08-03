@@ -3,7 +3,6 @@ import {
   HIDDEN_FISH_MODIFIERS,
   JACKPOT_TIERS,
   STREAK_TIERS,
-  TIDE_WHEEL_REWARDS,
 } from '../../game/balance';
 import { newMissionBoard } from '../../state/casino';
 import { useGame } from '../../state/store';
@@ -79,17 +78,6 @@ export function MissionApp() {
 
       <div className="row odds">
         <div className="grow">
-          <div className="title">RODA DA MARÉ</div>
-          {TIDE_WHEEL_REWARDS.map((r) => (
-            <div className="desc" key={r.id}>
-              {r.label} &mdash; {r.weight}%
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="row odds">
-        <div className="grow">
           <div className="title">MULTIPLICADOR ESCONDIDO</div>
           {(Object.keys(HIDDEN_FISH_MODIFIERS) as (keyof typeof HIDDEN_FISH_MODIFIERS)[]).map((k) => (
             <div className="desc" key={k}>
@@ -122,8 +110,6 @@ export function MissionApp() {
           MAIOR MULTIPLICADOR: X{s.casino.statistics.highestStreakMultiplier}
           <br />
           PEIXES JACKPOT: {s.casino.statistics.jackpotFishCaught}
-          <br />
-          GIROS: {s.casino.statistics.tideWheelSpins}
           <br />
           MELHOR ETAPA DA ESCADA: {s.casino.statistics.prizeLadderBestStep}
           <br />
