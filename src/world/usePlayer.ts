@@ -4,9 +4,11 @@ import { clamp } from '../engine/rng';
 import { getDevFlags } from '../state/dev';
 import { getSettings } from '../state/settings';
 import { clipConfig, frameAt, seqLength } from '../editor/anims';
-import { inZone, rodX } from '../editor/scene';
+import { blockWalls, inZone, rodX, thresholdX, zoneRect } from '../editor/scene';
+import { getFx } from '../editor/fx';
 import { CHAR_ANCHOR, CHAR_CANVAS, CHAR_FRAME_H, CLIP_FRAMES } from './charFrames';
-import { groundAt, WALK_MAX, WALK_MIN, WORLD_H, WORLD_W } from './layout';
+import { camMinX, groundAt, WORLD_W } from './layout';
+import { getWorld, useWorld } from './worldConfig';
 
 export type Facing = 'left' | 'right';
 export type AnimName = 'side-idle' | 'walk' | 'run' | 'jump' | 'fish' | 'sit';
@@ -119,11 +121,22 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
   const playerRef = useRef<HTMLDivElement | null>(null);
   const spriteRef = useRef<HTMLImageElement | null>(null);
 
+  const world = useWorld();
   const [spot, setSpot] = useState<Spot>(null);
   const [viewH, setViewH] = useState(() =>
-    typeof window === 'undefined' ? WORLD_H : window.innerHeight,
+    typeof window === 'undefined' ? world.frameH : window.innerHeight,
   );
   const [zoom, setZoom] = useState(1);
+  /**
+   * O enquadramento do limiar do pier.
+   *
+   * 1 = a moldura normal da praia. Menor que 1 = camera aberta, mostrando o mar
+   * fundo. O valor anda suave entre `frameLand` e `frameSea` conforme o Juggler
+   * cruza a caixa LIMIAR DO PIER, e e por isso que a tela "respira" quando ele
+   * sai do deck para a areia.
+   */
+  const [frame, setFrame] = useState(() => getWorld().frameLand);
+  const frameRef = useRef(frame);
 
   const x = useRef(1780);
   const vx = useRef(0);
@@ -153,13 +166,43 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
   pausedRef.current = paused;
   poseRef.current = fishPose;
 
-  const scale = (viewH / WORLD_H) * zoom;
+  /*
+   * Escala e deslocamento.
+   *
+   * O mundo ficou seis vezes mais fundo, entao escalar pela altura TOTAL faria
+   * o jogo virar um selo. Quem manda na escala e a MOLDURA (`frameH`): o tanto
+   * de mundo que se quer ver de uma vez. O mar continua descendo bem abaixo
+   * disso, so que fora da tela.
+   *
+   * E o deslocamento nao centraliza mais: ele ancora a LINHA D'AGUA numa altura
+   * fixa da tela. Assim, quando a camera abre no pier, o horizonte fica parado
+   * e o que entra e agua embaixo - em vez de a cena inteira escorregar.
+   */
+  const scale = (viewH / world.frameH) * zoom * frame;
   scaleRef.current = scale;
-  /** com zoom o mundo passa da altura da tela: centraliza em vez de cortar embaixo */
-  const viewY = (viewH - WORLD_H * scale) / 2;
+  const viewY = viewH * world.waterAnchor - world.waterY * scale;
   viewYRef.current = viewY;
 
   useEffect(preload, []);
+
+  /**
+   * Onde o Juggler fica quando a pescaria comeca.
+   *
+   * Era o ponto em que ele estivesse quando apertou E, o que deixava a linha
+   * saindo torta se ele parasse na beirada da area. Agora o lugar e escolhido
+   * na secao MECANICAS do editor (`timings.fishX`); sem escolha, ele para no
+   * meio da area de interacao da vara, que e o comportamento antigo.
+   */
+  useEffect(() => {
+    if (!fishing) return;
+    const alvo = getFx().timings.fishX;
+    if (alvo !== null) {
+      x.current = alvo;
+      return;
+    }
+    const z = zoneRect('vara');
+    x.current = z ? z.x + z.w / 2 : rodX();
+  }, [fishing]);
 
   // ------------------------------------------------------------- teclado
   useEffect(() => {
@@ -235,6 +278,7 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
     let last = performance.now();
     let lastSpot: Spot = null;
     let lastFrameKey = '';
+    let frameShown = frameRef.current;
 
     /** camera e parallax vao direto pro DOM, sem passar por render do React */
     const writeCamera = () => {
@@ -279,7 +323,9 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
       vx.current = dir * speed;
       if (dir !== 0) facing.current = dir > 0 ? 'right' : 'left';
 
-      x.current = clamp(x.current + vx.current * dt, WALK_MIN, WALK_MAX);
+      // as paredes sao objetos de cena agora: quem barra e a caixa que voce
+      // arrastou no editor, nao mais duas constantes escondidas no codigo
+      x.current = blockWalls(x.current, x.current + vx.current * dt);
 
       const grounded = y.current <= 0.001 && vy.current <= 0;
       if (wantJump && grounded) {
@@ -342,7 +388,8 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
       // ------------------------------------------------------------ camera
       // congelado, quem manda na camera e o editor (ele escreve em camX direto)
       const view = window.innerWidth / scaleRef.current;
-      const maxX = Math.max(0, WORLD_W - view);
+      const minX = camMinX();
+      const maxX = Math.max(minX, WORLD_W - view);
       if (frozen) {
         // o editor escreve em camX direto, e a conta dele nao conhece a camera
         // livre: zerar aqui garante que a caixa de selecao caia sobre o sprite
@@ -364,19 +411,44 @@ export function usePlayer({ active, fishing, fishPose = 'idle', paused = false }
         }
         const boost = k.has('ShiftLeft') || k.has('ShiftRight') ? 2.2 : 1;
         const speed = (FREE_CAM_SPEED * boost * dt) / Math.max(0.25, scaleRef.current);
-        camX.current = clamp(camX.current + Math.sign(dx) * speed, 0, maxX);
+        camX.current = clamp(camX.current + Math.sign(dx) * speed, minX, maxX);
         // so da para subir e descer quando o zoom faz o mundo passar da tela
-        const over = Math.max(0, WORLD_H * scaleRef.current - window.innerHeight);
+        const over = Math.max(0, getWorld().frameH * scaleRef.current - window.innerHeight);
         const maxY = over / scaleRef.current / 2;
         camY.current = clamp(camY.current + Math.sign(dy) * speed, -maxY, maxY);
       } else if (free) {
         // camera livre com painel aberto: a tela fica onde estava
       } else {
         const focus = fishingRef.current ? rodX() - 90 : x.current;
-        const target = clamp(focus - view / 2, 0, maxX);
+        const target = clamp(focus - view / 2, minX, maxX);
         const smooth = getSettings().animations ? 1 - Math.pow(0.001, dt) : 1;
         camX.current += (target - camX.current) * smooth;
         camY.current += (0 - camY.current) * smooth;
+      }
+
+      /*
+       * O limiar do pier.
+       *
+       * A esquerda da caixa LIMIAR o enquadramento vai para `frameSea` (camera
+       * aberta, mar fundo aparecendo); a direita, para `frameLand` (fechada, so
+       * a superficie). A troca e suave: `frameEase` diz em quantos segundos.
+       */
+      const mundo = getWorld();
+      const limiar = thresholdX();
+      const alvoFrame = limiar === null || x.current > limiar ? mundo.frameLand : mundo.frameSea;
+      if (frozen) {
+        frameRef.current = alvoFrame;
+      } else if (Math.abs(frameRef.current - alvoFrame) > 0.0005) {
+        const suave = mundo.frameEase <= 0 ? 1 : 1 - Math.pow(0.001, dt / mundo.frameEase);
+        frameRef.current += (alvoFrame - frameRef.current) * suave;
+      } else {
+        frameRef.current = alvoFrame;
+      }
+      // so avisa o React quando o numero muda de verdade: a virada dura menos de
+      // um segundo e o resto do tempo isso nao re-renderiza nada
+      if (Math.abs(frameRef.current - frameShown) > 0.002) {
+        frameShown = frameRef.current;
+        setFrame(frameRef.current);
       }
 
       writeCamera();

@@ -1,3 +1,5 @@
+import { getWorld, seaLeft } from './worldConfig';
+
 /**
  * Planta do mundo lateral. A leitura da esquerda para a direita e:
  *
@@ -11,6 +13,17 @@
  * caber na altura da viewport, entao esses numeros nunca mudam.
  */
 
+/**
+ * ATENCAO: os numeros deste arquivo sao SEMENTE.
+ *
+ * Eles montam o mundo na primeira vez e continuam servindo de referencia para a
+ * posicao de cada prop. Quem manda em tempo de jogo - linha d'agua, fundo do
+ * mar, largura da agua, faixa de areia, enquadramento - e a configuracao de
+ * `worldConfig.ts`, que a secao MUNDO do editor edita. Para ler o valor que
+ * esta valendo agora use `getWorld()` ou os ajudantes do fim deste arquivo.
+ */
+
+/** Altura de ENQUADRAMENTO: o tanto de mundo que cabe na tela com zoom 1. */
 export const WORLD_H = 720;
 export const WORLD_W = 3400;
 
@@ -64,15 +77,33 @@ export const BOBBER_Y = WATER_Y + 30;
 export const WALK_MIN = PIER_START + 50;
 export const WALK_MAX = FOREST_START + 10;
 
-/** Altura do chao em cada ponto do mundo. */
+/**
+ * Altura do chao em cada ponto do mundo.
+ *
+ * Le do `worldConfig`, nao das constantes: mexer no topo da areia ou no piso do
+ * deck pelo editor tem de mover o chao junto, senao o Juggler anda no ar.
+ */
 export function groundAt(x: number): number {
-  if (x <= PIER_END) return PIER_Y;
+  const w = getWorld();
+  if (x <= PIER_END) return w.pierY;
   if (x < PIER_END + PIER_RAMP) {
     // rampinha de saida do deck para a areia
     const t = (x - PIER_END) / PIER_RAMP;
-    return PIER_Y + (SAND_Y - PIER_Y) * t;
+    return w.pierY + (w.sandY - w.pierY) * t;
   }
-  return SAND_Y;
+  return w.sandY;
+}
+
+/**
+ * Ate onde a camera pode ir.
+ *
+ * O mar aberto passou a se estender MUITO para a esquerda (quatro vezes o que
+ * era). Prender a camera no zero do mundo faria toda essa agua ficar fora da
+ * tela justamente quando o enquadramento abre na ponta do pier, que e onde ela
+ * deveria aparecer. Entao o limite da esquerda e a borda da agua.
+ */
+export function camMinX(): number {
+  return seaLeft();
 }
 
 /**
