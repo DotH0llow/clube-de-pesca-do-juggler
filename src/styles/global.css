@@ -972,8 +972,6 @@ button {
   gap: 8px;
   padding: 5px 8px;
   font-size: 12px;
-  background: var(--screen-ink);
-  color: var(--screen);
 }
 
 .phone-wallet {
@@ -986,6 +984,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 7px 8px;
   font-size: 15px;
   letter-spacing: 1px;
@@ -1011,33 +1010,6 @@ button {
   gap: 8px;
 }
 
-.phone-dock {
-  display: flex;
-  gap: 2px;
-  padding: 5px 4px;
-  background: var(--screen-2);
-  border-top: 3px solid var(--screen-line);
-}
-
-.phone-app {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 5px 2px;
-  font-size: 10px;
-  color: var(--screen-ink);
-  opacity: 0.55;
-  border: 2px solid transparent;
-}
-
-.phone-app.active {
-  opacity: 1;
-  background: var(--screen);
-  border-color: var(--screen-ink);
-}
-
 .phone-home {
   position: absolute;
   left: 50%;
@@ -1050,13 +1022,145 @@ button {
   border-radius: 12px;
 }
 
-.phone-strap {
-  position: absolute;
-  right: -14px;
-  top: 40px;
-  height: 90px;
+/* --------------------------------------------- tela do celular (tema escuro)
+   A tela usa as mesmas variaveis dos paineis, so que trocadas: assim todo
+   painel que ja existia (album, cais, conquistas...) fica legivel no escuro
+   sem precisar de regra propria. */
+
+.phone-screen {
+  --screen: #0d1a23;
+  --screen-2: #162c39;
+  --screen-ink: #dff0f8;
+  --screen-line: #2b4d61;
+}
+
+.phone-screen .card,
+.phone-screen .row,
+.phone-screen .app-summary {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.phone-screen .bar,
+.phone-screen .pip {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.phone-screen .section-title {
+  color: #6fd8ff;
+}
+
+.phone-screen .tab.active {
+  background: #6fd8ff;
+  color: #06202e;
+}
+
+.phone-screen .btn {
+  color: #06202e;
+}
+
+.phone-screen .btn.ghost {
+  color: var(--screen-ink);
+}
+
+.phone-status {
+  background: #06131a;
+  color: #cfe7f2;
+}
+
+.phone-os {
+  opacity: 0.6;
+  letter-spacing: 1px;
+}
+
+/* ------------------------------------------------------ tela inicial */
+
+.phone-home-screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 14px;
+  overflow-y: auto;
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(66, 176, 214, 0.28), transparent 70%),
+    linear-gradient(180deg, #10222d 0%, #0a141b 100%);
+}
+
+.phone-hero {
+  text-align: center;
+  padding: 6px 0 2px;
+}
+
+.phone-hero-title {
+  font-size: 17px;
+  letter-spacing: 2px;
+  color: #ffd166;
+}
+
+.phone-hero-sub {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 3px;
+}
+
+.phone-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px 10px;
+}
+
+.phone-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #dff0f8;
+}
+
+.phone-icon .tile {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.3),
+    0 3px 0 rgba(0, 0, 0, 0.45);
+}
+
+.phone-icon:hover .tile,
+.phone-icon:focus-visible .tile {
+  filter: brightness(1.15);
+}
+
+.phone-icon:active .tile {
+  transform: translateY(2px);
+}
+
+.phone-icon .name {
+  font-size: 10px;
+  letter-spacing: 0.5px;
   opacity: 0.9;
-  transform: rotate(18deg);
+}
+
+.phone-hint {
+  margin-top: auto;
+  text-align: center;
+  font-size: 10px;
+  opacity: 0.45;
+}
+
+.phone-back {
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+  background: var(--screen-ink);
+  color: var(--screen);
 }
 
 /* ==========================================================================
@@ -2187,4 +2291,483 @@ button {
   font-size: 14px;
   opacity: 0.8;
   max-width: 380px;
+}
+
+
+/* --------------------------------------------------------------- pausa
+   Celular aberto congela o mundo: fisica, animacao de sprite e as animacoes
+   de CSS do cenario. O radio segue tocando de proposito. */
+
+.app.paused .stage *,
+.app.paused .stage {
+  animation-play-state: paused !important;
+}
+
+
+/* ==========================================================================
+   CENA EM CAMADAS
+   O jogo e o editor desenham a mesma lista de objetos.
+   ========================================================================== */
+
+.scene-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.wobj {
+  position: absolute;
+  transform-origin: 50% 50%;
+}
+
+.rod-obj {
+  transform-origin: 50% 90%;
+  transition: transform 0.25s ease-out;
+}
+
+.wobj-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.under-tint {
+  filter: saturate(0.85) brightness(0.82) drop-shadow(0 0 6px rgba(2, 30, 50, 0.5));
+}
+
+.wobj .balanco {
+  animation: obj-rock 4.5s ease-in-out infinite alternate;
+  transform-origin: 50% 100%;
+}
+
+@keyframes obj-rock {
+  from {
+    transform: rotate(-1.6deg) translateY(0);
+  }
+  to {
+    transform: rotate(1.6deg) translateY(-5px);
+  }
+}
+
+.no-anim .wobj .balanco {
+  animation: none;
+}
+
+/* ==========================================================================
+   MODO EDITOR
+   ========================================================================== */
+
+.editor {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  font-family: var(--font);
+  color: #e8f4fb;
+  pointer-events: none;
+}
+
+.editor > * {
+  pointer-events: auto;
+}
+
+.editor-canvas {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+  background: rgba(6, 20, 30, 0.12);
+}
+
+.editor-zone {
+  position: absolute;
+  border: 3px dashed rgba(120, 240, 190, 0.9);
+  background: rgba(60, 220, 170, 0.16);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.editor-zone span {
+  font-size: 12px;
+  letter-spacing: 1px;
+  background: rgba(10, 40, 34, 0.85);
+  color: #a9ffe2;
+  padding: 2px 6px;
+}
+
+.editor-zone.on {
+  border-color: #ffd166;
+  background: rgba(255, 209, 102, 0.18);
+}
+
+.editor-sel {
+  position: absolute;
+  border: 2px solid #ffd166;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.editor-sel .h {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #ffd166;
+  border: 2px solid #23303a;
+  pointer-events: auto;
+}
+
+.editor-sel .h.nw { left: -7px; top: -7px; cursor: nwse-resize; }
+.editor-sel .h.ne { right: -7px; top: -7px; cursor: nesw-resize; }
+.editor-sel .h.sw { left: -7px; bottom: -7px; cursor: nesw-resize; }
+.editor-sel .h.se { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.editor-sel .h.n { left: 50%; top: -7px; margin-left: -6px; cursor: ns-resize; }
+.editor-sel .h.s { left: 50%; bottom: -7px; margin-left: -6px; cursor: ns-resize; }
+.editor-sel .h.e { right: -7px; top: 50%; margin-top: -6px; cursor: ew-resize; }
+.editor-sel .h.w { left: -7px; top: 50%; margin-top: -6px; cursor: ew-resize; }
+
+.editor-sel .rot {
+  position: absolute;
+  left: 50%;
+  top: -30px;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border-radius: 50%;
+  background: #6fd8ff;
+  border: 2px solid #23303a;
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.editor-ghost {
+  position: absolute;
+  height: 120px;
+  opacity: 0.7;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.editor-bar,
+.editor-layers,
+.editor-panel,
+.editor-menu {
+  background: rgba(10, 22, 30, 0.94);
+  border: 2px solid #2c4d61;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.4);
+}
+
+.editor-bar {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+}
+
+.editor-badge {
+  background: #ffd166;
+  color: #10222d;
+  padding: 3px 8px;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+.editor-tip {
+  font-size: 10px;
+  opacity: 0.55;
+}
+
+.editor .grow {
+  flex: 1;
+}
+
+.ebtn {
+  font-family: var(--font);
+  font-size: 12px;
+  padding: 5px 9px;
+  color: #dff0f8;
+  background: #1b3342;
+  border: 2px solid #33586e;
+}
+
+.ebtn:hover {
+  background: #24455a;
+}
+
+.ebtn.primary {
+  background: #1f7a4d;
+  border-color: #2fbf7a;
+}
+
+.ebtn.danger {
+  background: #7a2333;
+  border-color: #bf3f56;
+}
+
+.editor-layers {
+  position: absolute;
+  left: 8px;
+  top: 54px;
+  width: 210px;
+  padding: 8px;
+}
+
+.etitle {
+  font-size: 11px;
+  letter-spacing: 1px;
+  opacity: 0.65;
+  margin-bottom: 6px;
+}
+
+.elayer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.elayer .ename {
+  flex: 1;
+  text-align: left;
+  font-family: var(--font);
+  font-size: 12px;
+  color: #cfe6f2;
+  background: none;
+  border: none;
+  padding: 3px 4px;
+}
+
+.elayer.active .ename {
+  background: #ffd166;
+  color: #10222d;
+}
+
+.ehint {
+  font-size: 10px;
+  opacity: 0.5;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.einspect {
+  margin-top: 10px;
+  border-top: 2px solid #2c4d61;
+  padding-top: 8px;
+}
+
+.eline {
+  font-size: 11px;
+  opacity: 0.85;
+  line-height: 1.5;
+}
+
+.erow {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.editor-panel {
+  position: absolute;
+  right: 8px;
+  top: 54px;
+  bottom: 8px;
+  width: 268px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.elib,
+.elist {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.elib-cat {
+  font-size: 10px;
+  letter-spacing: 1px;
+  opacity: 0.5;
+  margin: 8px 0 4px;
+}
+
+.elib-cat .off {
+  color: #ff9a9a;
+}
+
+.elib-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.elib-item {
+  height: 54px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid #2c4d61;
+  padding: 2px;
+  cursor: grab;
+}
+
+.elib-item img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.eitem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  font-family: var(--font);
+  font-size: 11px;
+  color: #cfe6f2;
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid transparent;
+  padding: 4px 5px;
+  margin-bottom: 2px;
+  text-align: left;
+}
+
+.eitem.on {
+  border-color: #ffd166;
+}
+
+.eitem.locked {
+  opacity: 0.55;
+}
+
+.eitem .lock {
+  color: #ffd166;
+}
+
+.eitem .mini {
+  font-size: 9px;
+  opacity: 0.6;
+  border: 1px solid #33586e;
+  padding: 1px 4px;
+}
+
+.editor-menu {
+  position: absolute;
+  width: 210px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 70;
+}
+
+.emenu-title {
+  font-size: 11px;
+  opacity: 0.6;
+  padding: 2px 4px 5px;
+  border-bottom: 2px solid #2c4d61;
+}
+
+.emenu-sep {
+  font-size: 9px;
+  opacity: 0.45;
+  padding: 6px 4px 2px;
+}
+
+.editor-menu button {
+  font-family: var(--font);
+  font-size: 12px;
+  text-align: left;
+  padding: 5px 6px;
+  color: #dff0f8;
+  background: #16303e;
+  border: 2px solid #2c4d61;
+}
+
+.editor-menu button:hover:not(:disabled) {
+  background: #24455a;
+}
+
+.editor-menu button:disabled {
+  opacity: 0.4;
+}
+
+.editor-menu button.danger {
+  background: #7a2333;
+  border-color: #bf3f56;
+}
+
+/* ------------------------------------------------------------ painel de dev */
+
+.dev-chip {
+  font-family: var(--font);
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 3px 7px;
+  color: #ffd166;
+  background: rgba(10, 22, 30, 0.75);
+  border: 2px solid #4a6a3a;
+  margin-right: 8px;
+}
+
+.dev-panel {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 65;
+  width: 300px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #e8f4fb;
+  font-family: var(--font);
+  background: rgba(10, 22, 30, 0.96);
+  border: 2px solid #2c4d61;
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.45);
+}
+
+.dev-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+.dev-head .grow {
+  flex: 1;
+}
+
+.dev-badge {
+  background: #7fc23c;
+  color: #10222d;
+  padding: 2px 7px;
+  font-size: 12px;
+}
+
+.dev-wallet {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.dev-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.ebtn.wide {
+  width: 100%;
+  padding: 9px;
+  font-size: 13px;
+}
+
+.dev-hint {
+  font-size: 10px;
+  opacity: 0.5;
+  line-height: 1.4;
 }

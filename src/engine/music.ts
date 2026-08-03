@@ -152,6 +152,70 @@ export function stopRadio(): void {
   emit();
 }
 
+/**
+ * Liga o radio assim que o jogo abre, ja na tela de titulo.
+ *
+ * Navegador moderno bloqueia audio antes de qualquer gesto do usuario, entao a
+ * tentativa direta pode falhar. Quando falha, a gente arma o primeiro clique,
+ * toque ou tecla da pagina para ligar - sem pedir nada para o jogador.
+ */
+let autoStarted = false;
+export function autoStartRadio(): void {
+  if (autoStarted || TRACKS.length === 0) return;
+  autoStarted = true;
+
+  const el = ensure();
+  if (!el) return;
+
+  /** Tenta tocar agora. Se o navegador recusar, arma o proximo gesto. */
+  const attempt = () => {
+    const s = getSettings();
+    if (s.muted || s.music <= 0) {
+      arm();
+      return;
+    }
+    if (state.playing) return;
+    if (!el.src) {
+      state = {
+        ...state,
+        index: state.shuffle ? Math.floor(Math.random() * TRACKS.length) : state.index,
+      };
+      el.src = TRACKS[state.index].url;
+    }
+    el.volume = volume();
+    el.play().then(
+      () => {
+        state = { ...state, playing: true };
+        emit();
+      },
+      () => {
+        // autoplay bloqueado (ou faixa ainda nao liberada): espera um gesto
+        state = { ...state, playing: false };
+        emit();
+        arm();
+      },
+    );
+  };
+
+  let armed = false;
+  const arm = () => {
+    if (armed) return;
+    armed = true;
+    const once = () => {
+      armed = false;
+      window.removeEventListener('pointerdown', once);
+      window.removeEventListener('keydown', once);
+      window.removeEventListener('touchstart', once);
+      attempt();
+    };
+    window.addEventListener('pointerdown', once);
+    window.addEventListener('keydown', once);
+    window.addEventListener('touchstart', once);
+  };
+
+  attempt();
+}
+
 /** Faixas do restaurante: existem no repo, mas ainda nao no jogo. */
 export const RESTAURANT_TRACKS = [
   'ALEX MALHEIROS - PAPAIA',

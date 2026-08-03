@@ -1,12 +1,18 @@
 # Padrão das animações do Juggler
 
-Documento de referência para regerar os quadros do personagem. Enquanto a arte
-nova não chega, o jogo compensa as diferenças por código (veja o fim do arquivo).
+Documento de referência para os quadros do personagem.
 
-## O problema que a arte atual tem
+## Estado atual (arte de camisa azul)
 
-Todos os arquivos já são `113x170`, mas o boneco foi **desenhado em posições e
-escalas diferentes dentro do canvas**:
+A arte nova entrou: canvas de `512x512` no original, reduzida para `256x256` em
+webp dentro de `src/assets/game/char/`. As escalas medidas ficaram todas dentro
+de ±6% da referência, então a compensação de tamanho está desligada
+(`ANIM_SCALE = 1.000`) e sobra só o ajuste fino de âncora, de poucos pixels.
+
+## O problema que a arte antiga tinha (para não repetir)
+
+Os arquivos eram `113x170`, mas o boneco foi **desenhado em posições e escalas
+diferentes dentro do canvas**:
 
 | animação | altura do corpo no canvas | escala relativa ao idle |
 |---|---|---|
@@ -20,7 +26,7 @@ escalas diferentes dentro do canvas**:
 Além disso, dentro do próprio `side-idle` o boneco anda **37 px de lado** entre o
 quadro 00 e o 03 — era isso que fazia ele parecer teletransportar parado.
 
-## O que a arte nova precisa entregar
+## O que qualquer arte nova precisa entregar
 
 1. **Canvas fixo e igual para todos os quadros.** Sugestão: `160x220`, com folga
    em cima e embaixo (o `113x170` atual corta o chapéu e as sandálias do idle).

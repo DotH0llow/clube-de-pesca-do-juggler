@@ -71,6 +71,13 @@ def main():
     for anim, frames in data.items():
         scales[anim] = float(ref_area / np.mean([np.sqrt(m['area']) for m in frames]))
 
+    # Arte padronizada: quando todas as animacoes ficam dentro de +-12% da
+    # referencia, a diferenca e pose (correr encolhe, pular encolhe mais), nao
+    # tamanho de desenho. Nesse caso a compensacao vira 1 e ninguem distorce.
+    if all(abs(v - 1) <= 0.12 for v in scales.values()):
+        scales = {k: 1.0 for k in scales}
+        print('  arte padronizada: escala 1.000 em tudo')
+
     fixes = {}
     for anim, frames in data.items():
         if anim in AIRBORNE:

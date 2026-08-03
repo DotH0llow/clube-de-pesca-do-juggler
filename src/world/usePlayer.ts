@@ -2,19 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../assets';
 import { clamp } from '../engine/rng';
 import { getSettings } from '../state/settings';
+import { inZone, rodX } from '../editor/scene';
 import { ANIM_SCALE, CHAR_CANVAS, FRAME_FIX } from './charFrames';
-import {
-  BOBBER_X,
-  groundAt,
-  MARKET_REACH,
-  MARKET_X,
-  ROD_REACH,
-  ROD_X,
-  WALK_MAX,
-  WALK_MIN,
-  WORLD_H,
-  WORLD_W,
-} from './layout';
+import { groundAt, WALK_MAX, WALK_MIN, WORLD_H, WORLD_W } from './layout';
 
 export type Facing = 'left' | 'right';
 export type AnimName = 'side-idle' | 'walk' | 'run' | 'jump' | 'fish-no-rod' | 'sit';
@@ -45,7 +35,7 @@ const RUN_SPEED = 360;
 const GRAVITY = 2000;
 const JUMP_V = 700;
 /** altura do Juggler em unidades de mundo, medida na animacao de referencia */
-export const PLAYER_H = 132;
+export const PLAYER_H = 175;
 
 function clipName(anim: AnimName, facing: Facing): string {
   return `${anim}-${facing}`;
@@ -75,6 +65,8 @@ interface Options {
   active: boolean;
   /** true quando o Juggler esta pescando: fica parado na pose de pesca */
   fishing: boolean;
+  /** congela o mundo inteiro: fisica, animacao e camera (a musica continua) */
+  paused?: boolean;
 }
 
 /**
@@ -89,7 +81,7 @@ interface Options {
  * `charFrames.ts` (gerado por scripts/measure-character.py). Sem isso o boneco
  * parece deslizar de lado parado e mudar de tamanho ao trocar de animacao.
  */
-export function usePlayer({ active, fishing }: Options) {
+export function usePlayer({ active, fishing, paused = false }: Options) {
   const cameraRef = useRef<HTMLDivElement | null>(null);
   const farRef = useRef<HTMLDivElement | null>(null);
   const midRef = useRef<HTMLDivElement | null>(null);
@@ -111,8 +103,10 @@ export function usePlayer({ active, fishing }: Options) {
   const keys = useRef(new Set<string>());
   const activeRef = useRef(active);
   const fishingRef = useRef(fishing);
+  const pausedRef = useRef(paused);
   activeRef.current = active;
   fishingRef.current = fishing;
+  pausedRef.current = paused;
 
   useEffect(preload, []);
 
@@ -157,7 +151,30 @@ export function usePlayer({ active, fishing }: Options) {
     let lastSpot: Spot = null;
     let lastFrameKey = '';
 
+    /** camera e parallax vao direto pro DOM, sem passar por render do React */
+    const writeCamera = () => {
+      if (cameraRef.current) {
+        cameraRef.current.style.transform = `translate3d(${-camX.current}px,0,0)`;
+      }
+      // parallax: quanto mais longe, menos anda
+      if (farRef.current) {
+        farRef.current.style.transform = `translate3d(${-camX.current * 0.22}px,0,0)`;
+      }
+      if (midRef.current) {
+        midRef.current.style.transform = `translate3d(${-camX.current * 0.52}px,0,0)`;
+      }
+    };
+
     const step = (now: number) => {
+      // pausado (celular aberto ou editor): o mundo congela, mas a camera
+      // continua obedecendo - e assim que o editor navega pelo mapa
+      if (pausedRef.current) {
+        last = now;
+        writeCamera();
+        raf = requestAnimationFrame(step);
+        return;
+      }
+
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
 
@@ -208,22 +225,12 @@ export function usePlayer({ active, fishing }: Options) {
 
       // ------------------------------------------------------------ camera
       const view = window.innerWidth / (window.innerHeight / WORLD_H);
-      const focus = fishingRef.current ? (ROD_X + BOBBER_X) / 2 : x.current;
+      const focus = fishingRef.current ? rodX() - 107 : x.current;
       const target = clamp(focus - view / 2, 0, Math.max(0, WORLD_W - view));
       const smooth = getSettings().animations ? 1 - Math.pow(0.001, dt) : 1;
       camX.current += (target - camX.current) * smooth;
 
-      // ------------------------------------------------------------ escrita
-      if (cameraRef.current) {
-        cameraRef.current.style.transform = `translate3d(${-camX.current}px,0,0)`;
-      }
-      // parallax: quanto mais longe, menos anda
-      if (farRef.current) {
-        farRef.current.style.transform = `translate3d(${-camX.current * 0.22}px,0,0)`;
-      }
-      if (midRef.current) {
-        midRef.current.style.transform = `translate3d(${-camX.current * 0.52}px,0,0)`;
-      }
+      writeCamera();
       if (playerRef.current) {
         const gy = groundAt(x.current) - y.current;
         playerRef.current.style.transform = `translate3d(${x.current}px,${gy}px,0)`;
@@ -245,8 +252,8 @@ export function usePlayer({ active, fishing }: Options) {
 
       let near: Spot = null;
       if (!fishingRef.current) {
-        if (Math.abs(x.current - ROD_X) < ROD_REACH) near = 'vara';
-        else if (Math.abs(x.current - MARKET_X) < MARKET_REACH) near = 'mercado';
+        if (inZone('vara', x.current)) near = 'vara';
+        else if (inZone('mercado', x.current)) near = 'mercado';
       }
       if (near !== lastSpot) {
         lastSpot = near;
@@ -266,6 +273,8 @@ export function usePlayer({ active, fishing }: Options) {
     midRef,
     playerRef,
     spriteRef,
+    /** posicao da camera: o editor escreve aqui para navegar pelo mapa */
+    camXRef: camX,
     spot,
     nearRod: spot === 'vara',
     nearMarket: spot === 'mercado',

@@ -10,6 +10,8 @@ import {
   DebugPanel,
 } from './components/casino/CasinoModals';
 import { CatchPopup } from './components/CatchPopup';
+import { DevPanel } from './components/DevPanel';
+import { EditorOverlay } from './editor/EditorOverlay';
 import { MarketApp } from './components/MarketPanel';
 import { Sheet } from './components/Sheet';
 import { Phone } from './components/Phone';
@@ -21,6 +23,7 @@ import { ACHIEVEMENTS_BY_ID } from './data/achievements';
 import { FAMILIES } from './data/fish';
 import { REGIONS } from './data/regions';
 import { initAudio, playSfx, startAmbience, stopAmbience } from './engine/audio';
+import { autoStartRadio } from './engine/music';
 import { SHARDS_FOR_LEGENDARY } from './engine/outcomes';
 import { useFishingLoop, type Outcome } from './hooks/useFishingLoop';
 import {
@@ -57,8 +60,15 @@ export default function App() {
   >(null);
   const [showDebug, setShowDebug] = useState(false);
   const [showMarket, setShowMarket] = useState(false);
+  const [showDev, setShowDev] = useState(false);
+  const [editor, setEditor] = useState(false);
   const toastId = useRef(0);
   const session = useSession();
+
+  // radio ligado desde a tela de titulo
+  useEffect(() => {
+    autoStartRadio();
+  }, []);
 
   const pushToast = useCallback((text: string, kind: Toast['kind'] = 'coin') => {
     const id = ++toastId.current;
@@ -100,6 +110,7 @@ export default function App() {
   const { phase, pending, outcome, startCast, lockPower, hook, finishReel, dismiss, abort } = loop;
 
   const busy =
+    editor ||
     phoneOpen ||
     showDaily ||
     showCashOut ||
@@ -107,7 +118,11 @@ export default function App() {
     showMarket ||
     ladderBase !== null ||
     Boolean(session.cardOffer);
-  const player = usePlayer({ active: view === 'mundo' && !busy, fishing });
+  const player = usePlayer({
+    active: view === 'mundo' && !busy,
+    fishing,
+    paused: phoneOpen || editor,
+  });
 
   // ---------------------------------------------------- ambiencia liga/desliga
   useEffect(() => {
@@ -153,6 +168,12 @@ export default function App() {
   useEffect(() => {
     if (view !== 'mundo') return;
     const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'F8') {
+        e.preventDefault();
+        setShowDev((d) => !d);
+        return;
+      }
+      if (editor) return;
       if (e.code === 'F9' && debugEnabled()) {
         e.preventDefault();
         setShowDebug((d) => !d);
@@ -208,6 +229,7 @@ export default function App() {
     abort,
     startFishing,
     openMarket,
+    editor,
   ]);
 
   const enterGame = () => {
@@ -232,6 +254,7 @@ export default function App() {
     s.relics.includes('skin_neon') ? 'neon' : '',
     settings.animations ? '' : 'no-anim',
     settings.hints ? '' : 'no-hints',
+    phoneOpen || editor ? 'paused' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -262,6 +285,7 @@ export default function App() {
         scale={player.scale}
       />
 
+      {!editor && (
       <div className="ui-layer">
         <div className="topbar">
           <button
@@ -286,6 +310,9 @@ export default function App() {
             </span>
           </div>
           <div className="spacer" />
+          <button className="dev-chip" onClick={() => setShowDev(true)} title="Painel de dev (F8)">
+            DEV
+          </button>
           <div className="region-tag">
             {region.name}
             <small>{region.subtitle}</small>
@@ -395,6 +422,7 @@ export default function App() {
           </div>
         )}
       </div>
+      )}
 
       {phase === 'result' && outcome && (
         <CatchPopup
@@ -438,6 +466,22 @@ export default function App() {
       {schoolSummary && (
         <BonusSchoolSummary summary={schoolSummary} onClose={() => setSchoolSummary(null)} />
       )}
+      {showDev && (
+        <DevPanel
+          onClose={() => setShowDev(false)}
+          onEditor={() => {
+            abort();
+            setFishing(false);
+            setShowDev(false);
+            setEditor(true);
+          }}
+        />
+      )}
+
+      {editor && (
+        <EditorOverlay camXRef={player.camXRef} scale={player.scale} onExit={() => setEditor(false)} />
+      )}
+
       {showDebug && (
         <DebugPanel
           onClose={() => setShowDebug(false)}

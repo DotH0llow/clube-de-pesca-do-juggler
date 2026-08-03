@@ -478,6 +478,24 @@ export function claimDaily(): DailyReward | null {
   return reward;
 }
 
+/**
+ * Cheat de desenvolvimento: entra dinheiro do nada.
+ * Fica atras do painel de dev, nao existe caminho normal ate aqui.
+ */
+export function grantCheat(sazoncoins: number, hydraEyes: number): void {
+  set({
+    ...state,
+    sazoncoins: state.sazoncoins + sazoncoins,
+    hydraEyes: state.hydraEyes + hydraEyes,
+    stats: {
+      ...state.stats,
+      totalEarned: state.stats.totalEarned + sazoncoins,
+      eyesEarned: state.stats.eyesEarned + hydraEyes,
+    },
+    lifetimeValue: state.lifetimeValue + sazoncoins,
+  });
+}
+
 export function resetGame(): void {
   set(createInitialState());
 }
