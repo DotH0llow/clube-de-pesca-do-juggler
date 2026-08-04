@@ -41,6 +41,20 @@ import { pier25Pieces } from '../world/pier25';
  * ou usar RESETAR na cena.
  */
 const USAR_PIER_25 = true;
+
+/**
+ * Geracao do cais montado na cena.
+ *
+ * Suba este numero sempre que a composicao do cais mudar de forma que uma cena
+ * ja salva precise ser refeita. E o que garante que a troca chegue em quem ja
+ * jogou - sem isso, a migracao so acontece em maquina que nunca abriu o jogo,
+ * que e justamente onde ela nao faz falta.
+ *
+ *   1  cais de perfil, desenhado a mao
+ *   2  2.5D de baixa resolucao, misturado com estrutura de perfil, sem rampa
+ *   3  a-raso puro, em resolucao de verdade, com rampa
+ */
+const PIER_VERSAO = 3;
 import { seaBottom, seaLeft } from '../world/worldConfig';
 import { ZONAS_REPETIVEIS } from './types';
 import type { LayerId, SceneId, SceneObject, SceneState, ShapeKind, ZoneId } from './types';
@@ -543,7 +557,7 @@ function seedMenu(): SceneObject[] {
 }
 
 export function seedScene(id: SceneId = 'mundo'): SceneState {
-  return { objects: id === 'menu' ? seedMenu() : seedMundo(), hidden: [] };
+  return { objects: id === 'menu' ? seedMenu() : seedMundo(), hidden: [], pierV: PIER_VERSAO };
 }
 
 // ------------------------------------------------------------------- estado
@@ -634,11 +648,18 @@ function garantirGruposNovos(st: SceneState): SceneState {
  * cais novo, nao faz nada e sai.
  */
 function trocarPier(st: SceneState): SceneState {
-  if (!USAR_PIER_25) return st;
-  if (st.objects.some((o) => o.id.startsWith('pier25-'))) return st;
-  const semCais = st.objects.filter((o) => !o.id.startsWith('pier-'));
-  if (semCais.length === st.objects.length) return st;
-  return { ...st, objects: [...semCais, ...pier25Pieces()] };
+  if (st.pierV === PIER_VERSAO) return st;
+
+  const ehDoCais = (o: SceneObject) => o.id.startsWith('pier-') || o.id.startsWith('pier25-');
+  const semCais = st.objects.filter((o) => !ehDoCais(o));
+  // cena sem cais nenhum (alguem apagou tudo): respeita e so anota a versao
+  if (semCais.length === st.objects.length) return { ...st, pierV: PIER_VERSAO };
+
+  return {
+    ...st,
+    objects: [...semCais, ...(USAR_PIER_25 ? pier25Pieces() : pierPieces())],
+    pierV: PIER_VERSAO,
+  };
 }
 
 function garantirZonas(st: SceneState): SceneState {
@@ -704,7 +725,7 @@ function load(): Book {
       for (const id of ['mundo', 'menu'] as SceneId[]) {
         const s = parsed[id];
         if (s && Array.isArray(s.objects) && s.objects.length > 0) {
-          const st = { objects: s.objects, hidden: s.hidden ?? [] };
+          const st = { objects: s.objects, hidden: s.hidden ?? [], pierV: s.pierV };
           book[id] = id === 'mundo' ? garantirZonas(trocarPier(st)) : garantirPecasDoMenu(st);
         }
       }
@@ -789,6 +810,18 @@ function set(next: SceneState, record = true) {
   }
   book = { ...book, [active]: next };
   notify();
+}
+
+/**
+ * Recarrega o livro de cenas a partir do que esta salvo agora.
+ *
+ * Existe para o `scripts/test-migracao.ts`: o `load()` roda uma vez so, na
+ * inicializacao do modulo, e um teste que precisa experimentar varios saves
+ * diferentes nao tem como reimportar o modulo do zero a cada caso.
+ */
+export function recarregarParaTeste(): SceneState {
+  book = load();
+  return book.mundo;
 }
 
 export function activeScene(): SceneId {

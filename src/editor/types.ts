@@ -253,4 +253,17 @@ export interface SceneObject {
 export interface SceneState {
   objects: SceneObject[];
   hidden: LayerId[];
+  /**
+   * Que geração do cais esta cena tem montada.
+   *
+   * Existe porque adivinhar isso pela lista de objetos não funcionou. A
+   * primeira tentativa perguntava "há peça `pier25-` aqui?" - e quem tinha
+   * salvo a versão INTERMEDIÁRIA do cais (2.5D de baixa resolução, misturado
+   * com estrutura de perfil, sem rampa) respondia que sim. A migração saía
+   * fora na hora e o cais velho ficava preso para sempre.
+   *
+   * Um número é honesto: ou a cena tem a geração de agora, ou não tem. Não há
+   * o que deduzir.
+   */
+  pierV?: number;
 }
