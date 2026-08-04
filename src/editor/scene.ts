@@ -24,6 +24,7 @@ import {
 import { islandObjects, menuIslandObjects } from '../world/islands';
 import { largura, peca, pierPieces } from '../world/pier';
 import { seaBottom, seaLeft } from '../world/worldConfig';
+import { ZONAS_REPETIVEIS } from './types';
 import type { LayerId, SceneId, SceneObject, SceneState, ShapeKind, ZoneId } from './types';
 
 /*
@@ -457,68 +458,57 @@ function seedMenu(): SceneObject[] {
   /*
    * As pecas de INTERFACE da tela de titulo.
    *
-   * O Juggler posando, o bloco do logo, a coluna de botoes e a vinheta das
-   * bordas eram HTML solto, posicionado em porcentagem: davam para admirar e
-   * nao para mexer. Agora sao objetos de cena com caixa propria - a tela de
-   * titulo le a caixa e desenha dentro dela.
+   * Eram HTML solto posicionado em porcentagem: davam para admirar e nao para
+   * mexer. Viraram objeto de cena com caixa propria - a tela de titulo le a
+   * caixa e desenha dentro dela - e agora obedecem o editor inteiro: arrastar,
+   * esticar, girar, mudar de profundidade, baixar a opacidade e esconder.
    *
-   * O ganho e que eles obedecem o editor inteiro: arrastar, esticar, girar,
-   * mudar de profundidade, baixar a opacidade e esconder. A vinheta em cima do
-   * Juggler ou atras dele e so uma questao de profundidade agora.
+   * E ELAS ERAM DOIS BLOCOS, agora sao oito.
+   *
+   * `titulo` carregava a marca, o nome do jogo e a chamada de uma vez; `botoes`
+   * carregava os quatro botoes e a linha de progresso. Quem quisesse subir so a
+   * marca, ou jogar o botao do editor para o canto, nao tinha o que arrastar -
+   * o arranjo de dentro vinha do CSS, nao da cena. Cada peca abaixo e uma caixa
+   * independente.
    */
-  out.push({
-    id: 'menu-vinheta',
+  const ui = (
+    role: NonNullable<SceneObject['role']>,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    depth = 10,
+  ): SceneObject => ({
+    id: `menu-${role}`,
     layer: 'objetos',
     kind: 'sprite',
     sprite: '',
-    role: 'vinheta',
-    x: 0,
-    y: 0,
-    w: MENU_W,
-    h: MENU_H,
+    role,
+    x,
+    y,
+    w,
+    h,
     rot: 0,
-    depth: 9,
-    opacity: 1,
+    depth,
   });
-  out.push({
-    id: 'menu-juggler',
-    layer: 'objetos',
-    kind: 'sprite',
-    sprite: '',
-    role: 'juggler',
-    x: 726,
-    y: 40,
-    w: 560,
-    h: 680,
-    rot: 0,
-    depth: 10,
-  });
-  out.push({
-    id: 'menu-titulo',
-    layer: 'objetos',
-    kind: 'sprite',
-    sprite: '',
-    role: 'titulo',
-    x: 72,
-    y: 96,
-    w: 560,
-    h: 250,
-    rot: 0,
-    depth: 10,
-  });
-  out.push({
-    id: 'menu-botoes',
-    layer: 'objetos',
-    kind: 'sprite',
-    sprite: '',
-    role: 'botoes',
-    x: 72,
-    y: 370,
-    w: 330,
-    h: 290,
-    rot: 0,
-    depth: 10,
-  });
+
+  const vinheta = ui('vinheta', 0, 0, MENU_W, MENU_H, 9);
+  vinheta.opacity = 1;
+  out.push(vinheta);
+  out.push(ui('juggler', 726, 40, 560, 680));
+
+  out.push(ui('marca', 72, 96, 210, 88));
+  out.push(ui('titulo', 72, 196, 560, 136));
+  out.push(ui('subtitulo', 72, 340, 470, 52));
+
+  // a coluna de botoes: mesma largura, empilhados, mas cada um por si
+  const BTN_W = 330;
+  const BTN_H = 52;
+  out.push(ui('jogar', 72, 410, BTN_W, BTN_H));
+  out.push(ui('progresso', 72, 470, BTN_W, 26));
+  out.push(ui('comojogar', 72, 506, BTN_W, BTN_H));
+  out.push(ui('config', 72, 566, BTN_W, BTN_H));
+  out.push(ui('editor', 72, 626, BTN_W, BTN_H));
 
   return out;
 }
@@ -560,7 +550,7 @@ function garantirZonas(st: SceneState): SceneState {
   const faltando = seed.filter(
     (s) =>
       s.kind === 'zone' &&
-      s.zone !== 'parede' &&
+      !ZONAS_REPETIVEIS.includes(s.zone ?? 'vara') &&
       !st.objects.some((o) => o.kind === 'zone' && o.zone === s.zone),
   );
   if (faltando.length === 0) return st;
@@ -732,7 +722,9 @@ export function removeObject(id: string): void {
   const s = book[active];
   const o = s.objects.find((x) => x.id === id);
   if (!o || o.locked) return;
-  if (o.kind === 'zone' && o.zone !== 'parede') return;
+  // area unica nao sai; parede e area de acao saem, porque delas pode haver
+  // quantas voce quiser (ou nenhuma)
+  if (o.kind === 'zone' && !ZONAS_REPETIVEIS.includes(o.zone ?? 'vara')) return;
   set({ ...s, objects: s.objects.filter((x) => x.id !== id) });
 }
 
@@ -785,6 +777,56 @@ export function addShape(shape: ShapeKind, x: number, y: number, layer: LayerId 
   return obj;
 }
 
+/**
+ * Cria uma area de ACAO onde a tela estiver.
+ *
+ * Area de acao e a caixa que faz o Juggler sentar no banco, encostar no
+ * parapeito, olhar o mar. Ela nasce ja funcionando - com um clipe escolhido e
+ * um aviso escrito - porque marcador que nasce vazio e marcador que aparece
+ * como "AÇÃO ·" no mapa e nao faz nada ate alguem lembrar de configurar.
+ *
+ *   animacao - toca o clipe em ciclo enquanto o jogador ficar parado nele
+ *   pose     - trava num quadro so, que e o caso do sentar
+ */
+export function addAction(kind: 'animacao' | 'pose', x: number, y: number): SceneObject {
+  const s = book[active];
+  const obj: SceneObject = {
+    id: `${kind}-${Date.now().toString(36)}`,
+    layer: 'marcadores',
+    kind: 'zone',
+    zone: kind,
+    x: Math.round(x - 70),
+    y: Math.round(y - 110),
+    w: 140,
+    h: 220,
+    rot: 0,
+    depth: 9,
+    clip: kind === 'pose' ? 'sit-left' : 'walk-left',
+    poseFrame: 0,
+    prompt: kind === 'pose' ? 'Sentar' : 'Fazer',
+  };
+  set({ ...s, objects: [...s.objects, obj] });
+  return obj;
+}
+
+/**
+ * A area de acao em que o jogador esta, se houver alguma.
+ *
+ * Desempata pela ordem da lista: a ultima criada ganha, que e a que voce
+ * acabou de arrastar para la.
+ */
+export function actionAt(x: number): SceneObject | null {
+  const list = book.mundo.objects.filter(
+    (o) =>
+      o.kind === 'zone' &&
+      (o.zone === 'animacao' || o.zone === 'pose') &&
+      !o.off &&
+      x >= o.x &&
+      x <= o.x + o.w,
+  );
+  return list.length ? list[list.length - 1] : null;
+}
+
 /** Cria uma parede nova onde a tela estiver. */
 export function addWall(x: number, y: number): SceneObject {
   const s = book[active];
@@ -808,7 +850,7 @@ export function duplicateObject(id: string): SceneObject | null {
   const s = book[active];
   const o = s.objects.find((x) => x.id === id);
   if (!o) return null;
-  if (o.kind === 'zone' && o.zone !== 'parede') return null;
+  if (o.kind === 'zone' && !ZONAS_REPETIVEIS.includes(o.zone ?? 'vara')) return null;
   const copy: SceneObject = { ...o, id: `${o.id}-copia-${Date.now().toString(36)}`, x: o.x + 40, locked: false };
   set({ ...s, objects: [...s.objects, copy] });
   return copy;

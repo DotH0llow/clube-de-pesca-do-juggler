@@ -1,7 +1,9 @@
 import { memo } from 'react';
 import { asset } from '../assets';
 import { useScene } from '../editor/scene';
-import { depthZ, type SceneId, type SceneObject } from '../editor/types';
+import { bandOf, depthZ, type BandId, type SceneId, type SceneObject } from '../editor/types';
+
+export { bandOf };
 
 /**
  * Desenha uma cena inteira. O jogo e o editor leem a MESMA lista, entao o que
@@ -98,17 +100,9 @@ const UI_ROLES = ['juggler', 'titulo', 'botoes', 'vinheta'];
 interface Props {
   scene: SceneId;
   /** 'perto' = anda junto com a camera; os outros dois sao horizonte */
-  band?: 'longe' | 'meio' | 'perto';
+  band?: BandId;
   /** esconde a vara fincada no deck (o Juggler esta com a dele na mao) */
   hideRod?: boolean;
-}
-
-/** Em que faixa de parallax o objeto cai. */
-export function bandOf(o: SceneObject): 'longe' | 'meio' | 'perto' {
-  const p = o.parallax ?? 1;
-  if (p < 0.35) return 'longe';
-  if (p < 0.8) return 'meio';
-  return 'perto';
 }
 
 export const SceneLayer = memo(function SceneLayer({ scene, band = 'perto', hideRod = false }: Props) {

@@ -307,6 +307,17 @@ export default function App() {
           openMarket();
           return;
         }
+        /* Ação de cenário: sentar no banco, encostar no parapeito, o que a
+           caixa do editor mandar. Vem DEPOIS da vara e do mercado de propósito
+           - se alguém puser uma caixa de ação em cima do ponto de pesca, pescar
+           continua ganhando. */
+        if (player.acao) {
+          e.preventDefault();
+          if (player.fazendo) player.stopAction();
+          else player.startAction();
+          playSfx('ui');
+          return;
+        }
       }
       if (!fishing) return;
       if (e.code !== 'Enter' && e.code !== 'Space') return;
@@ -339,6 +350,10 @@ export default function App() {
     openMarket,
     editor,
     dev.freeCam,
+    player.acao,
+    player.fazendo,
+    player.startAction,
+    player.stopAction,
   ]);
 
   const enterGame = () => {
@@ -481,6 +496,17 @@ export default function App() {
             ) : player.nearMarket ? (
               <button className="btn primary" onClick={openMarket} style={{ fontSize: 20 }}>
                 MERCADO &nbsp;<span className="key">E</span>
+              </button>
+            ) : player.acao ? (
+              /* O aviso da ação de cenário. O texto é o que estiver escrito na
+                 caixa do editor - por isso ele não é maiúsculo à força: quem
+                 escreveu "Olhar o mar" quis aquilo, e não "OLHAR O MAR". */
+              <button
+                className="btn primary acao-aviso"
+                onClick={() => (player.fazendo ? player.stopAction() : player.startAction())}
+                style={{ fontSize: 20 }}
+              >
+                {player.fazendo ? 'Levantar' : player.acao.prompt} &nbsp;<span className="key">E</span>
               </button>
             ) : null}
             {/* A faixa de tutorial saiu do rodapé: quem quiser a lista de

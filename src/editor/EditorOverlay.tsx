@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../assets';
 import {
+  addAction,
   addShape,
   addSprite,
   addWall,
@@ -34,6 +35,7 @@ import {
   PLAYER_DEPTH,
   SHAPES,
   ZONE_LABEL,
+  parallaxFactor,
   type LayerId,
   type SceneObject,
   type ShapeKind,
@@ -57,11 +59,34 @@ import {
 import { currentStep, getPreview, stopPreview, usePreview } from './preview';
 import { zoneRect } from './scene';
 import { groundAt } from '../world/layout';
-import { panMaxY, panMinY, useWorld } from '../world/worldConfig';
+import { panMaxY, panMinY, updateWorld, useWorld } from '../world/worldConfig';
+import { CLIP_FRAMES } from '../world/charFrames';
+
+/**
+ * Os clipes de personagem que existem no pacote, para o editor oferecer.
+ *
+ * Sai do registro gerado pelo importador, e nao de uma lista escrita na mao:
+ * soltar uma pasta de quadros nova em `game/char/` faz ela aparecer aqui
+ * sozinha, que e a mesma regra da secao ANIMAÇÕES.
+ */
+const CLIPES = Object.entries(CLIP_FRAMES)
+  .map(([nome, quadros]) => ({ nome, quadros }))
+  .sort((a, b) => a.nome.localeCompare(b.nome));
 
 /** Prende o deslocamento vertical da tela dentro do mundo. */
 function clampPan(v: number): number {
   return Math.min(panMaxY(), Math.max(panMinY(), v));
+}
+
+/**
+ * Limites do enquadramento.
+ *
+ * Abaixo de 0,15 a camera abre tanto que o Juggler vira um ponto; acima de 2,5
+ * ela fecha no rosto dele. Sao os mesmos limites do slider da secao MUNDO, para
+ * arrastar a moldura e mexer no slider nao darem resultados diferentes.
+ */
+function clampFrame(v: number): number {
+  return Math.min(2.5, Math.max(0.15, Number(v.toFixed(4))));
 }
 
 type Handle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w';
@@ -73,6 +98,8 @@ type Drag =
   | { mode: 'fx-scale'; id: string; handle: Handle; start: FxItem; px: number; py: number }
   | { mode: 'pan'; px: number; py: number; cam: number; camY: number }
   | { mode: 'guia'; px: number; base: number }
+  | { mode: 'moldura'; qual: 'praia' | 'mar'; borda: 'n' | 's'; py: number; frame: number }
+  | { mode: 'ancora'; py: number; base: number }
   | null;
 
 interface Props {
@@ -244,24 +271,50 @@ export function EditorOverlay({
    * Tela <-> mundo.
    *
    * O mundo e desenhado com `translate(0, viewY + camY*escala) scale(escala)`
-   * por dentro e `translate(-cam)` por fora. As duas contas abaixo sao essa
-   * mesma transformacao, para frente e para tras - e e por isso que elas
-   * PRECISAM conhecer o `camY`: sem ele, descer a tela deixaria toda caixa de
-   * selecao do editor flutuando longe do sprite que ela deveria cercar.
+   * por dentro e `translate(-cam × fator)` por fora. As duas contas abaixo sao
+   * essa mesma transformacao, para frente e para tras.
+   *
+   * Dois detalhes que elas PRECISAM conhecer:
+   *
+   *   - o `camY`, senao descer a tela deixaria toda caixa de selecao flutuando
+   *     longe do sprite que ela deveria cercar;
+   *   - o FATOR DE PARALLAX. O horizonte e desenhado em containers que andam
+   *     0,22 e 0,52 do que a camera anda. Enquanto so as tiras de horizonte
+   *     tinham parallax ninguem reparou; com as ilhas viradas sprite solto,
+   *     a caixa aparecia a metade da tela de distancia da ilha. `fator = 1` e
+   *     o mundo que anda junto com a camera, que e o caso da grande maioria.
+   *
+   * No MENU nao ha camera nem containers de parallax - a cena e desenhada num
+   * quadro fixo - entao la o fator e sempre 1.
    */
+  const fatorDe = useCallback(
+    (o?: Pick<SceneObject, 'parallax'>) =>
+      !o || sceneId === 'menu' ? 1 : parallaxFactor(o),
+    [sceneId],
+  );
+
   const toScreen = useCallback(
-    (x: number, y: number) => ({
-      x: (x - cam) * scale + viewX,
+    (x: number, y: number, fator = 1) => ({
+      x: (x - cam * fator) * scale + viewX,
       y: (y + camY) * scale + viewY,
     }),
     [cam, camY, scale, viewX, viewY],
   );
   const toWorld = useCallback(
-    (px: number, py: number) => ({
-      x: (px - viewX) / scale + cam,
+    (px: number, py: number, fator = 1) => ({
+      x: (px - viewX) / scale + cam * fator,
       y: (py - viewY) / scale - camY,
     }),
     [cam, camY, scale, viewX, viewY],
+  );
+
+  /** A caixa de um objeto já em coordenada de tela, com o parallax dele. */
+  const caixaNaTela = useCallback(
+    (o: SceneObject) => {
+      const p = toScreen(o.x, o.y, fatorDe(o));
+      return { x: p.x, y: p.y, w: o.w * scale, h: o.h * scale };
+    },
+    [toScreen, fatorDe, scale],
   );
 
   /**
@@ -297,15 +350,21 @@ export function EditorOverlay({
    * Desempata por profundidade: quem esta mais na frente ganha o clique.
    */
   const hit = useCallback(
-    (wx: number, wy: number): SceneObject | null => {
+    (px: number, py: number): SceneObject | null => {
       const list = scene.objects
         .filter((o) => layer === 'todas' || o.layer === layer)
         .filter((o) => !o.locked && !scene.hidden.includes(o.layer))
-        .filter((o) => wx >= o.x && wx <= o.x + o.w && wy >= o.y && wy <= o.y + o.h);
+        // o teste e feito em coordenada de TELA, um objeto por vez: cada um
+        // tem o proprio fator de parallax, entao nao existe um "ponto do
+        // mundo" unico que sirva para todos ao mesmo tempo
+        .filter((o) => {
+          const r = caixaNaTela(o);
+          return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+        });
       if (list.length === 0) return null;
       return list.reduce((best, o) => (o.depth >= best.depth ? o : best));
     },
-    [scene.objects, scene.hidden, layer],
+    [scene.objects, scene.hidden, layer, caixaNaTela],
   );
 
   // ------------------------------------------------------------- teclado
@@ -381,7 +440,10 @@ export function EditorOverlay({
         .filter((o) => layer === 'todas' || o.layer === layer)
         .filter((o) => !scene.hidden.includes(o.layer))
         .reverse()
-        .find((o) => w.x >= o.x && w.x <= o.x + o.w && w.y >= o.y && w.y <= o.y + o.h);
+        .find((o) => {
+          const r = caixaNaTela(o);
+          return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+        });
       if (any) setMenu({ x: px, y: py, id: any.id });
       return;
     }
@@ -413,7 +475,7 @@ export function EditorOverlay({
       setFxSel(null);
     }
 
-    const found = hit(w.x, w.y);
+    const found = hit(px, py);
     if (found) {
       setSelected(found.id);
       beginBatch();
@@ -465,6 +527,46 @@ export function EditorOverlay({
 
       if (d.mode === 'guia') {
         setGuiaX(Math.round(d.base + (px - d.px) / scale));
+        return;
+      }
+
+      /*
+       * Esticar a moldura MUDA O ENQUADRAMENTO DO JOGO.
+       *
+       * A moldura mostrava o que o jogador ve e nao deixava mexer em nada -
+       * era um adesivo. Mas ela e um retangulo derivado de dois numeros da
+       * secao MUNDO, e a conta inverte:
+       *
+       *   altura visivel = frameH / moldura   =>   moldura = frameH / altura
+       *
+       * Entao arrastar a borda de cima ou de baixo e escrever direto em
+       * `frameLand` ou `frameSea`. Puxar para fora abre a camera (mostra mais
+       * mundo, tudo menor); empurrar para dentro fecha. A largura acompanha
+       * sozinha, porque ela e a altura vezes a proporcao da tela - o jogador
+       * nao tem como ver um retangulo de outro formato que nao o do monitor
+       * dele.
+       */
+      if (d.mode === 'moldura') {
+        const alturaAtual = mundo.frameH / d.frame;
+        const arrasto = (py - d.py) / scale;
+        // a borda de cima cresce para cima: puxar para cima aumenta a altura
+        const nova = alturaAtual + (d.borda === 'n' ? -arrasto : arrasto) * 2;
+        const alvo = clampFrame(mundo.frameH / Math.max(120, nova));
+        updateWorld(d.qual === 'praia' ? { frameLand: alvo } : { frameSea: alvo });
+        return;
+      }
+
+      /*
+       * Mover a moldura inteira no vertical MUDA A ANCORA DA LINHA D'AGUA.
+       *
+       * `waterAnchor` e a altura da tela em que a linha d'agua fica parada, de
+       * 0 (topo) a 1 (pe). E o que decide quanto de ceu e quanto de mar o
+       * jogador ve, e ate agora so dava para mexer nele no slider da secao
+       * MUNDO, sem ver o resultado. Aqui e a moldura que arrasta.
+       */
+      if (d.mode === 'ancora') {
+        const alvo = d.base + (py - d.py) / Math.max(1, window.innerHeight);
+        updateWorld({ waterAnchor: Math.min(0.95, Math.max(0.05, Number(alvo.toFixed(4)))) });
         return;
       }
       if (d.mode === 'move') {
@@ -577,7 +679,7 @@ export function EditorOverlay({
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, [dragAsset, scale, cam, camY, layer, sceneId, travado, toWorld]);
+  }, [dragAsset, scale, cam, camY, layer, sceneId, travado, toWorld, mundo]);
 
   const startHandle = (e: React.PointerEvent, handle: Handle) => {
     if (!sel || e.button !== 0) return;
@@ -617,7 +719,7 @@ export function EditorOverlay({
     beginBatch();
     const host = (e.currentTarget as HTMLElement).closest('.editor-canvas') as HTMLElement;
     const rect = host.getBoundingClientRect();
-    const c = toScreen(sel.x + sel.w / 2, sel.y + sel.h / 2);
+    const c = toScreen(sel.x + sel.w / 2, sel.y + sel.h / 2, fatorDe(sel));
     const px = e.clientX - rect.left;
     const py = e.clientY - rect.top;
     drag.current = {
@@ -689,7 +791,7 @@ export function EditorOverlay({
   const zones = scene.objects.filter(
     (o) => o.kind === 'zone' && !o.off && !scene.hidden.includes(o.layer),
   );
-  const selBox = sel ? toScreen(sel.x, sel.y) : null;
+  const selBox = sel ? caixaNaTela(sel) : null;
 
   // ------------------------------------------- moldura do jogador (a guia)
   const centroGuia = guiaX ?? playerXRef?.current ?? rodX();
@@ -770,8 +872,8 @@ export function EditorOverlay({
             style={{
               left: selBox.x,
               top: selBox.y,
-              width: sel.w * scale,
-              height: sel.h * scale,
+              width: selBox.w,
+              height: selBox.h,
               transform: sel.rot ? `rotate(${sel.rot}deg)` : undefined,
             }}
           >
@@ -779,6 +881,32 @@ export function EditorOverlay({
               <i key={h} className={`h ${h}`} onPointerDown={(e) => startHandle(e, h)} />
             ))}
             <i className="rot" onPointerDown={startRotate} />
+            {/* A ALÇA DE MOVER, como a do Canva.
+
+                Arrastar pelo meio do objeto sempre funcionou, e continua
+                funcionando - mas em peça fina (uma tábua de 9 unidades, uma
+                corda) o "meio" é uma faixa de três pixels, e a mira escorrega
+                para o que está atrás. A alça é um alvo grande e no mesmo lugar
+                sempre, independente do tamanho da peça. */}
+            <i
+              className="mover"
+              title="Arraste para mover a peça"
+              onPointerDown={(e) => {
+                if (!sel || e.button !== 0) return;
+                e.stopPropagation();
+                const host = (e.currentTarget as HTMLElement).closest('.editor-canvas') as HTMLElement;
+                const r = host.getBoundingClientRect();
+                beginBatch();
+                drag.current = {
+                  mode: 'move',
+                  id: sel.id,
+                  ox: sel.x,
+                  oy: sel.y,
+                  px: e.clientX - r.left,
+                  py: e.clientY - r.top,
+                };
+              }}
+            />
           </div>
         )}
 
@@ -818,6 +946,18 @@ export function EditorOverlay({
         {/* ------------------------------------- a moldura do jogador */}
         {molduras.map((m) => {
           const p = toScreen(m.rect.x, m.rect.y);
+          const inicio = (borda: 'n' | 's') => (e: React.PointerEvent) => {
+            if (e.button !== 0) return;
+            e.stopPropagation();
+            const host = (e.currentTarget as HTMLElement).closest('.editor-canvas') as HTMLElement;
+            drag.current = {
+              mode: 'moldura',
+              qual: m.id,
+              borda,
+              py: e.clientY - host.getBoundingClientRect().top,
+              frame: m.frame,
+            };
+          };
           return (
             <div
               key={m.id}
@@ -827,10 +967,28 @@ export function EditorOverlay({
               <span className="moldura-tag">
                 {m.label}
                 <small>
-                  {Math.round(m.rect.w)} × {Math.round(m.rect.h)} un
+                  {Math.round(m.rect.w)} × {Math.round(m.rect.h)} un &middot; {m.frame.toFixed(2)}×
                   {travado === m.id ? ' · TRAVADA' : ''}
                 </small>
               </span>
+              {/* as bordas de cima e de baixo esticam o enquadramento */}
+              <i className="mborda n" onPointerDown={inicio('n')} title="Arraste para abrir ou fechar a câmera" />
+              <i className="mborda s" onPointerDown={inicio('s')} title="Arraste para abrir ou fechar a câmera" />
+              {/* e a pega do meio sobe e desce a linha d'água na tela */}
+              <i
+                className="mancora"
+                title="Arraste para escolher em que altura da tela a linha d'água fica"
+                onPointerDown={(e) => {
+                  if (e.button !== 0) return;
+                  e.stopPropagation();
+                  const host = (e.currentTarget as HTMLElement).closest('.editor-canvas') as HTMLElement;
+                  drag.current = {
+                    mode: 'ancora',
+                    py: e.clientY - host.getBoundingClientRect().top,
+                    base: mundo.waterAnchor,
+                  };
+                }}
+              />
             </div>
           );
         })}
@@ -947,6 +1105,35 @@ export function EditorOverlay({
               >
                 PAREDE NOVA
               </button>
+              {sceneId === 'mundo' && (
+                <>
+                  <div className="emenu-sep">MARCADORES</div>
+                  <button
+                    onClick={() => {
+                      const c = centro();
+                      const a = addAction('animacao', c.x, groundAt(c.x) - 110);
+                      setLayer('todas');
+                      setSelected(a.id);
+                      setFormas(false);
+                    }}
+                    title="Área que faz o Juggler tocar uma animação quando o jogador aperta E"
+                  >
+                    AÇÃO · ANIMAÇÃO
+                  </button>
+                  <button
+                    onClick={() => {
+                      const c = centro();
+                      const a = addAction('pose', c.x, groundAt(c.x) - 110);
+                      setLayer('todas');
+                      setSelected(a.id);
+                      setFormas(false);
+                    }}
+                    title="Área que trava o Juggler num quadro só, como sentar"
+                  >
+                    AÇÃO · POSE
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -1244,6 +1431,72 @@ export function EditorOverlay({
                       APAGAR
                     </button>
                   </div>
+                )}
+
+                {/* ------------------------------ configuração da ação
+
+                    Três campos e nada mais: o que a área faz, o que ela diz e
+                    (em pose) qual quadro. A lista de clipes sai sozinha da
+                    pasta de assets - clipe novo no pacote aparece aqui sem
+                    ninguém escrever nada. */}
+                {(sel.zone === 'animacao' || sel.zone === 'pose') && (
+                  <>
+                    <label className="efield">
+                      ANIMAÇÃO
+                      <select
+                        value={sel.clip ?? ''}
+                        onChange={(e) => updateObject(sel.id, { clip: e.target.value })}
+                      >
+                        {CLIPES.map((c) => (
+                          <option key={c.nome} value={c.nome}>
+                            {c.nome} ({c.quadros} quadro{c.quadros > 1 ? 's' : ''})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {sel.zone === 'pose' && (
+                      <label className="efield">
+                        QUADRO
+                        <input
+                          type="number"
+                          min={0}
+                          max={Math.max(0, (CLIP_FRAMES[sel.clip ?? ''] ?? 1) - 1)}
+                          value={sel.poseFrame ?? 0}
+                          onChange={(e) =>
+                            updateObject(sel.id, { poseFrame: Math.max(0, Number(e.target.value)) })
+                          }
+                        />
+                      </label>
+                    )}
+
+                    <label className="efield">
+                      AVISO PARA O JOGADOR
+                      <input
+                        value={sel.prompt ?? ''}
+                        placeholder="Sentar"
+                        onChange={(e) => updateObject(sel.id, { prompt: e.target.value })}
+                      />
+                    </label>
+                    <div className="ehint">
+                      Chegando na caixa, o jogador vê “{sel.prompt?.trim() || 'Interagir'} E”.
+                      {sel.zone === 'pose'
+                        ? ' Apertando, ele trava no quadro escolhido.'
+                        : ' Apertando, o clipe roda em ciclo.'}{' '}
+                      Andar levanta.
+                    </div>
+                    <div className="erow">
+                      <button
+                        className="ebtn danger"
+                        onClick={() => {
+                          removeObject(sel.id);
+                          setSelected(null);
+                        }}
+                      >
+                        APAGAR
+                      </button>
+                    </div>
+                  </>
                 )}
               </>
             )}

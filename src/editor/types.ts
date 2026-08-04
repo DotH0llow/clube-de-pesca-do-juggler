@@ -63,17 +63,61 @@ export function depthZ(depth: number): number {
 }
 
 /**
+ * As três distâncias de parallax, e o quanto cada uma anda com a câmera.
+ *
+ * Isto aqui é a peça que faltava ser compartilhada. O mundo desenha cada faixa
+ * num container próprio, movido por `-camX × fator`; o `parallax` de cada
+ * objeto só serve para dizer em QUAL das três ele cai. Ou seja: o fator que
+ * vale na tela é o da FAIXA, não o número escrito no objeto.
+ *
+ * Enquanto só as tiras de horizonte tinham parallax isso não incomodava
+ * ninguém. Quando as ilhas viraram sprite solto, virou bug visível: o editor
+ * desenhava a caixa de seleção como se tudo andasse junto com a câmera, e a
+ * ilha aparecia longe da própria caixa. Agora os dois leem a mesma tabela.
+ */
+export type BandId = 'longe' | 'meio' | 'perto';
+
+export const BAND_FACTOR: Record<BandId, number> = {
+  longe: 0.22,
+  meio: 0.52,
+  perto: 1,
+};
+
+/** Em que faixa de parallax o objeto cai. */
+export function bandOf(o: Pick<SceneObject, 'parallax'>): BandId {
+  const p = o.parallax ?? 1;
+  if (p < 0.35) return 'longe';
+  if (p < 0.8) return 'meio';
+  return 'perto';
+}
+
+/** Quanto o objeto anda em relação à câmera, na prática. */
+export function parallaxFactor(o: Pick<SceneObject, 'parallax'>): number {
+  return BAND_FACTOR[bandOf(o)];
+}
+
+/**
  * As areas de interacao do mundo.
  *
- *   vara    - abre a pescaria
- *   mercado - abre o mercado de peixe
- *   parede  - barra o Juggler (as antigas paredes invisiveis, agora moveis)
- *   limiar  - troca o enquadramento da camera entre mar e praia
- *   spawn   - onde o Juggler nasce e para onde o "Travei!" o traz de volta
+ *   vara     - abre a pescaria
+ *   mercado  - abre o mercado de peixe
+ *   parede   - barra o Juggler (as antigas paredes invisiveis, agora moveis)
+ *   limiar   - troca o enquadramento da camera entre mar e praia
+ *   spawn    - onde o Juggler nasce e para onde o "Travei!" o traz de volta
+ *   animacao - toca um clipe animado quando o jogador aperta E
+ *   pose     - trava num quadro so quando o jogador aperta E
  *
- * Pode existir mais de uma parede na cena. As outras sao unicas.
+ * Pode existir mais de uma parede, e quantas acoes voce quiser. As outras sao
+ * unicas.
  */
-export type ZoneId = 'vara' | 'mercado' | 'parede' | 'limiar' | 'spawn';
+export type ZoneId =
+  | 'vara'
+  | 'mercado'
+  | 'parede'
+  | 'limiar'
+  | 'spawn'
+  | 'animacao'
+  | 'pose';
 
 export const ZONE_LABEL: Record<ZoneId, string> = {
   vara: 'PESCAR',
@@ -81,7 +125,12 @@ export const ZONE_LABEL: Record<ZoneId, string> = {
   parede: 'PAREDE',
   limiar: 'LIMIAR DO PÍER',
   spawn: 'NASCIMENTO',
+  animacao: 'AÇÃO · ANIMAÇÃO',
+  pose: 'AÇÃO · POSE',
 };
+
+/** As areas que podem existir mais de uma vez na cena. */
+export const ZONAS_REPETIVEIS: ZoneId[] = ['parede', 'animacao', 'pose'];
 
 /** Formas geometricas que da para criar direto no editor, sem sprite. */
 export type ShapeKind = 'retangulo' | 'elipse' | 'triangulo' | 'losango';
@@ -127,22 +176,63 @@ export interface SceneObject {
   /**
    * Papel especial da peca.
    *
-   *   vara    - a vara fincada no deck; some quando o Juggler pega a dele
-   *   juggler - a arte do Juggler posando na tela de titulo
-   *   titulo  - o bloco do logo e do subtitulo
-   *   botoes  - a coluna de botoes do menu
-   *   vinheta - o escurecido das bordas da tela de titulo
-   *
    * Peca com papel e desenhada por quem sabe desenha-la (a tela de titulo, por
    * exemplo), mas continua sendo objeto de cena: da para arrastar, esticar,
    * mudar de profundidade e de opacidade no editor como qualquer outra.
+   *
+   * A TELA DE TITULO ERA DOIS BLOCOS. `titulo` trazia a marca, o nome do jogo e
+   * a chamada grudados; `botoes` trazia os quatro botoes e a linha de progresso
+   * empilhados. Mover o nome do jogo sem levar a marca junto, ou afastar o
+   * botao do editor dos outros tres, era impossivel - eram um objeto so, e o
+   * arranjo interno vinha do CSS. Agora cada peca e uma peca:
+   *
+   *   marca      - o simbolo do topo
+   *   titulo     - so o nome do jogo
+   *   subtitulo  - a chamada de uma linha
+   *   progresso  - lancamentos, especies e moedas
+   *   jogar      - CONTINUAR / COMECAR
+   *   comojogar  - COMO JOGAR
+   *   config     - CONFIGURACOES
+   *   editor     - EDITOR DO MENU
+   *
+   * O texto DENTRO de cada botao continua sendo do botao, claro - separar isso
+   * seria separar a etiqueta da coisa.
    */
-  role?: 'vara' | 'juggler' | 'titulo' | 'botoes' | 'vinheta';
+  role?:
+    | 'vara'
+    | 'juggler'
+    | 'vinheta'
+    | 'marca'
+    | 'titulo'
+    | 'subtitulo'
+    | 'progresso'
+    | 'jogar'
+    | 'comojogar'
+    | 'config'
+    | 'editor';
   /**
    * Quanto a faixa anda em relacao a camera (kind = strip).
    * 0,22 = bem longe; 0,52 = meio termo; 1 = anda junto com o mundo.
    */
   parallax?: number;
+
+  // -------------------------------------------- area de acao (zone animacao|pose)
+  /**
+   * Qual clipe de personagem a area toca, no formato do registro de quadros:
+   * `sit-left`, `fish-right`, `walk-left`... A lista sai sozinha da pasta de
+   * assets, entao clipe novo aparece no editor sem ninguem escrever nada.
+   */
+  clip?: string;
+  /** Em qual quadro travar (zone = pose). Sem isso, o primeiro. */
+  poseFrame?: number;
+  /**
+   * O que o aviso diz para o jogador.
+   *
+   * E o texto que aparece junto do "E" quando ele chega perto: "Sentar",
+   * "Olhar o mar", "Descansar". Sem isto o aviso nao saberia o que pedir - e
+   * "APERTE E" sozinho nao diz para que.
+   */
+  prompt?: string;
 
   // ------------------------------------------------- forma geometrica (kind = forma)
   shape?: ShapeKind;

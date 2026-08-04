@@ -3,7 +3,7 @@ import { asset } from '../assets';
 import cutscene from '../assets/juggler-cutscene.webp';
 import { EditorOverlay } from '../editor/EditorOverlay';
 import { MENU_H, MENU_W, menuSlot, setActiveScene, useScene } from '../editor/scene';
-import { depthZ } from '../editor/types';
+import { depthZ, type SceneObject } from '../editor/types';
 import { SceneLayer } from './SceneLayer';
 import { initAudio, playSfx, startAmbience } from '../engine/audio';
 import { useGame } from '../state/store';
@@ -60,7 +60,7 @@ function MenuSlot({
   className,
   children,
 }: {
-  role: 'juggler' | 'titulo' | 'botoes' | 'vinheta';
+  role: NonNullable<SceneObject['role']>;
   className?: string;
   children?: React.ReactNode;
 }) {
@@ -187,6 +187,8 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
             transform: `translate3d(${view.x}px,${view.y}px,0) scale(${view.scale})`,
           }}
         >
+          {/* Cada peça é uma caixa. O CSS aqui embaixo não empilha mais nada:
+              onde a peça fica é a caixa que diz, e a caixa vem do editor. */}
           <MenuSlot role="vinheta">
             <div className="title-vignette" />
           </MenuSlot>
@@ -195,19 +197,25 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
             <img className="title-art" src={cutscene} alt="O Juggler" />
           </MenuSlot>
 
-          <MenuSlot role="titulo" className="title-brand">
+          <MenuSlot role="marca">
             <img className="title-mark" src={asset('ui/temporary-logo-mark')} alt="" />
+          </MenuSlot>
+
+          <MenuSlot role="titulo" className="title-brand">
             <h1>
               JUGGLER'S
               <br />
               <em>FISHING CLUB</em>
             </h1>
+          </MenuSlot>
+
+          <MenuSlot role="subtitulo">
             <p className="title-sub">
               Lança a linha, fisga o que aparecer e reza pra não ser a Hydra.
             </p>
           </MenuSlot>
 
-          <MenuSlot role="botoes" className="title-menu">
+          <MenuSlot role="jogar">
             <button
               className="btn primary title-btn"
               onClick={() => {
@@ -217,13 +225,19 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
             >
               {hasProgress ? 'CONTINUAR' : 'COMEÇAR'}
             </button>
-            {hasProgress && (
+          </MenuSlot>
+
+          {hasProgress && (
+            <MenuSlot role="progresso">
               <div className="title-progress">
                 {s.stats.casts.toLocaleString('pt-BR')} lançamentos &middot;{' '}
                 {Object.keys(s.album).length} espécies &middot;{' '}
                 {s.sazoncoins.toLocaleString('pt-BR')} SZ
               </div>
-            )}
+            </MenuSlot>
+          )}
+
+          <MenuSlot role="comojogar">
             <button
               className="btn title-btn"
               onClick={() => {
@@ -233,6 +247,9 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
             >
               COMO JOGAR
             </button>
+          </MenuSlot>
+
+          <MenuSlot role="config">
             <button
               className="btn title-btn"
               onClick={() => {
@@ -242,6 +259,9 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
             >
               CONFIGURAÇÕES
             </button>
+          </MenuSlot>
+
+          <MenuSlot role="editor">
             <button
               className="btn title-btn ghost"
               onClick={() => {

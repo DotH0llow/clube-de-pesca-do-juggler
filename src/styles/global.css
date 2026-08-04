@@ -40,6 +40,13 @@
   --font: 'VCR OSD Mono', ui-monospace, monospace;
   --font-title: var(--font);
   --font-body: var(--font);
+  /* A fonte do EDITOR nao e a do jogo.
+
+     A VCR OSD Mono e a cara do jogo e vai continuar sendo - mas ela e uma
+     fonte de tela de video: monoespacada, com pouca diferenca entre caracteres
+     e sem acentuacao confortavel em corpo pequeno. Numa ferramenta cheia de
+     rotulo miudo, nome de arquivo e numero, isso cansa. O editor usa Arial. */
+  --font-editor: Arial, Helvetica, 'Liberation Sans', sans-serif;
 }
 
 * {
@@ -1782,15 +1789,9 @@ button {
    contain` garante que o desenho nunca deforme mesmo que alguem arraste a
    caixa da peca no editor. */
 .title-mark {
-  height: 88px;
-  width: auto;
-  max-width: 100%;
-  align-self: flex-start;
-  flex: 0 0 auto;
+  display: block;
   object-fit: contain;
   object-position: left center;
-  display: block;
-  margin-bottom: 4px;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
 }
 
@@ -1801,7 +1802,7 @@ button {
   font-size: 46px;
   line-height: 1.24;
   letter-spacing: 2px;
-  margin: 8px 0;
+  margin: 0;
   color: var(--cream);
   text-shadow: 0 4px 0 #02121b, 0 0 24px rgba(255, 190, 90, 0.35);
 }
@@ -1818,11 +1819,10 @@ button {
   max-width: 36ch;
 }
 
+/* `.title-menu` era a coluna de botoes. Nao existe mais coluna: cada botao e
+   uma peca com caixa propria. A classe fica so para quem ainda a referencie. */
 .title-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: min(320px, 100%);
+  display: contents;
 }
 
 .title-btn {
@@ -2558,6 +2558,65 @@ button {
   border: 2px solid #23303a;
   cursor: grab;
   pointer-events: auto;
+}
+
+/* ------------------------------------------------- A ALÇA DE MOVER
+
+   A cruz de setas do Canva. Arrastar pelo meio da peça sempre funcionou e
+   continua funcionando - mas numa peça fina (uma tábua de 9 unidades, uma
+   corda, uma faixa de horizonte) o "meio" é uma tira de três pixels, e a mira
+   escorrega para o que está atrás. A alça é um alvo grande, no mesmo lugar,
+   independente do tamanho da peça.
+
+   Ela fica abaixo da caixa e não em cima dela, para não brigar com a bolinha
+   de girar - e é desenhada em CSS puro, sem ícone, para não entrar mais um
+   arquivo no pacote por causa de quatro setas. */
+.editor-sel .mover {
+  position: absolute;
+  left: 50%;
+  bottom: -34px;
+  width: 26px;
+  height: 26px;
+  margin-left: -13px;
+  border-radius: 6px;
+  background: #ffd166;
+  border: 2px solid #23303a;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
+  cursor: move;
+  pointer-events: auto;
+  z-index: 3;
+}
+
+/* as quatro setas: duas barras cruzadas com as pontas em triângulo */
+.editor-sel .mover::before,
+.editor-sel .mover::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: #23303a;
+}
+
+.editor-sel .mover::before {
+  width: 14px;
+  height: 2px;
+  margin: -1px 0 0 -7px;
+  clip-path: polygon(
+    0 50%, 22% 0, 22% 100%, 78% 100%, 78% 0, 100% 50%, 78% 100%, 22% 100%
+  );
+}
+
+.editor-sel .mover::after {
+  width: 2px;
+  height: 14px;
+  margin: -7px 0 0 -1px;
+  clip-path: polygon(
+    50% 0, 100% 22%, 0 22%, 0 78%, 100% 78%, 50% 100%, 0 78%, 0 22%
+  );
+}
+
+.editor-sel .mover:hover {
+  background: #ffe9a8;
 }
 
 .editor-ghost {
@@ -3653,9 +3712,80 @@ button {
 
 .editor-moldura {
   position: absolute;
+  /* o retângulo em si não pega clique - só as pegas dele. Assim a moldura
+     continua sendo uma guia por cima da cena, e não uma tampa que impede de
+     selecionar o que está debaixo dela */
   pointer-events: none;
   border: 2px dashed rgba(120, 200, 255, 0.75);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------------------------- as pegas que EDITAM o enquadramento
+
+   A moldura mostrava e não deixava mexer: era um adesivo. As bordas de cima e
+   de baixo agora esticam o enquadramento do jogo (`frameLand` / `frameSea`) e
+   a pega do meio sobe e desce a linha d'água na tela (`waterAnchor`). São os
+   mesmos números da seção MUNDO - a diferença é que aqui você vê o resultado
+   enquanto arrasta, em vez de adivinhar num slider. */
+.mborda {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  height: 14px;
+  pointer-events: auto;
+  cursor: ns-resize;
+  background: linear-gradient(180deg, transparent, rgba(120, 200, 255, 0.35));
+}
+
+.mborda.n {
+  top: -7px;
+  background: linear-gradient(0deg, transparent, rgba(120, 200, 255, 0.35));
+}
+
+.mborda.s {
+  bottom: -7px;
+}
+
+.mborda:hover {
+  background: rgba(255, 209, 102, 0.5);
+}
+
+.mancora {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  pointer-events: auto;
+  cursor: ns-resize;
+  border: 2px solid rgba(120, 200, 255, 0.8);
+  border-radius: 50%;
+  background: rgba(8, 26, 38, 0.75);
+}
+
+.mancora::before,
+.mancora::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  margin-left: -5px;
+  border: 5px solid transparent;
+}
+
+.mancora::before {
+  top: 2px;
+  border-bottom-color: rgba(190, 230, 255, 0.9);
+}
+
+.mancora::after {
+  bottom: 2px;
+  border-top-color: rgba(190, 230, 255, 0.9);
+}
+
+.mancora:hover {
+  border-color: #ffd166;
+  background: rgba(60, 44, 8, 0.85);
 }
 
 .editor-moldura.mar {
@@ -3812,24 +3942,38 @@ button {
   pointer-events: auto;
 }
 
-/* `align-items: flex-start` e o que impede as pecas de dentro de serem
-   esticadas na largura da caixa - foi assim que o simbolo do topo virou uma
-   faixa de 560 px. Quem quiser ocupar a linha inteira pede (ver `.title-btn`). */
-.menu-slot.title-brand,
-.menu-slot.title-menu {
+/* O EMPILHAMENTO SAIU DAQUI.
+
+   Havia duas caixas (`titulo` e `botoes`) e o CSS arrumava o que ia dentro de
+   cada uma: flex em coluna, `gap`, `align-items`. Era isso que tornava o menu
+   inseparavel - a posicao da marca e a de cada botao vinham desta folha, e nao
+   da cena, entao nao havia o que arrastar no editor.
+
+   Agora cada peca tem caixa propria e o conteudo so preenche a caixa. Onde a
+   peca fica e assunto do editor. */
+.menu-slot > .btn,
+.menu-slot > .title-progress,
+.menu-slot > h1,
+.menu-slot > p {
+  width: 100%;
+  height: 100%;
+  margin: 0;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+}
+
+.menu-slot > .title-progress,
+.menu-slot > p {
   align-items: flex-start;
 }
 
-.menu-slot.title-menu {
-  justify-content: flex-start;
-  gap: 12px;
-}
-
-.menu-slot.title-menu > .btn,
-.menu-slot.title-menu > .title-progress {
-  align-self: stretch;
+/* o titulo e a marca ancoram na esquerda e ocupam a caixa inteira sem
+   deformar - `contain` e o seguro contra alguem esticar a caixa no editor */
+.menu-slot > .title-mark {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: left center;
 }
 
 /* o Juggler e a vinheta preenchem a caixa inteira */
@@ -3889,4 +4033,41 @@ button {
   z-index: 4;
   opacity: 0.75;
   font-size: 12px;
+}
+
+
+/* ==========================================================================
+   FONTE DO EDITOR
+
+   Uma regra so, no fim do arquivo de proposito: ela precisa vir depois de
+   todas as regras de peca do editor (`.ebtn`, `.efield input`, `.editor-menu
+   button`...) para ganhar no desempate por ordem. Botao, campo e lista nao
+   herdam fonte sozinhos, entao os quatro tipos de controle estao citados na
+   mao.
+
+   O que NAO muda: a fonte do jogo. A moldura do jogador e as caixas de selecao
+   sao do editor e entram aqui; o HUD, o celular e a tela de titulo continuam
+   com a VCR.
+   ========================================================================== */
+
+.editor,
+.editor button,
+.editor input,
+.editor select,
+.editor textarea,
+.editor-moldura,
+.moldura-tag {
+  font-family: var(--font-editor);
+  letter-spacing: 0;
+}
+
+/* a VCR e estreita e aguenta caixa alta em tudo; a Arial fica gritada assim.
+   Os rotulos continuam maiusculos (e a linguagem do editor), mas com um pouco
+   de espaco entre letras para nao virarem um bloco solido */
+.editor .etitle,
+.editor .ebtn,
+.editor .elib-cat,
+.editor .editor-badge,
+.moldura-tag {
+  letter-spacing: 0.6px;
 }

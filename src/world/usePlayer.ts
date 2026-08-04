@@ -4,8 +4,9 @@ import { clamp } from '../engine/rng';
 import { getDevFlags } from '../state/dev';
 import { getSettings } from '../state/settings';
 import { clipConfig, frameAt, seqLength } from '../editor/anims';
-import { blockWalls, inZone, rodX, spawnX, thresholdX, zoneRect } from '../editor/scene';
+import { actionAt, blockWalls, inZone, rodX, spawnX, thresholdX, zoneRect } from '../editor/scene';
 import { getFx } from '../editor/fx';
+import { BAND_FACTOR } from '../editor/types';
 import { CHAR_ANCHOR, CHAR_CANVAS, CHAR_FRAME_H, CLIP_FRAMES } from './charFrames';
 import { camMinX, groundAt, WORLD_W } from './layout';
 import { getWorld, panMaxY, panMinY, useWorld } from './worldConfig';
@@ -14,6 +15,24 @@ export type Facing = 'left' | 'right';
 export type AnimName = 'side-idle' | 'walk' | 'run' | 'jump' | 'fish' | 'sit';
 /** Pontos do mundo em que o botao de interagir aparece. */
 export type Spot = 'vara' | 'mercado' | null;
+
+/**
+ * Uma acao de cenario ao alcance do jogador.
+ *
+ * Sao as caixas AÇÃO · ANIMAÇÃO e AÇÃO · POSE do editor: chegar perto mostra o
+ * aviso ("Sentar", "Olhar o mar") e apertar E executa. Nao ha nada de especial
+ * em nenhuma delas escrito no codigo - o clipe, o quadro e o texto do aviso
+ * saem da caixa, entao inventar uma acao nova e arrastar uma caixa, e nao
+ * mexer aqui.
+ */
+export interface AcaoPerto {
+  id: string;
+  /** `animacao` roda o clipe em ciclo; `pose` trava num quadro */
+  tipo: 'animacao' | 'pose';
+  clip: string;
+  poseFrame: number;
+  prompt: string;
+}
 
 /**
  * Quanto o Juggler encolheu para o mar ganhar tela.
@@ -74,16 +93,28 @@ export const ZOOM_LIVRE_MIN = 0.05;
 export const ZOOM_LIVRE_MAX = 8;
 
 /**
- * Quanto o zoom demora para chegar onde foi mandado, em segundos.
+ * Quanto tempo o zoom leva para chegar onde foi mandado, em segundos.
  *
- * O zoom pulava de degrau em degrau: cada volta da roda multiplicava a escala
- * na hora e a tela dava um tranco. Agora a roda mexe num ALVO e a escala corre
- * atras dele quadro a quadro. No editor a interpolacao e desligada - la a
- * caixa de selecao precisa cair exatamente em cima do sprite no mesmo quadro.
+ * 0,45 e um numero grande de proposito. Na primeira tentativa isto era 0,16 -
+ * o que PARECE suave escrito, mas a conta de amortecimento abaixo leva 99,9%
+ * do caminho nesse tempo: sao quatro quadros a 60 Hz. Ou seja, continuava
+ * pulando; a interpolacao existia e ninguem via.
  */
-const ZOOM_EASE = 0.16;
-/** Quanto uma volta da roda mexe no zoom. Passo fino: a suavizacao faz o resto. */
-const ZOOM_STEP = 0.0016;
+const ZOOM_EASE = 0.45;
+
+/**
+ * Quanto UM entalhe da roda mexe no zoom.
+ *
+ * O `deltaY` do navegador nao tem unidade combinada: o mesmo entalhe manda 100
+ * num mouse, 120 em outro e 240 num terceiro, e o modo por PAGINA manda numero
+ * de outra ordem de grandeza. Multiplicar a escala por `exp(-deltaY × k)` fazia
+ * o passo depender do mouse - e num mouse de 200 por entalhe um clique da roda
+ * saltava de 100% para 138%, que foi exatamente o que apareceu no teste.
+ *
+ * Entao o `deltaY` e normalizado para -1, 0 ou 1 e o passo passa a ser SEMPRE
+ * estes 8% por entalhe, em qualquer maquina.
+ */
+const ZOOM_STEP = 0.08;
 
 /** Altura do quadro inteiro em unidades de mundo (inclui a vara). */
 export const PLAYER_H = CHAR_FRAME_H * CHAR_SCALE;
@@ -158,6 +189,12 @@ export function usePlayer({
 
   const world = useWorld();
   const [spot, setSpot] = useState<Spot>(null);
+  /** a acao de cenario ao alcance, se houver (a caixa AÇÃO do editor) */
+  const [acao, setAcao] = useState<AcaoPerto | null>(null);
+  /** a acao sendo executada agora: enquanto ela existe, o Juggler nao anda */
+  const [fazendo, setFazendo] = useState<AcaoPerto | null>(null);
+  const fazendoRef = useRef<AcaoPerto | null>(null);
+  fazendoRef.current = fazendo;
   const [viewH, setViewH] = useState(() =>
     typeof window === 'undefined' ? world.frameH : window.innerHeight,
   );
@@ -324,26 +361,25 @@ export function usePlayer({
       if (!livre && !e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       const [lo, hi] = livre ? [ZOOM_LIVRE_MIN, ZOOM_LIVRE_MAX] : [ZOOM_MIN, ZOOM_MAX];
-      // exponencial: uma volta para cima desfaz exatamente uma para baixo
-      const fator = Math.exp(-e.deltaY * ZOOM_STEP);
-      zoomAlvo.current = clamp(zoomAlvo.current * fator, lo, hi);
-      // no editor a escala tem de valer JA: a caixa de selecao e desenhada
-      // por cima do sprite e nao pode ficar um quadro atras dele
-      if (editingRef.current) {
-        zoomRef.current = zoomAlvo.current;
-        setZoom(zoomAlvo.current);
-      }
+      /*
+       * Um entalhe = um passo, venha o `deltaY` que vier.
+       *
+       * `deltaMode` 1 e 2 contam LINHA e PAGINA em vez de pixel; sem
+       * normalizar, um trackpad de rolagem por linha daria passo de tamanho
+       * completamente diferente do de um mouse. E exponencial para uma volta
+       * para cima desfazer exatamente uma para baixo.
+       */
+      const entalhe = Math.sign(e.deltaY);
+      if (entalhe === 0) return;
+      zoomAlvo.current = clamp(zoomAlvo.current * Math.exp(-entalhe * ZOOM_STEP), lo, hi);
     };
     window.addEventListener('wheel', onWheel, { passive: false });
     return () => window.removeEventListener('wheel', onWheel);
   }, []);
 
+  // volta para 100% no mesmo amortecimento da roda, e nao de um corte
   const resetZoom = useCallback(() => {
     zoomAlvo.current = 1;
-    if (editingRef.current) {
-      zoomRef.current = 1;
-      setZoom(1);
-    }
   }, []);
 
   /** Manda o zoom para um valor exato: usado pelas travas do editor. */
@@ -383,11 +419,36 @@ export function usePlayer({
     else keys.current.delete(code);
   }, []);
 
+  /**
+   * Comeca a acao de cenario que estiver ao alcance.
+   *
+   * O clipe fica congelado no primeiro quadro da conta (`step` zerado): entrar
+   * numa animacao no meio do ciclo faz o Juggler dar um tranco visivel no
+   * instante em que senta.
+   */
+  const startAction = useCallback(() => {
+    setAcao((perto) => {
+      if (perto) {
+        step.current = 0;
+        frameT.current = 0;
+        setFazendo(perto);
+      }
+      return perto;
+    });
+  }, []);
+
+  const stopAction = useCallback(() => {
+    step.current = 0;
+    frameT.current = 0;
+    setFazendo(null);
+  }, []);
+
   // ------------------------------------------------------------- laco
   useEffect(() => {
     let raf = 0;
     let last = performance.now();
     let lastSpot: Spot = null;
+    let ultimaAcao: string | null = null;
     let lastFrameKey = '';
     let frameShown = frameRef.current;
     let zoomShown = zoomRef.current;
@@ -401,12 +462,14 @@ export function usePlayer({
       if (cameraRef.current) {
         cameraRef.current.style.transform = `translate3d(${-camX.current}px,0,0)`;
       }
-      // parallax: quanto mais longe, menos anda
+      // parallax: quanto mais longe, menos anda. Os fatores vem da tabela
+      // compartilhada - o editor le a MESMA para saber onde desenhar a caixa
+      // de selecao de uma ilha do horizonte
       if (farRef.current) {
-        farRef.current.style.transform = `translate3d(${-camX.current * 0.22}px,0,0)`;
+        farRef.current.style.transform = `translate3d(${-camX.current * BAND_FACTOR.longe}px,0,0)`;
       }
       if (midRef.current) {
-        midRef.current.style.transform = `translate3d(${-camX.current * 0.52}px,0,0)`;
+        midRef.current.style.transform = `translate3d(${-camX.current * BAND_FACTOR.meio}px,0,0)`;
       }
     };
 
@@ -425,14 +488,19 @@ export function usePlayer({
       /*
        * O zoom, quadro a quadro.
        *
-       * A roda mexe no ALVO; aqui a escala caminha ate ele. Era isto que
-       * faltava: antes a escala era trocada de uma vez no evento da roda, e o
-       * mundo dava um pulo a cada clique da rodinha. Com o editor aberto (ou
-       * com as animacoes desligadas nas preferencias) a interpolacao sai de
-       * cena e o valor vale na hora - no editor porque a caixa de selecao
-       * precisa bater com o sprite no mesmo quadro.
+       * A roda mexe no ALVO; aqui a escala caminha ate ele.
+       *
+       * A interpolacao vale TAMBEM dentro do editor. Na primeira versao ela era
+       * desligada la, com medo de a caixa de selecao ficar um quadro atras do
+       * sprite - mas o `setZoom` logo abaixo publica a escala nova a cada
+       * quadro do amortecimento, entao a caixa acompanha e o editor ganha o
+       * mesmo zoom macio do jogo. Quem realmente precisa de valor instantaneo
+       * e a trava de enquadramento, e ela escreve nos dois refs de uma vez.
+       *
+       * Sem interpolacao so quando a pessoa desligou animacoes nas
+       * preferencias - ai e escolha dela.
        */
-      const instantaneo = editingRef.current || !getSettings().animations;
+      const instantaneo = !getSettings().animations;
       if (instantaneo) {
         zoomRef.current = zoomAlvo.current;
       } else if (Math.abs(zoomAlvo.current - zoomRef.current) > 0.0005) {
@@ -457,8 +525,21 @@ export function usePlayer({
 
       const free = getDevFlags().freeCam;
       const k = keys.current;
+      /*
+       * Executando uma acao de cenario, o Juggler fica onde esta.
+       *
+       * E o mesmo tratamento da pescaria: quem esta sentado no banco nao anda.
+       * Sair e so andar - a primeira tecla de movimento cancela, logo abaixo,
+       * porque exigir que a pessoa aperte E de novo para levantar seria uma
+       * regra a mais para decorar sem ganho nenhum.
+       */
+      const naAcao = fazendoRef.current !== null;
+      // andar cancela: a primeira tecla de movimento levanta o Juggler
+      if (naAcao && !frozen && (k.has('ArrowLeft') || k.has('ArrowRight') || k.has('KeyA') || k.has('KeyD') || k.has('Space') || k.has('ArrowUp') || k.has('KeyW'))) {
+        setFazendo(null);
+      }
       // com camera livre o Juggler fica plantado: o teclado passa a ser da tela
-      const canMove = !frozen && !free && activeRef.current && !fishingRef.current;
+      const canMove = !frozen && !free && !naAcao && activeRef.current && !fishingRef.current;
       const left = canMove && (k.has('ArrowLeft') || k.has('KeyA'));
       const right = canMove && (k.has('ArrowRight') || k.has('KeyD'));
       const running = !frozen && !free && (k.has('ShiftLeft') || k.has('ShiftRight'));
@@ -509,11 +590,45 @@ export function usePlayer({
         frameT.current = 0;
       }
 
-      const clip = clipName(anim.current, facing.current);
+      /*
+       * A acao de cenario passa NA FRENTE da maquina de animacao.
+       *
+       * A maquina escolhe o clipe pelo que o Juggler esta fazendo - andando,
+       * pulando, pescando - e o nome sai de `AnimName`. Uma acao de cenario
+       * nao e nenhuma dessas coisas: o clipe dela foi escolhido a mao numa
+       * caixa do editor e pode ser qualquer pasta de quadros que exista no
+       * pacote. Entao ela SUBSTITUI a escolha, em vez de disputar com ela.
+       *
+       * A acao so vale se o clipe existir de verdade: clipe apagado do pacote
+       * (ou nome errado digitado) cai fora e o Juggler volta a animar normal,
+       * em vez de virar um sprite invisivel.
+       */
+      const emAcao = fazendoRef.current;
+      const acao = emAcao && (CLIP_FRAMES[emAcao.clip] ?? 0) > 0 ? emAcao : null;
+
+      const clip = acao ? acao.clip : clipName(anim.current, facing.current);
       const count = CLIP_FRAMES[clip] ?? 1;
       const cfg = clipConfig(`char/${clip}`);
 
-      if (cfg.mode === 'fase') {
+      /*
+       * POSE trava num quadro so e para ali; ANIMAÇÃO roda o ciclo normal, so
+       * que no clipe da caixa. `quadroFixo` sai da conta de sequencia de
+       * proposito: numa pose voce escolheu o QUADRO, e passar isso pela
+       * sequencia editavel do clipe daria outro quadro que nao o escolhido.
+       */
+      let quadroFixo: number | null = null;
+      if (acao) {
+        if (acao.tipo === 'pose') {
+          quadroFixo = Math.min(Math.max(0, Math.round(acao.poseFrame)), count - 1);
+        } else {
+          frameT.current += dt * 1000;
+          const dur = Math.max(30, cfg.frameMs);
+          while (frameT.current >= dur) {
+            frameT.current -= dur;
+            step.current += 1;
+          }
+        }
+      } else if (cfg.mode === 'fase') {
         // um quadro por momento do lance, com uma passada rapida pelo arremesso
         step.current = FISH_SLOT[poseRef.current] ?? 0;
       } else if (cfg.mode === 'fisica') {
@@ -635,7 +750,7 @@ export function usePlayer({
         shadowRef.current.style.transform = `translate3d(${x.current}px,${ground}px,0) scale(${1 - t * 0.45})`;
         shadowRef.current.style.opacity = String(0.34 - t * 0.2);
       }
-      const shown = frameAt(`char/${clip}`, step.current, count);
+      const shown = quadroFixo ?? frameAt(`char/${clip}`, step.current, count);
       const frameKey = `${clip}/${shown}`;
       if (spriteRef.current && frameKey !== lastFrameKey) {
         lastFrameKey = frameKey;
@@ -651,6 +766,31 @@ export function usePlayer({
         lastSpot = near;
         setSpot(near);
       }
+
+      /*
+       * Que acao de cenario esta ao alcance.
+       *
+       * Comparado por ID, e nao por objeto: a caixa e relida da cena a cada
+       * quadro, entao o objeto e sempre novo e um `!==` faria isto avisar o
+       * React sessenta vezes por segundo.
+       */
+      const z = fishingRef.current ? null : actionAt(x.current);
+      const perto: AcaoPerto | null =
+        z && z.zone
+          ? {
+              id: z.id,
+              tipo: z.zone === 'pose' ? 'pose' : 'animacao',
+              clip: z.clip ?? 'side-idle-left',
+              poseFrame: z.poseFrame ?? 0,
+              prompt: z.prompt?.trim() || 'Interagir',
+            }
+          : null;
+      if ((perto?.id ?? null) !== ultimaAcao) {
+        ultimaAcao = perto?.id ?? null;
+        setAcao(perto);
+      }
+      // saiu da caixa enquanto estava sentado nela: levanta sozinho
+      if (fazendoRef.current && !perto) setFazendo(null);
 
       raf = requestAnimationFrame(stepLoop);
     };
@@ -674,6 +814,12 @@ export function usePlayer({
     spot,
     nearRod: spot === 'vara',
     nearMarket: spot === 'mercado',
+    /** a acao de cenario ao alcance, ou null */
+    acao,
+    /** a acao sendo executada agora, ou null */
+    fazendo,
+    startAction,
+    stopAction,
     scale,
     /** deslocamento vertical da cena quando o zoom passa da altura da tela */
     viewY,
