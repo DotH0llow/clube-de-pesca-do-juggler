@@ -1,83 +1,99 @@
 import type { SceneObject } from '../editor/types';
-import { PIER_END, PIER_RAMP, PIER_START } from './layout';
-import { largura, peca } from './pier';
+import { PIER_END, PIER_START } from './layout';
 import { getWorld } from './worldConfig';
 
 /**
- * O PÍER DO JOGO, em 2.5D.
+ * O PÍER DO JOGO: a-raso, e só ele.
  *
- * O pacote `pier/` é desenhado de PERFIL: tábua vista de canto, estaca vista
- * de lado, tudo num plano só. Isso dá um cais correto e chapado - dá para ver
- * que ele existe, não dá para ver que dá para ANDAR nele. As peças daqui saem
- * do `scripts/pier25.py`, que recorta a textura daquele mesmo pacote e
- * re-renderiza a geometria em projeção oblíqua: a madeira é a mesma, o que
- * mudou foi o ângulo.
+ * As peças saem do `scripts/pier25.py`, que recorta a textura do pacote de
+ * perfil e re-renderiza a geometria em projeção oblíqua. Aqui não entra nada
+ * do pacote de perfil - nem viga, nem travessa, nem mão-francesa, nem
+ * guindaste. Uma tentativa anterior misturou os dois para "dar densidade" e o
+ * resultado foi um cais de duas linguagens ao mesmo tempo, com estrutura
+ * chapada pendurada sob um tabuado em perspectiva.
+ *
+ * São cinco peças e mais nada:
+ *
+ *   deck         o tabuado, que se repete
+ *   deck-fim     a face que fecha a ponta
+ *   deck-rampa   o mesmo tabuado, cisalhado, descendo para a areia
+ *   poste        o mourão da frente
+ *   poste-fundo  o mourão de trás, menor por estar recuado
+ *   corrimao     a barra que liga os mourões
  *
  * ------------------------------------------------------------------- o chão
  *
  * O Juggler anda na TÁBUA DA FRENTE, e só nela. O deck tem profundidade no
- * desenho, mas não no jogo: `groundAt` continua devolvendo uma altura por
- * ponto do mapa, e essa altura é a borda da frente do tabuado. Um deck
- * navegável em profundidade seria outro sistema de movimentação.
- *
- * Por isso tudo aqui é ancorado pela LINHA DE PISO - a borda da frente - e não
- * pelo topo da caixa do sprite.
+ * desenho, mas não no jogo: `groundAt` devolve uma altura por ponto do mapa, e
+ * essa altura é a borda da frente do tabuado. Por isso tudo aqui é ancorado
+ * pela LINHA DE PISO, e não pelo topo da caixa do sprite.
  *
  * --------------------------------------------------------------------- luz
  *
- * Nenhuma. Não há sombra projetada nem gradiente de face em peça alguma. A
- * diferença de tom entre o tampo e a testeira é separação de face, que é o que
- * torna um desenho oblíquo legível - não iluminação. O cais chapado é de
- * propósito: dá para pendurar lampião e recorte de luz por cima depois sem
- * brigar com claro e escuro já assados no sprite.
+ * Nenhuma. A diferença de tom entre o tampo e a testeira é separação de face,
+ * que é o que torna um desenho oblíquo legível - não iluminação. Não há sombra
+ * projetada nem gradiente em peça alguma, então dá para pendurar lampião e
+ * recorte de luz por cima depois.
  */
 
 /*
- * A GEOMETRIA DO GERADOR.
+ * A GEOMETRIA DO GERADOR, em pixels de desenho.
  *
- * Estes números são os da variação `a-raso`, e eles NÃO são escolhidos aqui -
- * são consequência das constantes do `scripts/pier25.py`. Estão repetidos
- * porque o TypeScript não lê o Python; se a variação mudar lá, muda aqui.
+ * Estes números não são escolhidos aqui - são consequência das constantes do
+ * `scripts/pier25.py` na variação `a-raso`. Estão repetidos porque o
+ * TypeScript não lê o Python; se a variação mudar lá, muda aqui.
  *
- * Tudo em pixels de DESENHO do gerador (o arquivo no disco é 3x isto).
+ * A escala de trabalho do gerador TRIPLICOU em relação à primeira versão: o
+ * tampo passou de 14 para 42 pixels de verdade. Antes a peça tinha o tamanho
+ * certo e a resolução de um sprite três vezes menor, e o chão do cais ficava
+ * grosseiro perto do resto da arte.
  */
 const G = {
-  /** largura de um tile de deck, e o passo com que ele se repete */
-  tile: 160,
-  passo: 128,
-  /** altura da caixa do tile */
-  tileAlt: 23,
+  /** largura da caixa do tile de deck, e o passo com que ele se repete */
+  tile: 481,
+  passo: 384,
+  tileAlt: 64,
   /** onde, dentro do tile, fica a borda da frente do tabuado */
-  piso: 14,
+  piso: 41,
   /** o quanto o tampo recua para dentro */
-  recuo: 32,
+  recuo: 97,
   /** a peça que fecha a ponta */
-  fim: 34,
-  /** mourão: largura, altura total, e quanto ele sobe acima do piso */
-  posteL: 13,
-  posteAlt: 138,
-  posteAcima: 42,
-  /** o mourão de trás é menor porque está mais longe */
-  fundoL: 11,
+  fim: 99,
+  /** a rampa: caixa e o quanto ela desce do começo ao fim */
+  rampa: 481,
+  rampaAlt: 106,
+  /** mourão */
+  posteL: 39,
+  posteAlt: 414,
+  posteAcima: 126,
+  fundoL: 32,
   /** a barra do corrimão */
-  corrimaoL: 136,
-  corrimaoAlt: 9,
-  /** a que altura do piso a barra passa */
-  corrimaoY: 30,
+  corrimaoL: 408,
+  corrimaoAlt: 24,
+  corrimaoY: 90,
 };
 
 /**
  * Quantas unidades de mundo vale um pixel de desenho do gerador.
  *
- * 1,8 põe o passo do tabuado em 230 unidades - cinco tiles ao longo do cais -
- * e o mourão com 23 de largura por 248 de altura. Mexer aqui reescala o cais
- * inteiro de uma vez, mantendo tudo encaixado.
+ * 0,6 põe o passo do tabuado em 230 unidades - quatro tiles ao longo do cais -
+ * e o mourão com 23 de largura por 248 de altura. É a mesma escala final da
+ * versão anterior; o que mudou é que agora há três vezes mais pixel dentro
+ * dela.
  */
-const P = 1.8;
+const P = 0.6;
 
 let seq = 0;
 
-function p25(sprite: string, x: number, y: number, largBase: number, altBase: number, depth: number, extra: Partial<SceneObject> = {}): SceneObject {
+function p25(
+  sprite: string,
+  x: number,
+  y: number,
+  largBase: number,
+  altBase: number,
+  depth: number,
+  extra: Partial<SceneObject> = {},
+): SceneObject {
   return {
     id: `pier25-${sprite}-${++seq}`,
     layer: 'cenario',
@@ -94,14 +110,14 @@ function p25(sprite: string, x: number, y: number, largBase: number, altBase: nu
 }
 
 /**
- * O cais inteiro em 2.5D.
+ * O cais inteiro.
  *
  * A ordem de composição é a ordem de profundidade, e é ela que faz a coisa
  * parecer sólida: mourão de trás, tabuado por cima dele, mourão da frente por
  * cima do tabuado. Errar essa ordem entrega o truque na hora.
  *
  *   3  mourão de trás (aparece ACIMA da linha do deck, por estar recuado)
- *   5  tabuado
+ *   5  tabuado e rampa
  *   6  mourão da frente e corrimão
  *
  * Tudo ATRÁS do Juggler (7). Um corrimão na frente dele cortaria o personagem
@@ -120,8 +136,6 @@ export function pier25Pieces(): SceneObject[] {
   const passo = G.passo * P;
 
   // ------------------------------------------------------ mourões de trás
-  // Recuados para dentro da cena, e por isso desenhados mais alto na tela: é
-  // esse par que fecha a leitura de profundidade.
   for (let x = x0; x < x1; x += passo) {
     out.push(
       p25(
@@ -140,7 +154,6 @@ export function pier25Pieces(): SceneObject[] {
   for (let x = x0; x < x1; x += passo) {
     out.push(p25('deck', x, deckY, G.tile, G.tileAlt, 5));
   }
-  // a ponta, fechando o bico do último tile
   out.push(p25('deck-fim', x1 - G.fim * P * 0.4, deckY, G.fim, G.tileAlt, 5));
 
   // --------------------------------------------------- mourões da frente
@@ -159,86 +172,27 @@ export function pier25Pieces(): SceneObject[] {
   }
 
   /*
-   * A ESTRUTURA DEBAIXO DO DECK, do pacote de PERFIL.
+   * A RAMPA.
    *
-   * Esta parte é o remendo de um erro meu. Ao trocar o cais pelo 2.5D eu
-   * troquei também tudo que vinha junto - viga, travessa em X, mão-francesa,
-   * emenda - porque o gerador não produz nenhuma dessas peças. O resultado foi
-   * um cais mais pobre que o anterior: cinco postes, uma barra e nada entre
-   * eles. Ganhou ângulo e perdeu densidade, o que não é uma troca boa.
+   * Ela é o próprio tabuado cisalhado, então encaixa no deck reto sem emenda
+   * visível. Começa onde o deck termina e desce até a areia.
    *
-   * Elas voltam. E voltam de perfil mesmo, porque estrutura ABAIXO da linha
-   * d'água não denuncia ângulo: são vigas e cordas cruzadas, sem tampo à
-   * mostra que pudesse contradizer a projeção do deck.
+   * A largura dela é o que manda no `PIER_RAMP` do `layout.ts` - os dois
+   * precisam concordar, senão o Juggler desce a rampa no desenho e continua no
+   * nível do deck na física, ou o contrário. Aqui a rampa é desenhada com a
+   * largura que a peça tem, e a queda dela já foi calculada no gerador para
+   * bater com o desnível do mundo.
    */
-  const vao = passo;
-  for (let n = 0, x = x0; x < x1; x += vao, n++) {
-    // travessa em X entre um par de mourões e o seguinte
-    if (x + vao < x1) {
-      out.push(peca('brace-x', { cx: x + vao / 2, topo: w.pierY + 96, alt: 78, depth: 3, opacity: 0.95 }));
-    }
-    // mão-francesa no encontro do mourão com o tabuado
-    out.push(
-      peca('knee-brace', {
-        cx: x + (n % 2 === 0 ? 30 : -30),
-        topo: w.pierY + 26,
-        alt: 44,
-        depth: 4,
-        flip: n % 2 !== 0,
-      }),
-    );
-    // estaca magra no meio do vão, adensando a estacaria
-    if (x + vao / 2 < x1) {
-      out.push(
-        peca('piling-slim', {
-          cx: x + vao / 2,
-          topo: w.pierY + 22,
-          alt: 168,
-          depth: 3,
-          opacity: 0.9,
-        }),
-      );
-    }
-  }
-
-  // a viga longitudinal, amarrando as estacas por baixo
-  const vigaW = largura('beam-underdeck-long');
-  for (let x = x0; x < x1; x += vigaW) {
-    out.push(
-      peca('beam-underdeck-long', {
-        esq: x,
-        topo: w.pierY + 22,
-        larg: Math.min(vigaW, x1 - x),
-        depth: 3,
-      }),
-    );
-  }
-  out.push(peca('joint-lashed', { cx: x0 + 132, topo: w.pierY + 20, alt: 70, depth: 4 }));
-  out.push(peca('support-square-massive', { cx: x0 - 10, topo: w.pierY + 6, alt: 250, depth: 4 }));
-  out.push(peca('derrick-wood', { cx: x0 + 104, base: w.pierY + 2, alt: 150, depth: 4, opacity: 0.96 }));
-
-  /*
-   * A RAMPA E A TRALHA também vêm do perfil.
-   *
-   * Não há peça 2.5D para elas, e inventar uma aqui seria produzir geometria
-   * que o gerador não faz. O que é pequeno e redondo - cabeço, defensa,
-   * escada - não denuncia ângulo, então atravessa a troca de projeção sem
-   * parecer errado.
-   */
-  out.push(
-    peca('deck-ramp', {
-      esq: x1 - 10,
-      topo: w.pierY - 4,
-      larg: PIER_RAMP + 24,
-      alt: w.sandY - w.pierY + 22,
-      depth: 5,
-    }),
-  );
-  out.push(peca('deck-short', { esq: x1 + PIER_RAMP - 4, topo: w.sandY, larg: 40, depth: 5 }));
-  out.push(peca('cleat-wood', { cx: x0 + 168, base: w.pierY + 2, alt: 28, depth: 8 }));
-  out.push(peca('cleat-wood', { cx: x1 - 220, base: w.pierY + 2, alt: 28, depth: 8, flip: true }));
-  out.push(peca('fender-logs', { cx: x0 + 62, topo: w.pierY + 96, alt: 104, depth: 8 }));
-  out.push(peca('ladder-hanging', { cx: PIER_START + 280, topo: w.pierY + 8, alt: 132, depth: 4 }));
+  out.push(p25('deck-rampa', x1 - 6, deckY, G.rampa, G.rampaAlt, 5));
 
   return out;
 }
+
+/**
+ * O comprimento horizontal da rampa, em unidades de mundo.
+ *
+ * O `layout.ts` usa isto para o chão descer no mesmo lugar em que o desenho
+ * desce. Exportado daqui, e não escrito à mão lá, porque quem sabe o tamanho
+ * da peça é este arquivo.
+ */
+export const RAMPA_LARGURA = Math.round(G.rampa * P);

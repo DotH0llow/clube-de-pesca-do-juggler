@@ -46,8 +46,18 @@ export const PIER_Y = 336;
 /** O pier: comeca sobre o mar aberto e encosta na praia. */
 export const PIER_START = 600;
 export const PIER_END = 1460;
-/** Rampa que liga o deck a areia. */
-export const PIER_RAMP = 70;
+/**
+ * Rampa que liga o deck a areia.
+ *
+ * O numero e o COMPRIMENTO DA PECA de rampa do cais 2.5D (481 px de desenho a
+ * 0,6 unidade por pixel). Ele e assim porque o chao tem de descer exatamente
+ * onde o desenho desce: com os dois em desacordo, o Juggler anda na rampa
+ * pintada e continua no nivel do deck na fisica, ou o contrario.
+ *
+ * Mexer na escala do cais (`P`, em `world/pier25.ts`) obriga a mexer aqui e no
+ * `RAMPA_QUEDA` do gerador.
+ */
+export const PIER_RAMP = 289;
 
 /** Faixas de cenario, da esquerda para a direita. */
 export const BEACH_START = PIER_END;

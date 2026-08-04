@@ -48,16 +48,25 @@ DENTRO_X = 0.5   # quanto um passo de profundidade desloca no eixo X
 DENTRO_Y = 0.5   # ... e no eixo Y (0,5/0,5 = a diagonal clássica de 2:1)
 
 # --------------------------------------------------------------- dimensões
-TILE = 64        # lado da célula, em px (a mesma grade do pacote original)
-PROFUNDIDADE = 3 # quantas tábuas de largura tem o deck
-ESPESSURA = 7    # espessura do tabuado, em px
-TABUA_L = 14     # largura de uma tábua, em px
-FRESTA = 1       # folga entre tábuas
+#
+# TUDO AQUI TRIPLICOU, e isso é o conserto de um defeito real: na primeira
+# versão o tampo do deck tinha 14 pixels de altura no desenho e era ampliado 3x
+# na gravação. Ou seja, a peça no jogo tinha o tamanho certo e a RESOLUÇÃO de
+# 14 px - cada pixel de fonte virava um bloco de 3, e o chão do cais ficava
+# grosseiro perto do resto da arte.
+#
+# Agora o desenho já nasce no tamanho final: o tampo tem 42 px de verdade, a
+# borda tem 21, o mourão tem 39 de largura. A gravação não amplia mais nada.
+TILE = 192       # lado da célula, em px
+PROFUNDIDADE = 4 # quantas tábuas de largura tem o deck
+ESPESSURA = 21   # espessura do tabuado, em px
+TABUA_L = 39     # largura de uma tábua, em px
+FRESTA = 3       # folga entre tábuas
 
 # ------------------------------------------------------------------ postes
-POSTE_L = 13     # largura do poste, em px
-POSTE_ALT = 46   # quanto o poste sobe acima do piso
-ESTACA_ALT = 96  # quanto a estaca desce abaixo do piso
+POSTE_L = 39     # largura do poste, em px
+POSTE_ALT = 126  # quanto o poste sobe acima do piso
+ESTACA_ALT = 288 # quanto a estaca desce abaixo do piso
 
 # ------------------------------------------------------------------ corrimão
 #
@@ -65,8 +74,8 @@ ESTACA_ALT = 96  # quanto a estaca desce abaixo do piso
 # a partir do piso, ela caía dentro da superfície do deck sempre que a projeção
 # ficava mais funda - porque o tampo, ao recuar, sobe na tela. Presa ao topo do
 # mourão, a barra fica onde a mão a alcançaria em qualquer ângulo.
-CORRIMAO_DO_TOPO = 12
-CORRIMAO_ESP = 4
+CORRIMAO_DO_TOPO = 36
+CORRIMAO_ESP = 12
 
 # ------------------------------------------------------- separação de face
 #
@@ -85,23 +94,35 @@ POSTE_FUNDO = 0.82
 
 # -------------------------------------------------------------------- saída
 #
-# As peças são desenhadas pequenas (o deck sai com 23 px de altura) e gravadas
-# ampliadas por número INTEIRO, com vizinho mais próximo. Sem isto o jogo teria
-# de esticar um sprite de 23 px por um fator quebrado para chegar no tamanho de
-# mundo, e aí cada pixel vira um retângulo de tamanho diferente do vizinho -
-# o defeito clássico de pixel art escalada fora de proporção.
-ESCALA_SAIDA = 3
-QUALIDADE = 92
+# A ampliação na gravação SAIU (ESCALA_SAIDA = 1). Ela existia porque o desenho
+# era pequeno demais; agora ele já nasce no tamanho final, com pixel de
+# verdade em vez de bloco de três.
+ESCALA_SAIDA = 1
+QUALIDADE = 94
 SEED = 7
 
 # As variações do contact sheet. Cada uma é um conjunto de sobrescritas das
 # constantes acima - é assim que se compara ângulo e proporção sem editar o
 # arquivo entre um render e outro.
 VARIACOES = [
-    ('a-raso', dict(DENTRO_X=0.62, DENTRO_Y=0.26, PROFUNDIDADE=4, TABUA_L=13, POSTE_ALT=42)),
-    ('b-classico', dict(DENTRO_X=0.50, DENTRO_Y=0.45, PROFUNDIDADE=5, TABUA_L=13, POSTE_ALT=48)),
-    ('c-fundo', dict(DENTRO_X=0.34, DENTRO_Y=0.66, PROFUNDIDADE=6, TABUA_L=12, POSTE_ALT=56)),
+    ('a-raso', dict(DENTRO_X=0.62, DENTRO_Y=0.26, PROFUNDIDADE=4, TABUA_L=39, POSTE_ALT=126)),
+    ('b-classico', dict(DENTRO_X=0.50, DENTRO_Y=0.45, PROFUNDIDADE=5, TABUA_L=39, POSTE_ALT=144)),
+    ('c-fundo', dict(DENTRO_X=0.34, DENTRO_Y=0.66, PROFUNDIDADE=6, TABUA_L=36, POSTE_ALT=168)),
 ]
+
+# ------------------------------------------------------------------- rampa
+#
+# Quanto a rampa desce, em fração da própria largura.
+#
+# 0,111 não é um número escolhido por gosto: a peça tem 481 px de largura e o
+# jogo a desenha a 0,6 unidade por pixel, ou seja 289 unidades. O deck está 32
+# unidades acima da areia. 32/289 = 0,111.
+#
+# Se a escala do cais mudar, este número muda junto - e o `PIER_RAMP` do
+# `layout.ts` também, senão o Juggler desce a rampa no desenho e continua no
+# nível do deck na física.
+RAMPA_QUEDA = 0.111
+RAMPA_LARG = 2  # em células
 
 
 # ==========================================================================
@@ -131,7 +152,8 @@ def textura(nome, w, h):
     """
     src = faixa_opaca(_abre(nome))
     escala = max(1, round(src.height * (h / src.height)))
-    src = src.resize((max(1, round(src.width * escala / src.height)), escala), Image.LANCZOS)
+    filtro = Image.NEAREST if escala > src.height else Image.LANCZOS
+    src = src.resize((max(1, round(src.width * escala / src.height)), escala), filtro)
     out = Image.new('RGBA', (w, h))
     for x in range(0, w, src.width):
         out.alpha_composite(src, (x, 0))
@@ -246,6 +268,34 @@ def deck_fim(cfg):
     grao = textura('deck-fascia', im.width, im.height)
     grao.putalpha(im.getchannel('A'))
     return Image.blend(im, grao, cfg['GRAO'])
+
+
+def deck_rampa(cfg, celulas=RAMPA_LARG, queda_frac=RAMPA_QUEDA):
+    """
+    A RAMPA que desce do deck para a areia.
+
+    Faltava por completo - o cais terminava no ar e quem descia para a praia
+    dava um degrau invisível. Ela não é uma peça nova desenhada do zero: é o
+    PRÓPRIO TABUADO cisalhado na vertical, coluna por coluna. Assim a tábua, a
+    fresta, a testeira e o grão são exatamente os do deck reto, e a emenda
+    entre os dois não aparece.
+
+    O cisalhamento é feito com `numpy`, deslocando cada coluna de pixels para
+    baixo por um tanto proporcional à distância percorrida. Desenhar a rampa
+    como polígonos inclinados daria o mesmo resultado com três vezes mais
+    código - e com o risco de a inclinação da fresta não bater com a da borda.
+    """
+    largura = cfg['TILE'] * celulas
+    base = deck_tile(dict(cfg, TILE=largura // 2))
+    queda = int(largura * queda_frac)
+
+    a = np.array(base)
+    alt, larg = a.shape[0], a.shape[1]
+    out = np.zeros((alt + queda, larg, 4), dtype=a.dtype)
+    for x in range(larg):
+        desce = int(queda * x / max(1, larg - 1))
+        out[desce:desce + alt, x] = a[:, x]
+    return Image.fromarray(out, 'RGBA')
 
 
 def poste(cfg, altura, sprite='piling-heavy-round'):
@@ -402,6 +452,7 @@ def gera_pecas(nome_var):
     saidas = {
         'deck': deck_tile(cfg),
         'deck-fim': deck_fim(cfg),
+        'deck-rampa': deck_rampa(cfg),
         'poste': poste(cfg, cfg['POSTE_ALT'] + cfg['ESTACA_ALT']),
         'poste-fundo': poste(dict(cfg, POSTE_L=l_fundo), cfg['POSTE_ALT'] + cfg['ESTACA_ALT']),
         'corrimao': corrimao(cfg, cfg['TILE'] * 2),
