@@ -44,12 +44,22 @@ import { getSettings } from '../state/settings';
  * dela. A velocidade é em ciclos por segundo, e o SINAL é o que importa.
  */
 const ONDAS: [number, number, number][] = [
-  [520, 1.0, 0.22],
-  [310, 0.62, -0.31],
-  [170, 0.34, 0.47],
-  [95, 0.17, -0.62],
+  [520, 1.0, 0.12],
+  [310, 0.62, -0.17],
+  [170, 0.34, 0.26],
+  [95, 0.17, -0.34],
 ];
 const PESO_TOTAL = ONDAS.reduce((a, [, p]) => a + p, 0);
+
+/**
+ * Quanto da altura configurada a onda realmente usa.
+ *
+ * A primeira versão usava a altura cheia, e ficou marulho de mar aberto no
+ * meio de uma enseada. Este fator segura a amplitude sem mexer no
+ * `waveH` que está salvo - quem já ajustou o slider no editor continua com o
+ * ajuste dele, só que numa escala mais calma.
+ */
+const FORCA = 0.55;
 
 /**
  * Distância entre dois pontos da linha, em unidades de mundo.
@@ -103,7 +113,7 @@ export function WaterSurface({
   const tras = useRef<SVGPathElement | null>(null);
 
   useEffect(() => {
-    const amp = altura / 2;
+    const amp = (altura / 2) * FORCA;
     const n = Math.ceil(width / PASSO);
     /* SEGUNDOS DE UMA PASSADA vira um multiplicador de ritmo: o slider do
        editor continua dizendo "mar calmo / mar agitado" como antes, so que
@@ -158,7 +168,7 @@ export function WaterSurface({
     return () => cancelAnimationFrame(raf);
   }, [width, altura, profundidade, segundos]);
 
-  const amp = altura / 2;
+  const amp = (altura / 2) * FORCA;
 
   return (
     <svg

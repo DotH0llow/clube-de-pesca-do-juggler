@@ -4413,3 +4413,21 @@ button {
   -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 55%, transparent 100%);
   mask-image: linear-gradient(180deg, #000 0%, #000 55%, transparent 100%);
 }
+
+/* cada palavra do titulo e uma peca; elas so precisam preencher a propria
+   caixa, porque quem decide onde ficam e o editor */
+.menu-slot > .title-palavra {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: 46px;
+  line-height: 1;
+  letter-spacing: 2px;
+  color: var(--cream);
+  text-shadow: 0 4px 0 #02121b, 0 0 24px rgba(255, 190, 90, 0.35);
+}
+
+.menu-slot > .title-palavra.destaque {
+  color: var(--coin);
+}

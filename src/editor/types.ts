@@ -187,7 +187,9 @@ export interface SceneObject {
    * arranjo interno vinha do CSS. Agora cada peca e uma peca:
    *
    *   marca      - o simbolo do topo
-   *   titulo     - so o nome do jogo
+   *   titulo     - a primeira palavra do nome (JUGGLER'S)
+   *   fishing    - a segunda (FISHING)
+   *   club       - a terceira (CLUB)
    *   subtitulo  - a chamada de uma linha
    *   progresso  - lancamentos, especies e moedas
    *   jogar      - CONTINUAR / COMECAR
@@ -204,6 +206,8 @@ export interface SceneObject {
     | 'vinheta'
     | 'marca'
     | 'titulo'
+    | 'fishing'
+    | 'club'
     | 'subtitulo'
     | 'progresso'
     | 'jogar'

@@ -23,6 +23,24 @@ import {
 } from '../world/layout';
 import { islandObjects, menuIslandObjects } from '../world/islands';
 import { largura, peca, pierPieces } from '../world/pier';
+import { pier25Pieces } from '../world/pier25';
+
+/**
+ * Qual cais o jogo monta.
+ *
+ * `true`  - o 2.5D gerado por script (`world/pier25.ts`)
+ * `false` - o de PERFIL, desenhado a mao (`world/pier.ts`)
+ *
+ * O interruptor existe porque a troca nao e obviamente melhor. O 2.5D ganha o
+ * angulo pedido e o tampo a mostra, mas as pecas dele sao GERADAS - cor chapada
+ * com um pouco de grao por cima - e perdem para a estaca roliça com colar de
+ * corda que veio desenhada no pacote. Lado a lado, o de perfil tem mais peso.
+ *
+ * Trocar aqui troca o cais inteiro. A cena salva acompanha: quem ja tem cais
+ * 2.5D salvo e voltar para `false` precisa apagar as pecas `pier25-` no editor,
+ * ou usar RESETAR na cena.
+ */
+const USAR_PIER_25 = true;
 import { seaBottom, seaLeft } from '../world/worldConfig';
 import { ZONAS_REPETIVEIS } from './types';
 import type { LayerId, SceneId, SceneObject, SceneState, ShapeKind, ZoneId } from './types';
@@ -184,7 +202,7 @@ function seedMundo(): SceneObject[] {
    * diagonal. `world/pier.ts` monta o cais com o pacote `pier/` e devolve tudo
    * como objeto de cena editavel.
    */
-  out.push(...pierPieces());
+  out.push(...(USAR_PIER_25 ? pier25Pieces() : pierPieces()));
   out.push({
     id: 'barco-ancorado',
     layer: 'cenario',
@@ -498,7 +516,18 @@ function seedMenu(): SceneObject[] {
   out.push(ui('juggler', 726, 40, 560, 680));
 
   out.push(ui('marca', 72, 96, 210, 88));
-  out.push(ui('titulo', 72, 196, 560, 136));
+  /*
+   * O NOME DO JOGO SAO TRES CAIXAS, uma por palavra.
+   *
+   * Era um bloco so, com uma quebra de linha no meio e o arranjo vindo do CSS.
+   * Dava para mover o nome inteiro e mais nada - subir so o CLUB, ou abrir
+   * espaco entre JUGGLER'S e FISHING, exigia mexer no codigo. As tres nascem
+   * na mesma arrumacao de antes, entao a tela abre igual; o que muda e que
+   * agora cada palavra se arrasta sozinha.
+   */
+  out.push(ui('titulo', 72, 196, 330, 62));
+  out.push(ui('fishing', 412, 178, 300, 58));
+  out.push(ui('club', 412, 238, 220, 58));
   out.push(ui('subtitulo', 72, 340, 470, 52));
 
   // a coluna de botoes: mesma largura, empilhados, mas cada um por si
@@ -564,9 +593,9 @@ const APOSENTADOS: { por: (o: SceneObject) => boolean; motivo: string }[] = [
     motivo: 'mata de gradiente radial',
   },
   {
-    // o cais virou pacote inteiro em `world/pier.ts`
-    por: (o) => o.id.startsWith('pier-post-') || o.id === 'pier-ladder',
-    motivo: 'estacaria solta do cais antigo',
+    // o cais virou pacote inteiro, e depois virou 2.5D em `world/pier25.ts`
+    por: (o) => o.id.startsWith('pier-'),
+    motivo: 'cais de perfil, das duas geracoes anteriores',
   },
 ];
 
@@ -588,10 +617,28 @@ function garantirGruposNovos(st: SceneState): SceneState {
   const faltando = seed.filter(
     (s) =>
       !ids.has(s.id) &&
-      (s.id.startsWith('pier-') || s.id.startsWith('ilha-') || s.id.startsWith('mata-fundo-')),
+      (s.id.startsWith('pier25-') || s.id.startsWith('ilha-') || s.id.startsWith('mata-fundo-')),
   );
   if (faltando.length === 0) return st;
   return { ...st, objects: [...st.objects, ...faltando] };
+}
+
+/**
+ * Troca o cais de PERFIL pelo cais 2.5D numa cena ja salva.
+ *
+ * Isto e uma migracao cirurgica, e nao um reset: ela apaga so o que tem id de
+ * peca do cais antigo (`pier-...`) e poe as pecas novas no lugar. Todo o resto
+ * da cena - inclusive o que voce arrastou na mao - passa intacto.
+ *
+ * Ela reconhece a cena antiga pela ausencia de qualquer `pier25-`: onde ja ha
+ * cais novo, nao faz nada e sai.
+ */
+function trocarPier(st: SceneState): SceneState {
+  if (!USAR_PIER_25) return st;
+  if (st.objects.some((o) => o.id.startsWith('pier25-'))) return st;
+  const semCais = st.objects.filter((o) => !o.id.startsWith('pier-'));
+  if (semCais.length === st.objects.length) return st;
+  return { ...st, objects: [...semCais, ...pier25Pieces()] };
 }
 
 function garantirZonas(st: SceneState): SceneState {
@@ -658,7 +705,7 @@ function load(): Book {
         const s = parsed[id];
         if (s && Array.isArray(s.objects) && s.objects.length > 0) {
           const st = { objects: s.objects, hidden: s.hidden ?? [] };
-          book[id] = id === 'mundo' ? garantirZonas(st) : garantirPecasDoMenu(st);
+          book[id] = id === 'mundo' ? garantirZonas(trocarPier(st)) : garantirPecasDoMenu(st);
         }
       }
       return book;

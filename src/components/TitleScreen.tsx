@@ -205,12 +205,20 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
             <img className="title-mark" src={asset('ui/temporary-logo-mark')} alt="" />
           </MenuSlot>
 
+          {/* Uma caixa por palavra. O `h1` continua existindo na primeira
+              para a pagina ter um titulo de verdade; as outras duas sao
+              `span`, porque tres `h1` numa tela so seria mentira para quem
+              navega por leitor de tela. */}
           <MenuSlot role="titulo" className="title-brand">
-            <h1>
-              JUGGLER'S
-              <br />
-              <em>FISHING CLUB</em>
-            </h1>
+            <h1>JUGGLER'S</h1>
+          </MenuSlot>
+
+          <MenuSlot role="fishing" className="title-brand">
+            <span className="title-palavra destaque">FISHING</span>
+          </MenuSlot>
+
+          <MenuSlot role="club" className="title-brand">
+            <span className="title-palavra destaque">CLUB</span>
           </MenuSlot>
 
           <MenuSlot role="subtitulo">
