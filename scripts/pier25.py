@@ -84,7 +84,14 @@ GRAO = 0.5           # quanto da textura original entra por cima da cor sólida
 POSTE_FUNDO = 0.82
 
 # -------------------------------------------------------------------- saída
-QUALIDADE = 90
+#
+# As peças são desenhadas pequenas (o deck sai com 23 px de altura) e gravadas
+# ampliadas por número INTEIRO, com vizinho mais próximo. Sem isto o jogo teria
+# de esticar um sprite de 23 px por um fator quebrado para chegar no tamanho de
+# mundo, e aí cada pixel vira um retângulo de tamanho diferente do vizinho -
+# o defeito clássico de pixel art escalada fora de proporção.
+ESCALA_SAIDA = 3
+QUALIDADE = 92
 SEED = 7
 
 # As variações do contact sheet. Cada uma é um conjunto de sobrescritas das
@@ -399,9 +406,14 @@ def gera_pecas(nome_var):
         'poste-fundo': poste(dict(cfg, POSTE_L=l_fundo), cfg['POSTE_ALT'] + cfg['ESTACA_ALT']),
         'corrimao': corrimao(cfg, cfg['TILE'] * 2),
     }
+    finais = {}
     for nome, im in saidas.items():
-        im.save(os.path.join(DESTINO, nome + '.webp'), 'WEBP', quality=QUALIDADE, method=5)
-    return {k: v.size for k, v in saidas.items()}
+        grande = im.resize(
+            (im.width * ESCALA_SAIDA, im.height * ESCALA_SAIDA), Image.NEAREST
+        )
+        grande.save(os.path.join(DESTINO, nome + '.webp'), 'WEBP', quality=QUALIDADE, method=5)
+        finais[nome] = grande.size
+    return finais
 
 
 def main():
