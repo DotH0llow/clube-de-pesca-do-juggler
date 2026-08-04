@@ -9,6 +9,7 @@ import {
   DebugPanel,
 } from './components/casino/CasinoModals';
 import { CatchPopup } from './components/CatchPopup';
+import { HuntHud } from './components/HookHunt';
 import { DevPanel } from './components/DevPanel';
 import { EditorOverlay } from './editor/EditorOverlay';
 import { getFx, type StepId } from './editor/fx';
@@ -143,7 +144,7 @@ export default function App() {
   );
 
   const loop = useFishingLoop(handleOutcome);
-  const { phase, pending, outcome, startCast, lockPower, hook, finishReel, dismiss, abort } = loop;
+  const { phase, pending, outcome, startCast, lockPower, hookReached, hookGaveUp, hook, finishReel, dismiss, abort } = loop;
 
   const busy =
     editor ||
@@ -189,7 +190,11 @@ export default function App() {
       ? 'idle'
       : castHeld
         ? 'cast'
-        : phase;
+        : // cacando, o Juggler fica na pose de espera: ele esta com a linha na
+          // agua, e quem esta descendo e o anzol
+          phase === 'cacando'
+          ? 'waiting'
+          : phase;
 
   const player = usePlayer({
     active: view === 'mundo' && !busy,
@@ -420,6 +425,11 @@ export default function App() {
         spriteRef={player.spriteRef}
         scale={player.scale}
         viewY={player.viewY}
+        hunt={
+          shownPhase === 'cacando' && shownPending
+            ? { alvo: shownPending, onCatch: hookReached, onGiveUp: hookGaveUp }
+            : null
+        }
       />
 
       {dev.freeCam && !editor && (
@@ -605,8 +615,13 @@ export default function App() {
             {phase === 'power' && <CastBar onLock={lockPower} />}
 
             {phase === 'waiting' && settings.hints && (
-              <div className="hint-strip">LINHA NA ÁGUA. ESPERE A BOIA MEXER...</div>
+              <div className="hint-strip">A LINHA BATEU NA ÁGUA...</div>
             )}
+
+            {/* A CAÇADA. O aviso e o medidor de linha ficam na interface, e não
+                dentro d'água: são informação de jogo, e precisam continuar
+                legíveis com a câmera onde quer que ela esteja. */}
+            {phase === 'cacando' && <HuntHud onGiveUp={hookGaveUp} />}
 
             {phase === 'bite' && (
               <button className="btn danger" onClick={hook} style={{ fontSize: 24, padding: '20px 38px' }}>

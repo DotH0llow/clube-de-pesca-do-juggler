@@ -10,6 +10,7 @@ import { BAND_FACTOR } from '../editor/types';
 import { CHAR_ANCHOR, CHAR_CANVAS, CHAR_FRAME_H, CLIP_FRAMES } from './charFrames';
 import { camMinX, groundAt, WORLD_W } from './layout';
 import { getWorld, panMaxY, panMinY, useWorld } from './worldConfig';
+import { hookPos } from './hookPos';
 
 export type Facing = 'left' | 'right';
 export type AnimName = 'side-idle' | 'walk' | 'run' | 'jump' | 'fish' | 'sit';
@@ -73,6 +74,11 @@ const JUMP_V = 700;
  * aterrissagem so entra quando o pe encosta - e sai sozinho depois disso.
  */
 const LAND_MS = 150;
+
+/** Prende o deslocamento vertical da camera dentro do mundo. */
+function clampPan(v: number): number {
+  return Math.min(panMaxY(), Math.max(panMinY(), v));
+}
 
 /** Velocidade da camera livre, em unidades de mundo por segundo. */
 const FREE_CAM_SPEED = 900;
@@ -702,6 +708,20 @@ export function usePlayer({
         camY.current = clamp(camY.current - Math.sign(dy) * speed, panMinY(), panMaxY());
       } else if (free) {
         // camera livre com painel aberto: a tela fica onde estava
+      } else if (hookPos.ativo) {
+        /*
+         * A CAMERA DESCE ATRAS DO ANZOL.
+         *
+         * Enquanto a cacada roda, quem enquadra a cena e o anzol e nao o
+         * Juggler - senao o jogador guiaria as cegas uma coisa que esta
+         * quinhentas unidades abaixo da moldura. A camera segue os dois eixos,
+         * e volta sozinha quando a cacada acaba (pelo `else` logo abaixo).
+         */
+        const alvoX = clamp(hookPos.x - view / 2, minX, maxX);
+        const alvoY = clampPan(-(hookPos.y - getWorld().waterY - 120));
+        const suave = getSettings().animations ? 1 - Math.pow(0.004, dt) : 1;
+        camX.current += (alvoX - camX.current) * suave;
+        camY.current += (alvoY - camY.current) * suave;
       } else {
         const focus = fishingRef.current ? rodX() - 90 : x.current;
         const target = clamp(focus - view / 2, minX, maxX);

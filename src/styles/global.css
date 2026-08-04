@@ -4352,3 +4352,109 @@ button {
 .ilha-meio {
   filter: saturate(0.62) brightness(1.08) contrast(0.85);
 }
+
+/* ==========================================================================
+   A CACADA
+
+   O anzol e o peixe sao objetos de MUNDO: posicao absoluta em unidades de
+   cena, movidos por transform a cada quadro. O medidor de linha e de
+   INTERFACE, e fica na tela.
+   ========================================================================== */
+
+.hunt-hook,
+.hunt-fish {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 85;
+  /* o transform posiciona; a origem no centro faz o alcance de captura ser
+     medido do meio da peca, que e onde o olho acha que ela esta */
+  margin-left: -18px;
+  margin-top: -18px;
+  will-change: transform;
+}
+
+.hunt-hook img {
+  height: 36px;
+  width: auto;
+  display: block;
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.6));
+}
+
+/* o pulso ao redor do anzol: le como "isto aqui e voce" no meio da agua */
+.hunt-ping {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46px;
+  height: 46px;
+  margin: -23px 0 0 -23px;
+  border: 2px solid rgba(180, 240, 255, 0.55);
+  border-radius: 50%;
+  animation: hunt-pulso 1.4s ease-out infinite;
+}
+
+@keyframes hunt-pulso {
+  from {
+    transform: scale(0.5);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.hunt-fish {
+  margin-left: -36px;
+  margin-top: -30px;
+}
+
+/* o halo do peixe usa a cor da raridade: da para saber o que esta em jogo
+   antes de gastar linha descendo atras dele */
+.hunt-halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 86px;
+  height: 86px;
+  margin: -43px 0 0 -43px;
+  border: 2px dashed;
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+/* ------------------------------------------------------ medidor de linha */
+
+.hunt-hud {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.hunt-linha {
+  position: relative;
+  width: min(320px, 70vw);
+  height: 22px;
+  background: rgba(4, 18, 30, 0.75);
+  border: 2px solid #2c5f85;
+  overflow: hidden;
+}
+
+.hunt-linha i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #2fd6c9, #7de8ff);
+}
+
+.hunt-linha span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #041624;
+}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { playCatch, playPerfect, playSfx } from '../engine/audio';
-import { biteDelay, escapeLine, resolveCast } from '../engine/fishing';
+import { escapeLine, resolveCast } from '../engine/fishing';
 import type { CastQuality } from '../engine/outcomes';
 import { buzz } from '../state/settings';
 import { applyCast, getState, type Unlocks } from '../state/store';
@@ -17,10 +17,24 @@ import {
   type CatchOutcome,
 } from '../state/casino';
 import { consumeJackpotReady } from '../state/casino';
-import { getFx } from '../editor/fx';
 import type { CastResult } from '../state/types';
 
-export type Phase = 'idle' | 'power' | 'waiting' | 'bite' | 'reeling' | 'result';
+/**
+ * As fases do lance.
+ *
+ * `cacando` e a fase nova, e ela substitui a espera. Antes o lance era: joga a
+ * linha, ESPERA um timer, aperta no susto. O jogador nao fazia nada entre
+ * lancar e fisgar - a boia decidia sozinha e o unico input era um reflexo.
+ *
+ * Agora, depois do arremesso, o anzol afunda e QUEM GUIA E O JOGADOR: ele desce
+ * atras do peixe com as setas ou WASD, dentro do comprimento de linha que tem.
+ * Encostar no peixe fisga.
+ *
+ * `waiting` continua no tipo porque a arte da pescaria tem um quadro para ela e
+ * a secao MECANICAS do editor a usa como etapa - ela e o instante entre a linha
+ * bater na agua e o controle passar para o jogador.
+ */
+export type Phase = 'idle' | 'power' | 'waiting' | 'cacando' | 'bite' | 'reeling' | 'result';
 
 export interface Outcome {
   result: CastResult;
@@ -33,16 +47,16 @@ export interface Outcome {
   pendingLost?: number;
 }
 
-/**
- * Janela de reacao para fisgar, em ms.
+/*
+ * A JANELA DE FISGADA SAIU.
  *
- * O valor sai da configuracao de mecanicas (`src/editor/fx.ts`), editavel na
- * secao MECANICAS do editor. O padrao subiu de 1100 para 4600 ms: 1,1 s era
- * curto demais para quem estava lendo a tela em vez de decorar o ritmo.
+ * Ela media quanto tempo o jogador tinha para apertar depois de a boia mexer -
+ * e nao ha mais boia mexendo sozinha. O que decide o lance agora e alcancar o
+ * peixe com o anzol, e isso nao tem cronometro: tem comprimento de linha.
+ *
+ * `biteWindowMs` continua na configuracao de MECANICAS e continua sendo lido
+ * pela simulacao passo a passo do editor, que ainda desenha a etapa `bite`.
  */
-function biteWindow(): number {
-  return getFx().timings.biteWindowMs;
-}
 
 /**
  * Maquina de estados da pescaria.
@@ -52,7 +66,8 @@ export function useFishingLoop(onOutcome?: (o: Outcome) => void) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [pending, setPending] = useState<CastResult | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
-  const [biteDeadline, setBiteDeadline] = useState(0);
+  // continua exposto para quem desenha a etapa `bite` na simulacao do editor
+  const [biteDeadline] = useState(0);
 
   const qualityRef = useRef<CastQuality>('bom');
   const pendingRef = useRef<CastResult | null>(null);
@@ -159,21 +174,50 @@ export function useFishingLoop(onOutcome?: (o: Outcome) => void) {
       setPhase('waiting');
 
       clearTimer();
+      /*
+       * Um respiro curto e o controle passa para o jogador.
+       *
+       * Aqui havia `biteDelay()`, uma espera de segundos ate a boia mexer
+       * sozinha. Ela nao existe mais como espera: e so o tempo de a linha bater
+       * na agua e a camera descer. O que decide o lance agora e a cacada.
+       *
+       * Lance vazio (`nada`) continua resolvendo na hora - nao ha o que cacar.
+       */
       timerRef.current = window.setTimeout(() => {
         if (result.category === 'nada') {
           complete(true);
           return;
         }
-        const window_ms = biteWindow();
-        setBiteDeadline(Date.now() + window_ms);
-        setPhase('bite');
-        playSfx('bite');
-        buzz([10, 40, 10]);
-        timerRef.current = window.setTimeout(() => complete(false), window_ms);
-      }, biteDelay(bonusSchoolActive()));
+        setPhase('cacando');
+      }, 420);
     },
     [complete],
   );
+
+  /**
+   * O anzol alcancou o peixe.
+   *
+   * Da direto no `reeling` quando o bicho tem briga; peixe facil (e lixo, e
+   * bau) resolve na hora, que e a mesma regra que o `hook` usava.
+   */
+  const hookReached = useCallback(() => {
+    const result = pendingRef.current;
+    if (!result) return;
+    clearTimer();
+    playSfx('bite');
+    buzz([10, 40, 10]);
+    if (result.difficulty <= 0.06) {
+      complete(true);
+      return;
+    }
+    setPhase('reeling');
+  }, [complete]);
+
+  /** A linha acabou, ou o jogador recolheu sem alcancar nada. */
+  const hookGaveUp = useCallback(() => {
+    clearTimer();
+    complete(false);
+  }, [complete]);
 
   const hook = useCallback(() => {
     const result = pendingRef.current;
@@ -211,6 +255,8 @@ export function useFishingLoop(onOutcome?: (o: Outcome) => void) {
     biteDeadline,
     startCast,
     lockPower,
+    hookReached,
+    hookGaveUp,
     hook,
     finishReel,
     dismiss,

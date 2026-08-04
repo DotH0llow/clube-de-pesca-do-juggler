@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { asset } from '../assets';
 import { skyPhase, type SkyPhaseId } from '../data/skies';
 import type { CastResult } from '../state/types';
@@ -9,6 +9,7 @@ import { rodTip, useFx, type StepId } from '../editor/fx';
 import type { FishPose } from '../world/usePlayer';
 import { groundAt, PIER_END, PIER_START, WORLD_W } from '../world/layout';
 import { Runoff } from './Rain';
+import { HookHunt } from './HookHunt';
 import { useDevFlags } from '../state/dev';
 
 /** A faixa do deck em que a água escorre: a mesma que `world/pier.ts` monta. */
@@ -48,6 +49,8 @@ interface Props {
   scale: number;
   /** deslocamento vertical da cena, calculado pelo enquadramento */
   viewY: number;
+  /** a cacada esta rodando: o anzol e o peixe entram na cena */
+  hunt?: { alvo: CastResult; onCatch: () => void; onGiveUp: () => void } | null;
 }
 
 /**
@@ -75,11 +78,15 @@ export function World({
   spriteRef,
   scale,
   viewY,
+  hunt = null,
 }: Props) {
   const settings = useSettings();
   const fx = useFx();
   const w = useWorld();
   const dev = useDevFlags();
+  /** posicao do anzol na cacada, escrita por quadro pelo `HookHunt` */
+  const anzolRef = useRef({ x: 0, y: 0 });
+  const linhaRef = useRef<SVGSVGElement | null>(null);
   // mesma regra do céu: o interruptor de teste manda; sem ele, a hora do dia
   const chovendo = dev.rain === null ? skyPhase(hour).storm : dev.rain;
   const sky = skyPhase(hour);
@@ -125,6 +132,30 @@ export function World({
 
   const mercado = zoneRect('mercado');
   const marketMark = mercado ? mercado.x + mercado.w / 2 : null;
+
+  /*
+   * A linha da cacada, quadro a quadro.
+   *
+   * O `path` e reescrito direto no DOM em vez de sair de um render: o anzol se
+   * move sessenta vezes por segundo e um `setState` por quadro colocaria a
+   * cena inteira para re-renderizar junto com ele.
+   */
+  useEffect(() => {
+    if (!hunt) return;
+    let raf = 0;
+    const desenha = () => {
+      const path = linhaRef.current?.querySelector('path');
+      if (path) {
+        const a = anzolRef.current;
+        const meioX = (tipX + a.x) / 2;
+        const meioY = (tipY + a.y) / 2 + sag * 0.4;
+        path.setAttribute('d', `M ${tipX} ${tipY} Q ${meioX} ${meioY} ${a.x} ${a.y}`);
+      }
+      raf = requestAnimationFrame(desenha);
+    };
+    raf = requestAnimationFrame(desenha);
+    return () => cancelAnimationFrame(raf);
+  }, [hunt, tipX, tipY, sag]);
 
   return (
     <div className="stage">
@@ -307,6 +338,21 @@ export function World({
               vem com uma na mao. */}
           <SceneLayer scene="mundo" hideRod={fishing} />
 
+          {/* A LINHA durante a cacada sai da ponta da vara e chega no anzol,
+              onde quer que ele esteja. Ela e redesenhada por quadro no proprio
+              elemento, e nao por render do React. */}
+          {hunt && (
+            <svg
+              className="rig-line-svg"
+              ref={linhaRef}
+              style={{ left, top: 0, width: WORLD_W - left, height: chao }}
+              viewBox={`${left} 0 ${WORLD_W - left} ${chao}`}
+              preserveAspectRatio="none"
+            >
+              <path fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth={fx.timings.lineWidth} />
+            </svg>
+          )}
+
           {/* ------------------------------------------- linha, boia, peixe */}
           {inWater && (
             <>
@@ -357,6 +403,20 @@ export function World({
                 );
               })}
             </>
+          )}
+
+          {/* A CACADA: o anzol guiado e o peixe que ele persegue.
+
+              Mora aqui dentro, na camada da camera, porque anzol e peixe tem
+              posicao no MUNDO - eles precisam andar junto com a cena quando a
+              camera desce atras deles. */}
+          {hunt && (
+            <HookHunt
+              alvo={hunt.alvo}
+              onCatch={hunt.onCatch}
+              onGiveUp={hunt.onGiveUp}
+              hookRef={anzolRef}
+            />
           )}
 
           {/* O QUE ESCORRE DO DECK.
