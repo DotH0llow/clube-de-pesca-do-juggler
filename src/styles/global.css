@@ -214,6 +214,34 @@ button {
   animation: flash 17s steps(1) infinite;
 }
 
+/* O RAIO SOB DEMANDA (F8).
+
+   Elemento separado do da tempestade, e nao o mesmo com outra animacao: o da
+   tempestade roda em ciclo de 17 s, e interromper esse ciclo no meio devolveria
+   o raio automatico com a fase trocada. Este cai UMA vez e para. */
+.lightning.agora {
+  animation: flash-agora 0.9s steps(1) 1;
+}
+
+@keyframes flash-agora {
+  0%,
+  14% {
+    opacity: 1;
+  }
+  16%,
+  26% {
+    opacity: 0;
+  }
+  28%,
+  36% {
+    opacity: 0.9;
+  }
+  38%,
+  100% {
+    opacity: 0;
+  }
+}
+
 /* De onde para onde cada flutuador atravessa vem da configuracao, nao do CSS:
    as quatro pontas chegam em variavel e o quadro-chave so liga uma na outra. */
 @keyframes drift-path {
@@ -366,40 +394,206 @@ button {
   background-size: 32px 32px;
 }
 
-/* A ORLA: uma peca so, com o perfil de degraus vindo do `clip-path`.
+/* ==========================================================================
+   A LINHA DE COSTA
 
-   Eram 22 colunas lado a lado. Elemento tem borda, e borda em escala
-   fracionaria cai entre pixels - a noite, com o veu escuro por cima, cada
-   emenda virava um risco vertical da superficie ao fundo. Recorte nao tem
-   emenda porque nao ha dois elementos se encostando. */
+   Cinco camadas, todas recortadas pelo MESMO poligono (`world/shore.ts`).
+
+   O que saiu daqui foi o `.shore-veil` - um degrade vertical de transparente a
+   `#02131f` em 460 unidades, encostado na beira da praia. Ele e o "degrade
+   preto" do relato, e o defeito dele e aritmetico: a rampa do MAR so chega
+   nessa cor a 2 088 unidades de profundidade, entao a beirada ficava preta
+   enquanto o mar aberto ao lado dela, na mesma altura, continuava azul medio.
+
+   Nada aqui usa blur, e nenhuma cor e inventada: as bandas de profundidade
+   usam a cor que a AGUA tem naquela profundidade.
+   ========================================================================== */
+
+/* 1. a massa de areia submersa, com o tile de sempre e o recorte do perfil */
 .sand-orla {
   z-index: 15;
   position: absolute;
   background-repeat: repeat;
   background-size: 32px 32px;
+  /* o recorte e por poligono, e nao por elementos lado a lado: elemento tem
+     borda, e borda em escala fracionaria cai entre pixels */
+  overflow: hidden;
 }
 
-/* O VÉU: a mesma rampa de cor do mar, comprimida na faixa da orla.
+/* 2. as bandas de profundidade, filhas do recorte - nao ha como vazarem */
+/* A largura vem do componente: a banda para na COSTA, e nao na borda da caixa.
 
-   Ele passa por cima da areia (z 15) e por baixo do detalhe de orla (z 30),
-   então o que ele apaga é a areia submersa - e é só ela que precisa sumir na
-   água. A máscara da esquerda existe para o véu não invadir o mar aberto, que
-   já tem a rampa dele. */
-.shore-veil {
-  z-index: 18;
+   A borda direita nao e um corte seco: sao tres degraus de mascara (cheio,
+   metade, nada) nos ultimos 24 px. Tres degraus e dithering grosso, nao
+   degrade - o requisito de pixel art continua de pe, e o que se evita e uma
+   linha vertical de navalha entre a areia submersa e o subsolo da praia. */
+.orla-faixa {
+  position: absolute;
+  left: 0;
+  display: block;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    #000 0 calc(100% - 24px),
+    rgba(0, 0, 0, 0.55) calc(100% - 24px) calc(100% - 12px),
+    transparent calc(100% - 12px)
+  );
+  mask-image: linear-gradient(
+    90deg,
+    #000 0 calc(100% - 24px),
+    rgba(0, 0, 0, 0.55) calc(100% - 24px) calc(100% - 12px),
+    transparent calc(100% - 12px)
+  );
+}
+
+/* 3. a agua rasa: duas faixas CHAPADAS, sem degrade e sem blur */
+.mar-raso {
+  z-index: 16;
   position: absolute;
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 92%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 92%, transparent 100%);
 }
 
-/* areia molhada: a faixa que a onda deixou, escurecendo a beira da praia seca */
-.wet-sand {
+.mar-raso.fundo {
+  z-index: 15;
+}
+
+/* 4. a areia molhada.
+
+   E uma cor por cima do tile, e nao uma textura nova: a areia original
+   continua aparecendo por baixo, que e o requisito. A cor e a propria areia
+   rebaixada e dessaturada - nunca preto nem cinza neutro, que e o que faria a
+   faixa ler como sombra em vez de areia molhada.
+
+   `multiply` escurece preservando o desenho do tile; um bloco opaco por cima
+   apagaria o grao. */
+.areia-molhada {
   z-index: 17;
   position: absolute;
-  height: 20px;
   pointer-events: none;
-  background: linear-gradient(90deg, rgba(84, 116, 128, 0.55) 0%, rgba(120, 150, 148, 0.28) 45%, rgba(190, 168, 116, 0) 100%);
+  background: #8a6a3f;
+  mix-blend-mode: multiply;
+}
+
+/* 5. A ESPUMA.
+
+   Traco quebrado por `stroke-dasharray`, e nao uma faixa de imagem deslizando.
+   Sao duas camadas: a de baixo, mais grossa e mais rala, e a de cima, fina e
+   opaca. Os dois padroes tem pedacos de tamanhos diferentes e fases
+   diferentes, entao o conjunto nao le como tracejado regular. */
+.espuma {
+  z-index: 18;
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.espuma path {
+  fill: none;
+  stroke: #eaf7ff;
+  stroke-linecap: butt;
+  transform-origin: center;
+}
+
+.espuma-a {
+  /* pedacos e vaos irregulares: 18 de espuma, 7 de nada, 5, 11, 26, 9... */
+  stroke-dasharray: 18 7 5 11 26 9 3 14;
+  opacity: 0.85;
+  animation: onda-chega var(--onda-seg, 7s) steps(4, end) infinite;
+}
+
+.espuma-b {
+  /* o outro padrao e primo do primeiro, entao os dois nunca coincidem */
+  stroke-dasharray: 7 13 21 5 9 17;
+  stroke-dashoffset: 11;
+  opacity: 0.55;
+  animation: onda-chega var(--onda-seg, 7s) steps(4, end) infinite;
+  animation-delay: calc(var(--onda-seg, 7s) * -0.45);
+}
+
+/* A ONDA CHEGA E RECUA.
+
+   Ela sobe alguns pixels NA AREIA (x positivo e para dentro da praia),
+   fragmenta e apaga no ponto mais alto, e volta. `steps(4)` corta a
+   interpolacao: em pixel art a agua avanca em degraus, nao em rampa - e um
+   movimento continuo aqui leria como esteira deslizando, que e exatamente o
+   que o pedido descarta. */
+@keyframes onda-chega {
+  0% {
+    transform: translateX(0);
+    opacity: 0.3;
+  }
+  35% {
+    transform: translateX(var(--onda, 14px));
+    opacity: 0.9;
+  }
+  60% {
+    transform: translateX(calc(var(--onda, 14px) * 0.6));
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 0.3;
+  }
+}
+
+/* 6. A SOMBRA DO PIER, em camada propria.
+
+   Ela existe porque o cais tapa o sol - nao porque a praia precisa de uma
+   emenda escura. Enquanto a transicao agua/areia era um degrade vertical
+   escuro, nao havia como distinguir uma coisa da outra na tela.
+
+   Tres faixas, cada uma mais rala que a anterior, em XADREZ de 4 px. Dithering
+   e como pixel art faz meio-tom; um degrade suave aqui brigaria com o resto da
+   cena. O xadrez sai de um `conic-gradient` com paradas duras - sem
+   interpolacao, sem borda macia. */
+.sombra-pier {
+  z-index: 19;
+  position: absolute;
+  pointer-events: none;
+}
+
+.sombra-pier i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: block;
+}
+
+.sombra-pier .densa {
+  top: 0;
+  height: 26px;
+  background: rgba(6, 22, 34, 0.55);
+}
+
+.sombra-pier .media {
+  top: 26px;
+  height: 22px;
+  background:
+    conic-gradient(
+      from 0deg at 50% 50%,
+      rgba(6, 22, 34, 0.5) 0 25%,
+      transparent 0 50%,
+      rgba(6, 22, 34, 0.5) 0 75%,
+      transparent 0
+    );
+  background-size: 4px 4px;
+}
+
+.sombra-pier .rala {
+  top: 48px;
+  height: 20px;
+  background:
+    conic-gradient(
+      from 0deg at 50% 50%,
+      rgba(6, 22, 34, 0.4) 0 25%,
+      transparent 0 75%,
+      transparent 0
+    );
+  background-size: 8px 8px;
+}
+
+/* preferencia de acessibilidade: a onda para, mas a espuma continua la */
+.no-anim .espuma path {
+  animation: none;
 }
 
 /* `.pier-deck`, `.pier-post`, `.pier-ramp` e `.treeline` sairam daqui.
@@ -449,8 +643,8 @@ button {
 /* linha de mare: a MESMA espuma que corre na linha d'agua, e nao um degrade */
 /* `.tide-line` saiu: a praia entra por baixo do pier, entao a faixa de espuma
    ia parar na boca dele e lia como espuma brotando de dentro do cais. O
-   degrade entre agua e areia continua sendo feito pelo veu de profundidade
-   (`.shore-veil`) e pela areia molhada (`.wet-sand`). */
+   degrade entre agua e areia continua sendo feito pela linha de costa - agua
+   rasa, espuma e areia molhada, todas recortadas pelo mesmo perfil. */
 
 .anchored-boat {
   position: absolute;

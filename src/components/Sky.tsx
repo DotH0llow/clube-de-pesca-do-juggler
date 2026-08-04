@@ -123,6 +123,26 @@ export function Sky({ hour }: { hour: SkyPhaseId }) {
           <img className="lightning" src={asset('sky/lightning-bolt')} alt="" />
         </>
       )}
+
+      {/* O RELÂMPAGO SOB DEMANDA (painel de teste, F8).
+
+          Ele é um elemento SEPARADO do raio da tempestade, e não o mesmo com
+          outra animação. O da tempestade cai de 17 em 17 segundos em ciclo; o
+          daqui cai UMA vez, agora, e some. Reaproveitar o primeiro obrigaria a
+          interromper o ciclo dele no meio, e aí o raio automático voltaria com
+          a fase trocada.
+
+          A `key` é o contador: trocar a chave remonta o elemento, que é o que
+          faz a animação rodar de novo. Sem isso, apertar o botão duas vezes
+          seguidas piscaria uma só. */}
+      {dev.bolt > 0 && (
+        <img
+          key={dev.bolt}
+          className="lightning agora"
+          src={asset('sky/lightning-bolt')}
+          alt=""
+        />
+      )}
     </div>
   );
 }

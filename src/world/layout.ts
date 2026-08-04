@@ -204,6 +204,19 @@ export const CABANA: Prop[] = scaled([
   { sprite: 'props/pier-bench-side', x: 2780, y: SAND_Y + 2, h: 74, flip: true },
   { sprite: 'props/fishing-line-spool', x: 2580, y: SAND_Y + 2, h: 40 },
   { sprite: 'props/seashell', x: 2780, y: SAND_Y + 6, h: 24, flip: true },
+  /*
+   * A MAQUINA DO HYDRINHO, por enquanto so como OBJETO.
+   *
+   * Ela nao faz nada: nao abre tela, nao tem area de interacao, nao gira
+   * carretel. Esta aqui encostada na cabana porque um asset que existe no
+   * pacote e nao aparece em lugar nenhum e um asset que ninguem lembra que
+   * tem - e porque e assim que se descobre se o tamanho e a paleta dela
+   * conversam com o resto da praia antes de valer a pena ligar qualquer coisa.
+   *
+   * Quando virar interativa, o caminho e o mesmo das outras: uma caixa de
+   * interacao no editor e uma tela na secao TELAS.
+   */
+  { sprite: 'props/hydrinho-arcade', x: 2836, y: SAND_Y + 2, h: 262 },
 ]);
 
 /**

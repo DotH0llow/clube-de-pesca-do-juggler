@@ -97,6 +97,50 @@ export interface WorldConfig {
   parallaxFar: number;
   parallaxMid: number;
 
+  // ------------------------------------------------------------ linha de costa
+  /**
+   * A COSTA, em parametros e nao em numeros soltos pelo codigo.
+   *
+   * Tudo o que desenha a beirada da praia - o perfil da areia, a agua rasa, a
+   * espuma, a areia molhada e a sombra do pier - sai daqui. Sao decisoes de
+   * olho, e decisao de olho se acerta mexendo e olhando.
+   */
+  /** quantas colunas de tile o perfil desce para dentro da agua */
+  shoreColunas: number;
+  /** quanto a primeira coluna ja desce, e com que curva as seguintes descem */
+  shoreQueda: number;
+  shoreCurva: number;
+  /** amplitude do sorteio por coluna: 0 e uma curva limpa, alto vira ruido */
+  shoreIrregular: number;
+  /** ate onde a caixa da costa desce abaixo da linha d'agua */
+  shoreFundo: number;
+  /** em quantas unidades de agua a areia submersa some por completo */
+  shoreAbsorcao: number;
+
+  /** espessura da faixa de agua rasa, no lado da agua */
+  shoreRaso: number;
+  /** ate que distancia da costa a faixa rasa vai */
+  shoreRasoLarg: number;
+  shoreRasoAlfa: number;
+
+  /** espessura da areia molhada, no lado da areia */
+  shoreMolhada: number;
+  /** o quanto ela recua para dentro d'agua e avanca para dentro da praia */
+  shoreMolhadaRecuo: number;
+  shoreMolhadaAvanco: number;
+  shoreMolhadaAlfa: number;
+
+  /** grossura do traco da espuma */
+  shoreEspuma: number;
+  shoreEspumaRecuo: number;
+  shoreEspumaAvancoX: number;
+  /** quantas unidades a onda sobe na areia e volta, e em quantos segundos */
+  shoreEspumaOnda: number;
+  shoreEspumaSeg: number;
+
+  /** o quanto a sombra do pier escurece o que esta debaixo dele */
+  shoreSombraPier: number;
+
   // ------------------------------------------------------------------ ondas
   /** altura da faixa de espuma e ondas, em unidades */
   waveH: number;
@@ -141,6 +185,39 @@ export function seedWorld(): WorldConfig {
 
     parallaxFar: 0.22,
     parallaxMid: 0.52,
+
+    /*
+     * O PERFIL E RASO E LONGO, e nao curto e ingreme.
+     *
+     * A primeira tentativa descia 480 unidades em 704 - 34 graus - e o
+     * resultado lia como escada geometrica, nao como praia. Praia de verdade
+     * tem uns 10 graus na faixa de arrebentacao. Aqui sao 165 unidades em 960,
+     * o que da uns 10 e poe o degrau em 7 unidades de queda para 32 de largura:
+     * o suficiente para o serrilhado ler como pixel art, e nao como escada.
+     */
+    shoreColunas: 30,
+    shoreQueda: 2.2,
+    shoreCurva: 1.28,
+    shoreIrregular: 10,
+    shoreFundo: 300,
+    shoreAbsorcao: 150,
+
+    shoreRaso: 34,
+    shoreRasoLarg: 260,
+    shoreRasoAlfa: 0.5,
+
+    shoreMolhada: 14,
+    shoreMolhadaRecuo: 90,
+    shoreMolhadaAvanco: 120,
+    shoreMolhadaAlfa: 0.42,
+
+    shoreEspuma: 6,
+    shoreEspumaRecuo: 130,
+    shoreEspumaAvancoX: 90,
+    shoreEspumaOnda: 14,
+    shoreEspumaSeg: 7,
+
+    shoreSombraPier: 0.3,
 
     waveH: 44,
     waveLift: 20,

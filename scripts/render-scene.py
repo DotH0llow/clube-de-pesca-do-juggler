@@ -13,7 +13,7 @@ import json
 import os
 import sys
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 GAME = os.path.join(ROOT, 'src/assets/game')
@@ -43,17 +43,44 @@ water_y = WATER_Y - Y0
 if 0 < water_y < H:
     sheet.paste(Image.new('RGBA', (W, H - water_y), (32, 120, 160, 255)), (0, water_y))
 
-# A areia, do jeito que o `World.tsx` desenha. Duas regras importam aqui, e as
-# duas existem para nao aparecer emenda:
+# A AREIA E A COSTA, do jeito que o `World.tsx` desenha.
 #
-#   1. a fase do tile sai da posicao no MUNDO, e nao do topo do elemento - e
-#      uma grade so, entao dois pedacos vizinhos encaixam;
-#   2. as colunas da orla tem topo diferente e PE IGUAL, e o corte do pe fica
-#      escondido debaixo do veu de profundidade.
-ORLA_COLUNAS, ORLA_FUNDO = 22, 560
+# O perfil, os recortes e as bandas de profundidade sao os MESMOS de
+# `src/world/shore.ts` - as constantes estao repetidas aqui porque o Python nao
+# le TypeScript. Se um mudar, muda o outro.
+SHORE = dict(
+    colunas=30, queda=2.2, curva=1.28, irregular=10,
+    fundo=300, absorcao=150,
+    raso=34, raso_larg=260, raso_alfa=0.5,
+    molhada=14, molhada_recuo=90, molhada_avanco=120, molhada_alfa=0.42,
+    espuma=6, espuma_recuo=130, espuma_avanco=90,
+)
+# a cor do mar da hora que o render usa (meio-dia)
+SEA_TOP, SEA_BOTTOM, SEA_DEEP = (0x25, 0xd2, 0xe8), (0x04, 0x6a, 0x97), (0x02, 0x13, 0x1f)
+SEA_DEPTH = 2088
 
 
-def tile_band(img_path, x, y, w, h):
+def cor_do_mar(prof):
+    """Mesmas paradas do `.sea`: topo ate 4%, meio em 42%, fundo em 100%."""
+    t = max(0.0, min(1.0, prof / SEA_DEPTH))
+    if t <= 0.04:
+        return SEA_TOP
+    if t <= 0.42:
+        k = (t - 0.04) / 0.38
+        return tuple(round(a + (b - a) * k) for a, b in zip(SEA_TOP, SEA_BOTTOM))
+    k = (t - 0.42) / 0.58
+    return tuple(round(a + (b - a) * k) for a, b in zip(SEA_BOTTOM, SEA_DEEP))
+
+
+def clareia(c, t):
+    return tuple(round(a + (255 - a) * t) for a in c)
+
+
+def na_grade(v, passo=4):
+    return round(v / passo) * passo
+
+
+def tile_band(img_path, x, y, w, h, alvo=None):
     """Preenche uma caixa com o tile, na grade global da areia."""
     if h <= 0 or w <= 0:
         return
@@ -62,16 +89,18 @@ def tile_band(img_path, x, y, w, h):
     for ty in range(-(y % TILE), h, TILE):
         for tx in range(-(x % TILE), w, TILE):
             band.alpha_composite(src, (tx, ty))
-    sheet.alpha_composite(band, (x - X0, y - Y0))
+    (alvo if alvo is not None else sheet).alpha_composite(
+        band, (x - X0, y - Y0) if alvo is None else (0, 0)
+    )
 
 
 BORDA, CHEIA = 'sand/sand_12_01110110.webp', 'sand/sand_46_11111111.webp'
-# o corpo da praia, de uma vez so, do topo ate bem abaixo do mundo
+# o corpo da praia seca, de uma vez so
 tile_band(CHEIA, SHORE_X - 60, SAND_Y, 4000, 900)
 tile_band(BORDA, SHORE_X - 60, SAND_Y, 4000, TILE)
 
-# a orla: queda em curva, com deslocamento sorteado por coluna
-_s = 20260804
+# ------------------------------------------------------------------- o perfil
+_s = 20260805
 
 
 def _r():
@@ -80,33 +109,110 @@ def _r():
     return _s / 2 ** 32
 
 
-orla_fundo = WATER_Y + ORLA_FUNDO
-for n in range(ORLA_COLUNAS):
-    dx = SHORE_X - 60 - (n + 1) * TILE
-    dy = round(SAND_Y + max(2, 5 * (n + 1) ** 1.4 + (_r() - 0.5) * 16))
-    tile_band(CHEIA, dx, dy, TILE, max(0, orla_fundo - dy))
-    tile_band(BORDA, dx, dy, TILE, TILE)
+seco = SHORE_X - 60
+perfil = []
+for n in range(SHORE['colunas'], 0, -1):
+    q = SHORE['queda'] * n ** SHORE['curva'] + (_r() - 0.5) * SHORE['irregular']
+    perfil.append((na_grade(seco - n * TILE, TILE), na_grade(SAND_Y + max(2, q))))
+direita = na_grade(seco + SHORE['molhada_avanco'] + 200, TILE)
+perfil.append((seco, na_grade(SAND_Y)))
+perfil.append((direita, na_grade(SAND_Y)))
 
-# o veu de profundidade: aproximacao chapada do gradiente que o CSS faz
-veu_x = SHORE_X - 60 - ORLA_COLUNAS * TILE - 220
-veu_w = ORLA_COLUNAS * TILE + 280
-veu = Image.new('RGBA', (veu_w, ORLA_FUNDO))
-for yy in range(ORLA_FUNDO):
-    t = yy / ORLA_FUNDO
-    a = 0 if t < 0.02 else min(1.0, (t - 0.02) / 0.62)
-    cor = (32, 120, 160) if t < 0.3 else (6, 62, 99)
-    if t > 0.7:
-        cor = (2, 19, 31)
-    veu.paste(cor + (int(a * 255),), (0, yy, veu_w, yy + 1))
-mask = Image.new('L', (veu_w, ORLA_FUNDO))
-for xx in range(veu_w):
-    t = xx / veu_w
-    m = min(1.0, t / 0.22) if t < 0.22 else (1.0 if t < 0.92 else max(0.0, (1 - t) / 0.08))
-    mask.paste(int(m * 255), (xx, 0, xx + 1, ORLA_FUNDO))
-alfa = Image.new('L', veu.size)
-alfa.putdata([round(a * m / 255) for a, m in zip(veu.getchannel('A').getdata(), mask.getdata())])
-veu.putalpha(alfa)
-sheet.alpha_composite(veu, (veu_x - X0, WATER_Y - Y0))
+costa_x = next((x for x, y in reversed(perfil) if y >= WATER_Y), direita)
+esq = perfil[0][0]
+topo = na_grade(min(SAND_Y, WATER_Y) - SHORE['raso'] * 2 - 16)
+fundo_c = na_grade(WATER_Y + SHORE['fundo'])
+CW, CH = direita - esq, fundo_c - topo
+
+
+def perfil_y(x):
+    """Altura da areia em x, em degraus (o valor do ponto a esquerda)."""
+    y = perfil[0][1]
+    for px, py in perfil:
+        if px <= x:
+            y = py
+        else:
+            break
+    return y
+
+
+def mascara(dentro):
+    """Mascara CH x CW com 255 onde `dentro(x, y)` for verdadeiro."""
+    m = Image.new('L', (CW, CH), 0)
+    px = m.load()
+    for xx in range(CW):
+        y0, y1 = dentro(esq + xx)
+        for yy in range(max(0, y0 - topo), min(CH, y1 - topo)):
+            px[xx, yy] = 255
+    return m
+
+
+# 1. massa de areia submersa: do perfil para baixo
+areia = Image.new('RGBA', (CW, CH))
+tile_band(CHEIA, esq, topo, CW, CH, alvo=areia)
+areia.putalpha(mascara(lambda x: (perfil_y(x), fundo_c)))
+
+# 2. bandas de profundidade, na cor que a AGUA tem naquela profundidade
+alto = WATER_Y + SHORE['raso']
+passos = 8
+alcance = fundo_c - alto
+for i in range(passos):
+    y0 = na_grade(alto + alcance * i / passos)
+    y1 = fundo_c if i == passos - 1 else na_grade(alto + alcance * (i + 1) / passos)
+    cor = cor_do_mar((y0 + y1) / 2 - WATER_Y)
+    alfa = min(1.0, (y0 - WATER_Y) / max(1, SHORE['absorcao']))
+    # a banda para na COSTA: para a direita dela o que existe e subsolo de
+    # praia seca, e nao fundo de mar
+    larg = max(1, costa_x + TILE - esq)
+    faixa = Image.new('RGBA', (larg, max(1, y1 - y0)), cor + (int(alfa * 255),))
+    areia.alpha_composite(faixa, (0, max(0, y0 - topo)))
+sheet.alpha_composite(areia, (esq - X0, topo - Y0))
+
+# 3. agua rasa: duas faixas chapadas acompanhando o perfil
+for espessura, clara, alfa in (
+    (SHORE['raso'] * 2.2, 0.12, SHORE['raso_alfa'] * 0.55),
+    (SHORE['raso'], 0.34, SHORE['raso_alfa']),
+):
+    lim = costa_x - SHORE['raso_larg'] * (1.8 if espessura > SHORE['raso'] else 1)
+    faixa = Image.new('RGBA', (CW, CH), clareia(SEA_TOP, clara) + (int(alfa * 255),))
+    # a faixa rasa PARA NA COSTA: a direita dela o perfil e praia seca, e a
+    # faixa viraria uma tira de agua pairando acima da areia enxuta
+    faixa.putalpha(Image.eval(
+        mascara(lambda x, e=espessura, l=lim: (
+            (round(perfil_y(x) - e), perfil_y(x)) if l <= x <= costa_x else (0, 0)
+        )),
+        lambda v, a=alfa: int(v * a),
+    ))
+    sheet.alpha_composite(faixa, (esq - X0, topo - Y0))
+
+# 4. areia molhada: cor por cima do tile, sem trocar a textura
+molhada = Image.new('RGBA', (CW, CH), (0x8a, 0x6a, 0x3f, 255))
+molhada.putalpha(Image.eval(
+    mascara(lambda x: (
+        (perfil_y(x), perfil_y(x) + SHORE['molhada'])
+        if costa_x - SHORE['molhada_recuo'] <= x <= costa_x + SHORE['molhada_avanco']
+        else (0, 0)
+    )),
+    lambda v: int(v * SHORE['molhada_alfa']),
+))
+sheet.alpha_composite(molhada, (esq - X0, topo - Y0))
+
+# 5. espuma: tracos irregulares em cima do perfil
+espuma = Image.new('RGBA', (CW, CH))
+ed = ImageDraw.Draw(espuma)
+padrao = [18, 7, 5, 11, 26, 9, 3, 14]
+pos, k, ligado = costa_x - SHORE['espuma_recuo'], 0, True
+while pos < costa_x + SHORE['espuma_avanco']:
+    passo = padrao[k % len(padrao)]
+    if ligado:
+        for xx in range(int(pos), int(min(pos + passo, costa_x + SHORE['espuma_avanco']))):
+            y = perfil_y(xx) - topo
+            ed.rectangle([xx - esq, y - SHORE['espuma'] // 2, xx - esq, y + SHORE['espuma'] // 2],
+                         fill=(0xea, 0xf7, 0xff, 220))
+    pos += passo
+    k += 1
+    ligado = not ligado
+sheet.alpha_composite(espuma, (esq - X0, topo - Y0))
 
 faltando = set()
 for o in objs:

@@ -55,6 +55,30 @@ de 4 tempos, mas dão um ar de hesitação. Quem quiser o ciclo completo escreve
 Cada clipe vira duas pastas, `-left` e `-right`; a versão da direita é o espelho
 da esquerda, gerado na importação.
 
+### As poses que a importação de agosto apagou
+
+Isto não é "arte que faltou importar": é **arte que estava no repositório e foi
+apagada**. O commit `9b6b6f7` reescreveu este importador, e o importador
+reescreve `char/` inteira a partir da tabela `CLIPS`. A tabela nomeia UM quadro
+por pose estática, então os 43 quadros que a versão anterior tinha gerado -
+sentar de frente, sentar de costas, os perfis de três quartos, o ciclo inteiro
+de pescaria sem a vara - deixaram de ser gerados e saíram no mesmo commit.
+
+`scripts/resgatar-poses.py` traz todos de volta, lendo do próprio histórico do
+git. Não é um `git checkout`: o canvas mudou de 256×256 para 522×564 com âncora
+fixa, então cada quadro é re-normalizado com a mesma medida do importador
+(largura do chapéu, quadril e pé alinhados).
+
+Eles voltam como clipes com sufixo `-extra` (`sit-left-extra`,
+`back-idle-extra`, ...) e não como quadros a mais dos clipes existentes: somar
+dois quadros no fim de `walk-left` mudaria a caminhada de quem já jogava.
+`fish-no-rod-left` e `fish-no-rod-right` voltam com o nome original — eram
+clipes inteiros de seis quadros, apagados por completo.
+
+**Lição para a próxima reescrita:** um importador que reescreve a pasta inteira
+precisa varrer o que existe, e não só o que a tabela cita. É o que a seção
+abaixo passou a fazer.
+
 ### As poses que a tabela deixava para trás
 
 A tabela acima é uma **lista de escolha**, e escolher significa deixar de fora.

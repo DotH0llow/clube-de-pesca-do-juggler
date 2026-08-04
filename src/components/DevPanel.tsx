@@ -1,5 +1,5 @@
 import { playSfx } from '../engine/audio';
-import { cycleRain, RAIN_LABEL, rainMode, toggleFreeCam, useDevFlags } from '../state/dev';
+import { cycleRain, fireBolt, RAIN_LABEL, rainMode, toggleFreeCam, useDevFlags } from '../state/dev';
 import { FISH } from '../data/fish';
 import { SKY_PHASES } from '../data/skies';
 import { clearAlbum, grantCheat, unlockAlbum, useGame } from '../state/store';
@@ -10,6 +10,7 @@ import {
   useGameClock,
   useSkyPhase,
 } from '../world/dayCycle';
+import { seedWorld, updateWorld, useWorld } from '../world/worldConfig';
 
 interface Props {
   onClose: () => void;
@@ -25,6 +26,8 @@ export function DevPanel({ onClose }: Props) {
   const rain = rainMode(dev);
   const hora = useSkyPhase();
   const clock = useGameClock();
+  const mundo = useWorld();
+  const semente = seedWorld();
   const noAlbum = Object.keys(s.album).length;
 
   const pay = (coins: number, eyes: number) => {
@@ -132,6 +135,22 @@ export function DevPanel({ onClose }: Props) {
         >
           {RAIN_LABEL[rain]}
         </button>
+        {/* O RELÂMPAGO NÃO ESPERA A TEMPESTADE.
+
+            O raio automático cai de 17 em 17 segundos e acende por dois
+            quadros. Quem quer olhar como ele ficou espera oito segundos e meio
+            em média - e pisca. Este cai agora, chovendo ou não. */}
+        <button
+          className="ebtn"
+          style={{ gridColumn: '1 / -1' }}
+          onClick={() => {
+            fireBolt();
+            playSfx('ui');
+          }}
+          title="Dispara um relâmpago agora, independente da hora e do clima"
+        >
+          RELÂMPAGO AGORA
+        </button>
         <button
           className={`ebtn${dev.freeCam ? ' primary' : ''}`}
           style={{ gridColumn: '1 / -1' }}
@@ -144,6 +163,46 @@ export function DevPanel({ onClose }: Props) {
         >
           CÂMERA LIVRE: {dev.freeCam ? 'LIGADA' : 'DESLIGADA'}
         </button>
+      </div>
+
+      {/* --------------------------------------------------- nível da água
+
+          O número existe na seção MUNDO do editor, mas subir a maré é o tipo de
+          ajuste que se faz OLHANDO a praia, e abrir o editor congela o jogo. Os
+          dois escrevem no mesmo `waterY`, então não há duas verdades: aqui é só
+          um caminho mais curto até ele.
+
+          Subir a água acima do topo da areia alaga a praia de verdade - a linha
+          de costa é calculada a partir dela, então a faixa de água rasa, a
+          espuma e a areia molhada andam junto. */}
+      <div className="dev-sep">NÍVEL DA ÁGUA</div>
+      <div className="dev-grid">
+        <button
+          className="ebtn"
+          onClick={() => updateWorld({ waterY: mundo.waterY + 8 })}
+          title="Maré baixa: a água desce e a praia cresce"
+        >
+          BAIXAR
+        </button>
+        <button
+          className="ebtn"
+          onClick={() => updateWorld({ waterY: mundo.waterY - 8 })}
+          title="Maré alta: a água sobe e come a praia"
+        >
+          SUBIR
+        </button>
+        <button
+          className="ebtn"
+          onClick={() => updateWorld({ waterY: semente.waterY })}
+          title="Volta a linha d'água ao padrão"
+        >
+          PADRÃO
+        </button>
+      </div>
+      <div className="dev-hint">
+        Linha d'água em <b>{Math.round(mundo.waterY)}</b>, topo da areia em{' '}
+        <b>{Math.round(mundo.sandY)}</b>. Acima de {Math.round(mundo.sandY)} a maré alaga a praia.
+        Os controles finos (perfil da costa, água rasa, espuma) estão em MUNDO, no editor.
       </div>
 
       <div className="dev-hint">

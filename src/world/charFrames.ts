@@ -40,4 +40,31 @@ export const CLIP_FRAMES: Record<string, number> = {
   'juggler/sit-right': 1,
   'juggler/walk-left': 4,
   'juggler/walk-right': 4,
+
+  /*
+   * AS POSES RESGATADAS.
+   *
+   * Estas 43 nao vieram do `import-character.py`: elas ja existiam no
+   * repositorio e foram apagadas quando o importador foi reescrito - a tabela
+   * nova nomeia UM quadro por pose estatica e reescreve a pasta inteira.
+   * `scripts/resgatar-poses.py` as le do proprio historico do git e as
+   * re-normaliza para o canvas de hoje.
+   *
+   * O sufixo `-extra` existe para nao mexer nos clipes que ja estao
+   * configurados: somar dois quadros no fim de `walk-left` mudaria a caminhada
+   * de quem ja jogava.
+   */
+  'juggler/back-idle-extra': 3,
+  'juggler/fish-no-rod-left': 6,
+  'juggler/fish-no-rod-right': 6,
+  'juggler/jump-left-extra': 4,
+  'juggler/jump-right-extra': 4,
+  'juggler/run-left-extra': 2,
+  'juggler/run-right-extra': 2,
+  'juggler/side-idle-left-extra': 3,
+  'juggler/side-idle-right-extra': 3,
+  'juggler/sit-left-extra': 3,
+  'juggler/sit-right-extra': 3,
+  'juggler/walk-left-extra': 2,
+  'juggler/walk-right-extra': 2,
 };

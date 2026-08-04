@@ -236,6 +236,30 @@ quando a segunda pasta existir.
 Clipe novo aparece aqui sozinho: a lista sai do registro que o importador gera,
 não de uma relação escrita à mão.
 
+## Linha de costa
+
+`MUNDO` no editor tem quatro blocos para a beirada da praia: **PERFIL**, **ÁGUA
+RASA**, **AREIA MOLHADA** e **ESPUMA**. Tudo o que desenha a transição entre
+água e areia sai dali, e nada disso é número solto no código — é assim que se
+chega num degradê preto de 460 unidades sem ninguém perceber que ele existe.
+
+Como funciona: `src/world/shore.ts` calcula **um** perfil (a superfície da areia
+mergulhando) e deriva dele os cinco recortes — massa de areia, bandas de
+profundidade, água rasa, areia molhada e espuma. Formas geradas em separado
+desalinham no primeiro ajuste de `sandY`, e o desalinho aparece como costura
+branca entre as camadas.
+
+Dois detalhes que valem saber antes de mexer:
+
+- as **bandas de profundidade** usam a cor que a *água* tem naquela
+  profundidade, e não uma cor escura escolhida à mão. É isso que faz a beirada
+  combinar com o mar aberto ao lado dela;
+- a **areia molhada** é uma cor por cima do tile (`multiply`), e não uma textura
+  nova: o asset de areia original continua aparecendo por baixo.
+
+A **sombra do píer** é camada separada, com opacidade própria — ela existe
+porque o cais tapa o sol, e não porque a praia precisa de uma emenda escura.
+
 ## Telas
 
 `TELAS` na barra do topo lista **todas as janelas do jogo**, agrupadas por para

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { asset } from '../assets';
-import cutscene from '../assets/juggler-cutscene.webp';
 import { EditorOverlay } from '../editor/EditorOverlay';
 import { MENU_H, MENU_W, menuSlot, setActiveScene, useScene } from '../editor/scene';
 import { depthZ, type SceneObject } from '../editor/types';
@@ -198,7 +197,7 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
           </MenuSlot>
 
           <MenuSlot role="juggler">
-            <img className="title-art" src={cutscene} alt="O Juggler" />
+            <img className="title-art" src={asset('elenco/juggler')} alt="O Juggler" />
           </MenuSlot>
 
           <MenuSlot role="marca">

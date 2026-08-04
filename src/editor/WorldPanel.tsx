@@ -153,6 +153,144 @@ export function WorldPanel() {
         tela arrasta pela pega do meio.
       </div>
 
+      {/* ------------------------------------------------------------ costa
+
+          Tudo o que desenha a beirada da praia mora aqui. Estava espalhado pelo
+          `World.tsx` como número solto, e é assim que se chega num degradê
+          preto de 460 unidades sem ninguém perceber que ele existia. */}
+      <div className="eanim-label">LINHA DE COSTA · PERFIL</div>
+      <div className="efields">
+        <NumberField
+          label="COLUNAS"
+          value={w.shoreColunas}
+          onChange={(v) => updateWorld({ shoreColunas: Math.max(4, Math.round(v)) })}
+          suffix="degraus de 32 un entrando na água"
+        />
+        <NumberField
+          label="PRIMEIRA QUEDA"
+          value={w.shoreQueda}
+          onChange={(v) => updateWorld({ shoreQueda: Math.max(0, v) })}
+          suffix="o quanto a beira já desce"
+        />
+        <NumberField
+          label="CURVA"
+          value={w.shoreCurva}
+          step={0.05}
+          onChange={(v) => updateWorld({ shoreCurva: Math.max(1, v) })}
+          suffix="1 é uma rampa reta; acima disso o fundo cai depois"
+        />
+        <NumberField
+          label="IRREGULARIDADE"
+          value={w.shoreIrregular}
+          step={2}
+          onChange={(v) => updateWorld({ shoreIrregular: Math.max(0, v) })}
+          suffix="0 = curva limpa · alto vira ruído"
+        />
+        <NumberField
+          label="ABSORÇÃO"
+          value={w.shoreAbsorcao}
+          step={20}
+          onChange={(v) => updateWorld({ shoreAbsorcao: Math.max(40, v) })}
+          suffix="em quantas unidades de água a areia some"
+        />
+      </div>
+
+      <div className="eanim-label">ÁGUA RASA</div>
+      <div className="efields">
+        <NumberField
+          label="ESPESSURA"
+          value={w.shoreRaso}
+          step={2}
+          onChange={(v) => updateWorld({ shoreRaso: Math.max(0, v) })}
+        />
+        <NumberField
+          label="ALCANCE"
+          value={w.shoreRasoLarg}
+          step={10}
+          onChange={(v) => updateWorld({ shoreRasoLarg: Math.max(0, v) })}
+          suffix="até onde ela vai para o fundo"
+        />
+        <SliderField
+          label="OPACIDADE"
+          value={w.shoreRasoAlfa}
+          onChange={(v) => updateWorld({ shoreRasoAlfa: v })}
+        />
+      </div>
+
+      <div className="eanim-label">AREIA MOLHADA</div>
+      <div className="efields">
+        <NumberField
+          label="ESPESSURA"
+          value={w.shoreMolhada}
+          step={2}
+          onChange={(v) => updateWorld({ shoreMolhada: Math.max(0, v) })}
+        />
+        <NumberField
+          label="RECUA"
+          value={w.shoreMolhadaRecuo}
+          step={10}
+          onChange={(v) => updateWorld({ shoreMolhadaRecuo: Math.max(0, v) })}
+          suffix="para dentro d'água"
+        />
+        <NumberField
+          label="AVANÇA"
+          value={w.shoreMolhadaAvanco}
+          step={10}
+          onChange={(v) => updateWorld({ shoreMolhadaAvanco: Math.max(0, v) })}
+          suffix="para dentro da praia"
+        />
+        <SliderField
+          label="OPACIDADE"
+          value={w.shoreMolhadaAlfa}
+          onChange={(v) => updateWorld({ shoreMolhadaAlfa: v })}
+        />
+      </div>
+      <div className="ehint">
+        A areia molhada é uma cor por cima do tile, e não uma textura nova: o asset original
+        continua aparecendo por baixo.
+      </div>
+
+      <div className="eanim-label">ESPUMA</div>
+      <div className="efields">
+        <NumberField
+          label="GROSSURA"
+          value={w.shoreEspuma}
+          onChange={(v) => updateWorld({ shoreEspuma: Math.max(1, v) })}
+        />
+        <NumberField
+          label="RECUA"
+          value={w.shoreEspumaRecuo}
+          step={10}
+          onChange={(v) => updateWorld({ shoreEspumaRecuo: Math.max(0, v) })}
+        />
+        <NumberField
+          label="AVANÇA"
+          value={w.shoreEspumaAvancoX}
+          step={10}
+          onChange={(v) => updateWorld({ shoreEspumaAvancoX: Math.max(0, v) })}
+        />
+        <NumberField
+          label="SUBIDA DA ONDA"
+          value={w.shoreEspumaOnda}
+          step={2}
+          onChange={(v) => updateWorld({ shoreEspumaOnda: Math.max(0, v) })}
+          suffix="quantas unidades ela sobe na areia e volta"
+        />
+        <NumberField
+          label="RITMO"
+          value={w.shoreEspumaSeg}
+          step={0.5}
+          onChange={(v) => updateWorld({ shoreEspumaSeg: Math.max(1, v) })}
+          suffix="segundos por onda"
+        />
+        <SliderField
+          label="SOMBRA DO PÍER"
+          value={w.shoreSombraPier}
+          onChange={(v) => updateWorld({ shoreSombraPier: v })}
+          suffix="camada própria, não faz parte da costa"
+        />
+      </div>
+
       <div className="eanim-label">PARALLAX DO FUNDO</div>
       <div className="efields">
         <SliderField

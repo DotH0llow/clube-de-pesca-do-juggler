@@ -16,9 +16,23 @@ export interface DevFlags {
    * mapa inteiro sem ter que atravessar o cais a pe.
    */
   freeCam: boolean;
+  /**
+   * O RELAMPAGO SOB DEMANDA.
+   *
+   * O raio da tempestade cai de 17 em 17 segundos e acende por dois quadros -
+   * ou seja, quem quiser olhar como ele ficou espera, em media, oito segundos e
+   * meio, e pisca antes de conseguir olhar. E isso multiplicado por cada
+   * ajuste.
+   *
+   * O numero e um CONTADOR, e nao um `true`: React nao re-renderiza quando o
+   * valor novo e igual ao antigo, entao um booleano so relampejaria uma vez.
+   * Cada disparo incrementa, e o componente do ceu remonta o raio por causa da
+   * chave.
+   */
+  bolt: number;
 }
 
-let flags: DevFlags = { rain: null, freeCam: false };
+let flags: DevFlags = { rain: null, freeCam: false, bolt: 0 };
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -54,6 +68,18 @@ export const RAIN_LABEL: Record<string, string> = {
 
 export function rainMode(f: DevFlags): 'auto' | 'on' | 'off' {
   return f.rain === null ? 'auto' : f.rain ? 'on' : 'off';
+}
+
+/**
+ * Dispara um relampago agora.
+ *
+ * Ele cai independente da hora do dia e de estar chovendo: quem aperta o botao
+ * quer VER o raio, e exigir que ja seja tarde de temporal para isso e o mesmo
+ * problema que o cheat veio resolver.
+ */
+export function fireBolt(): void {
+  flags = { ...flags, bolt: flags.bolt + 1 };
+  notify();
 }
 
 export function toggleFreeCam(): void {

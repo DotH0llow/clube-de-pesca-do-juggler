@@ -122,7 +122,16 @@ export const SPRITE_HOME: { match: RegExp; layer: LayerId; depth: number }[] = [
   { match: /^props\/fishing-boat/, layer: 'cenario', depth: 3 },
   // vegetacao e construcao ficam de pe no mapa
   { match: /^nature\//, layer: 'cenario', depth: 3 },
-  { match: /^props\/(beach-cabana|fish-market-stall)/, layer: 'cenario', depth: 3 },
+  { match: /^props\/(beach-cabana|fish-market-stall|hydrinho-arcade)/, layer: 'cenario', depth: 3 },
+  /*
+   * O ELENCO e PRIMEIRO PLANO, e nao cenario.
+   *
+   * Sao retratos de corpo inteiro de 1 200 px, desenhados para cutscene: se
+   * caem em `objetos` na profundidade 6, um deles jogado na cena nasce ATRAS
+   * do Juggler e do tamanho de um coqueiro. Em 9 ele nasce na frente de tudo,
+   * que e onde um retrato serve para alguma coisa.
+   */
+  { match: /^elenco\//, layer: 'objetos', depth: 9 },
   // tralha solta
   { match: /^props\/fishing-rod/, layer: 'objetos', depth: 6 },
   { match: /^props\//, layer: 'objetos', depth: 6 },
