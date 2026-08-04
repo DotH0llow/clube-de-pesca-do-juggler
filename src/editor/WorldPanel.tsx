@@ -146,9 +146,8 @@ export function WorldPanel() {
           value={w.waveLift}
           onChange={(v) => updateWorld({ waveLift: v })}
         />
-        <SliderField label="ESPUMA" value={w.foamOpacity} onChange={(v) => updateWorld({ foamOpacity: v })} />
-        <SliderField label="ONDA" value={w.swellOpacity} onChange={(v) => updateWorld({ swellOpacity: v })} />
-        <SliderField label="BRILHO DO SOL" value={w.glintOpacity} onChange={(v) => updateWorld({ glintOpacity: v })} />
+        <SliderField label="ESPUMA DA CRISTA" value={w.foamOpacity} onChange={(v) => updateWorld({ foamOpacity: v })} />
+        <SliderField label="ONDA DE TRÁS" value={w.swellOpacity} onChange={(v) => updateWorld({ swellOpacity: v })} />
         <NumberField
           label="RITMO DA ONDA"
           value={w.swellSeconds}
@@ -156,13 +155,16 @@ export function WorldPanel() {
           onChange={(v) => updateWorld({ swellSeconds: Math.max(1, v) })}
           suffix="segundos por passada"
         />
-        <NumberField
-          label="RITMO DA ESPUMA"
-          value={w.foamSeconds}
-          step={0.5}
-          onChange={(v) => updateWorld({ foamSeconds: Math.max(1, v) })}
-          suffix="segundos por passada"
-        />
+        {/* RITMO DA ESPUMA e BRILHO DO SOL sairam daqui.
+
+            Eles mexiam na duracao da animacao de duas faixas que nao existem
+            mais - a espuma e o brilho eram imagens deslizando por cima da
+            agua, e a superficie agora e uma linha desenhada. Deixar os dois
+            sliders na tela seria pior do que tira-los: controle que gira e nao
+            muda nada faz duvidar dos que funcionam.
+
+            Os campos continuam no `worldConfig` e nos saves - so nao ha mais
+            o que ligar neles. */}
       </div>
 
       <div className="eanim-label">TELA DE TÍTULO</div>

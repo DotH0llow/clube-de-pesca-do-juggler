@@ -9,6 +9,7 @@ import { rodTip, useFx, type StepId } from '../editor/fx';
 import type { FishPose } from '../world/usePlayer';
 import { groundAt, PIER_END, PIER_START, WORLD_W } from '../world/layout';
 import { Runoff } from './Rain';
+import { WaterSurface } from './WaterSurface';
 import { HookHunt } from './HookHunt';
 import { useDevFlags } from '../state/dev';
 
@@ -210,43 +211,28 @@ export function World({
             />
           </div>
 
-          {/* espuma e ondas na linha d agua */}
-          <div
-            className="surf"
-            style={{ left, width: seaW, top: w.waterY - w.waveLift, height: w.waveH }}
-          >
-            <div
-              className="foam"
-              style={{
-                backgroundImage: `url(${asset('fx/foam-strip')})`,
-                opacity: w.foamOpacity,
-                animationDuration: `${w.foamSeconds * 2.8}s`,
-              }}
-            />
-            <div
-              className="swell"
-              style={{
-                backgroundImage: `url(${asset('fx/small-wave-strip')})`,
-                opacity: w.swellOpacity,
-                animationDuration: `${w.swellSeconds}s`,
-              }}
-            />
-            <div
-              className="swell swell-b"
-              style={{
-                backgroundImage: `url(${asset('fx/large-wave-strip')})`,
-                opacity: w.swellOpacity * 0.8,
-                animationDuration: `${w.swellSeconds * 1.9}s`,
-              }}
-            />
-            <div
-              className="glint"
-              style={{
-                backgroundImage: `url(${asset('fx/sun-glint-strip')})`,
-                opacity: w.glintOpacity,
-              }}
-            />
-          </div>
+          {/* A SUPERFICIE DA AGUA.
+
+              Eram quatro faixas repetidas deslizando em `background-position`.
+              O problema nao era a arte: uma imagem que desliza so TRANSLADA -
+              nenhuma crista nasce, nenhuma morre, e o olho pega o periodo. E
+              como as quatro andavam em velocidades diferentes, o conjunto lia
+              como quatro adesivos escorregando.
+
+              Agora e uma linha desenhada por quadro, soma de quatro senoides
+              com comprimentos incomensuraveis e metade delas indo para tras -
+              ver `WaterSurface`. */}
+          <WaterSurface
+            left={left}
+            width={seaW}
+            top={w.waterY - w.waveLift * 0.5}
+            altura={w.waveH}
+            corAgua={p.seaTop}
+            profundidade={160}
+            espuma={w.foamOpacity}
+            fundo={w.swellOpacity}
+            segundos={w.swellSeconds}
+          />
 
           {/* -------------------------------- a terra, da praia para a direita */}
           {/* A areia e AUTOTILE, e nao mais um gradiente com um tile por cima.

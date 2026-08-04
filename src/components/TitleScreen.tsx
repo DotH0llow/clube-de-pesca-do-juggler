@@ -13,6 +13,7 @@ import { ControlsApp } from './ControlsPanel';
 import { SettingsApp } from './SettingsPanel';
 import { Sheet } from './Sheet';
 import { Sky } from './Sky';
+import { WaterSurface } from './WaterSurface';
 
 type Overlay = 'config' | 'controles' | null;
 
@@ -119,13 +120,16 @@ function TitleScene({ view }: { view: { scale: number; x: number; y: number } })
         {/* o mar, com a paleta da hora escolhida */}
         <div className="title-sea" style={{ top: MENU_SEA_Y }} />
 
-        {/* espuma e ondas na linha d agua */}
-        <div className="title-surf" style={{ top: MENU_SEA_Y - 22 }}>
-          <div className="foam" style={{ backgroundImage: `url(${asset('fx/foam-strip')})` }} />
-          <div className="swell" style={{ backgroundImage: `url(${asset('fx/small-wave-strip')})` }} />
-          <div className="swell swell-b" style={{ backgroundImage: `url(${asset('fx/large-wave-strip')})` }} />
-          <div className="glint" style={{ backgroundImage: `url(${asset('fx/sun-glint-strip')})` }} />
-        </div>
+        {/* A mesma superficie do jogo: linha desenhada por quadro, e nao
+            faixa deslizando. O menu tinha exatamente o mesmo problema. */}
+        <WaterSurface
+          left={0}
+          width={MENU_W}
+          top={MENU_SEA_Y}
+          altura={38}
+          corAgua="var(--sea-top, #35c6e0)"
+          profundidade={90}
+        />
 
         {/* barco, estacas, deck, tralha e vegetacao: tudo objeto de cena */}
         <SceneLayer scene="menu" band="perto" />

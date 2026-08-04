@@ -338,52 +338,14 @@ button {
 }
 
 /* espuma e ondas na linha d agua */
-.surf {
-  z-index: 25;
-  position: absolute;
-  height: 70px;
-  pointer-events: none;
-}
+/* AS FAIXAS DE ESPUMA SAIRAM.
 
-.surf > div {
-  position: absolute;
-  left: 0;
-  right: 0;
-  background-repeat: repeat-x;
-  background-position: 0 50%;
-}
+   `.surf` e `.title-surf` eram quatro imagens repetidas deslizando por
+   `background-position`. A superficie da agua virou uma linha desenhada por
+   quadro (ver `WaterSurface`), entao nao ha mais faixa para deslizar.
 
-.surf .foam {
-  top: 8px;
-  height: 30px;
-  background-size: auto 30px;
-  opacity: 0.9;
-  animation: surf-drift 17s linear infinite;
-}
-
-.surf .swell {
-  top: 22px;
-  height: 40px;
-  background-size: auto 40px;
-  opacity: 0.55;
-  animation: surf-drift 26s linear infinite reverse;
-}
-
-.surf .swell-b {
-  top: 34px;
-  height: 52px;
-  background-size: auto 52px;
-  opacity: 0.4;
-  animation-duration: 38s;
-}
-
-.surf .glint {
-  top: 12px;
-  height: 26px;
-  background-size: auto 26px;
-  opacity: 0.35;
-  animation: surf-drift 44s linear infinite;
-}
+   O `surf-drift` fica: a linha de mare da praia (`.tide-line`) ainda o usa, e
+   ali deslizar e o certo - e espuma acumulada na areia, nao onda. */
 
 @keyframes surf-drift {
   from {
@@ -1726,54 +1688,6 @@ button {
    janela. Medir em `vh` la dentro e medir na janela e desenhar na caixa - as
    faixas mudavam de altura e de posicao conforme o monitor, sozinhas, e
    escorregavam para fora da linha d'agua. Tudo em unidades da caixa agora. */
-.title-surf {
-  position: absolute;
-  left: -40px;
-  width: calc(100% + 80px);
-  height: 130px;
-  z-index: 25;
-  pointer-events: none;
-}
-
-.title-surf > div {
-  position: absolute;
-  left: 0;
-  right: 0;
-  background-repeat: repeat-x;
-}
-
-.title-surf .foam {
-  top: 0;
-  height: 30px;
-  background-size: auto 30px;
-  opacity: 0.7;
-  animation: surf-drift 20s linear infinite;
-}
-
-.title-surf .swell {
-  top: 22px;
-  height: 38px;
-  background-size: auto 38px;
-  opacity: 0.5;
-  animation: surf-drift 26s linear infinite reverse;
-}
-
-.title-surf .swell-b {
-  top: 44px;
-  height: 46px;
-  background-size: auto 46px;
-  opacity: 0.38;
-  animation-duration: 38s;
-}
-
-.title-surf .glint {
-  top: 12px;
-  height: 24px;
-  background-size: auto 24px;
-  opacity: 0.3;
-  animation: surf-drift 44s linear infinite;
-}
-
 /* ---------------------------------------------------------- primeiro plano */
 
 /* ------------------------------------------------------- arte e conteudo */
@@ -1891,9 +1805,8 @@ button {
   border: 2px solid #d8bd77;
 }
 
-.no-anim .title-surf > div {
-  animation: none;
-}
+/* a superficie da agua ja para sozinha com as animacoes desligadas: o laco de
+   desenho dela nao pede o proximo quadro (ver `WaterSurface`) */
 
 /* ==========================================================================
    PREFERENCIAS
@@ -4457,4 +4370,46 @@ button {
   font-size: 12px;
   letter-spacing: 2px;
   color: #041624;
+}
+
+/* ==========================================================================
+   SUPERFICIE DA AGUA
+
+   A linha e desenhada por quadro (ver `WaterSurface`); aqui so a aparencia.
+   O `preserveAspectRatio: none` no SVG faz a faixa esticar na largura do mar,
+   entao TUDO que e espessura precisa de `vector-effect`, senao a espuma
+   engrossaria junto com a esticada.
+   ========================================================================== */
+
+.water-surface {
+  position: absolute;
+  z-index: 24;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* a espuma da crista */
+.ws-crista {
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-width: 4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* a onda de tras: mais fina, mais apagada, so para dar uma segunda distancia */
+.ws-tras {
+  stroke: rgba(226, 248, 255, 0.4);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* o corpo da agua logo abaixo da crista.
+
+   Ele desce ate encontrar o mar chapado e desaparece nele: sem essa passagem
+   apareceria uma emenda reta entre a onda e o retangulo do mar. */
+.ws-corpo {
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 55%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 55%, transparent 100%);
 }
