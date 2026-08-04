@@ -7,7 +7,13 @@ import { useSettings } from '../state/settings';
 import { rodX, zoneRect } from '../editor/scene';
 import { rodTip, useFx, type StepId } from '../editor/fx';
 import type { FishPose } from '../world/usePlayer';
-import { groundAt, WORLD_W } from '../world/layout';
+import { groundAt, PIER_END, PIER_START, WORLD_W } from '../world/layout';
+import { Runoff } from './Rain';
+import { useDevFlags } from '../state/dev';
+
+/** A faixa do deck em que a água escorre: a mesma que `world/pier.ts` monta. */
+const PIER_X0 = PIER_START - 70;
+const PIER_LARG = PIER_END - PIER_X0;
 
 /**
  * Lado do tile de areia em unidades de mundo.
@@ -73,6 +79,9 @@ export function World({
   const settings = useSettings();
   const fx = useFx();
   const w = useWorld();
+  const dev = useDevFlags();
+  // mesma regra do céu: o interruptor de teste manda; sem ele, a hora do dia
+  const chovendo = dev.rain === null ? skyPhase(hour).storm : dev.rain;
   const sky = skyPhase(hour);
   const p = sky.palette;
   const inWater = fishing && (phase === 'waiting' || phase === 'bite' || phase === 'reeling');
@@ -349,6 +358,13 @@ export function World({
               })}
             </>
           )}
+
+          {/* O QUE ESCORRE DO DECK.
+
+              Fica aqui, e não junto da chuva, porque é coisa de MUNDO: pinga
+              de uma borda específica - a testeira do píer - e tem de andar
+              junto com a câmera. A chuva é de tela e cai na frente de tudo. */}
+          {chovendo && <Runoff left={PIER_X0} width={PIER_LARG} top={w.pierY + 14} />}
 
           {/* ------------------------------------------------- o Juggler */}
           {/* A sombra e irma do personagem, nao filha: assim ela fica no chao

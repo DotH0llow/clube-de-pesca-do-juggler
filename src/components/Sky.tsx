@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Rain } from './Rain';
 import { asset } from '../assets';
 import { skyPhase, type SkyPhaseId } from '../data/skies';
 import { floatersAt, useFloaters, type Floater } from '../editor/floaters';
@@ -112,8 +113,10 @@ export function Sky({ hour }: { hour: SkyPhaseId }) {
       {storm && (
         <>
           <div className="storm-tint" />
-          <img className="rain" src={asset('sky/rain-streaks')} alt="" />
-          <img className="rain rain-2" src={asset('sky/rain-streaks')} alt="" />
+          {/* Era `sky/rain-streaks` duas vezes: uma imagem de riscos esticada
+              na tela e deslizada em loop. Agora a chuva é feita de gota, em
+              três distâncias, com respingo onde a água bate - ver `Rain`. */}
+          <Rain />
           <img className="lightning" src={asset('sky/lightning-bolt')} alt="" />
         </>
       )}

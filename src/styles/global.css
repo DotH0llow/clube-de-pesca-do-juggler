@@ -4191,3 +4191,130 @@ button {
   min-width: 0;
   padding-bottom: 6px;
 }
+
+/* ==========================================================================
+   CHUVA
+
+   A antiga era `sky/rain-streaks` esticada e deslizada em loop: um papel de
+   parede andando. Esta e feita de gota, em tres distancias, com respingo onde
+   a agua bate e escorrimento nas bordas do deck.
+   ========================================================================== */
+
+.rain-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 30;
+}
+
+/* A gota cai e some ANTES do fim do percurso.
+
+   Ela desaparece por opacidade nos ultimos 15% em vez de sumir de uma vez ao
+   sair da tela: gota que pisca no rodape entrega o loop na hora. */
+.rain-drop {
+  position: absolute;
+  top: -12vh;
+  width: auto;
+  animation-name: gota-cai;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+@keyframes gota-cai {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  85% {
+    opacity: inherit;
+  }
+  to {
+    transform: translate3d(14vh, 118vh, 0);
+    opacity: 0;
+  }
+}
+
+/* o respingo: quatro arquivos empilhados, acendendo um de cada vez */
+.rain-splash {
+  position: absolute;
+  bottom: 2vh;
+  display: block;
+}
+
+.rain-splash img {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 100%;
+  width: auto;
+  opacity: 0;
+  animation-name: respingo;
+  animation-timing-function: steps(1, end);
+  animation-iteration-count: infinite;
+}
+
+/* cada quadro fica aceso um quarto do ciclo; o `steps(1)` corta a interpolacao
+   e mantem o desenho chapado, que e como pixel art anima */
+@keyframes respingo {
+  0% {
+    opacity: 1;
+  }
+  25% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* chuva forte: mais contraste e queda mais inclinada */
+.rain-layer.forte .rain-drop {
+  animation-duration: 0.55s;
+}
+
+/* ------------------------------------------------------------ escorrimento */
+
+.runoff-layer {
+  position: absolute;
+  height: 0;
+  z-index: 46;
+  pointer-events: none;
+}
+
+.runoff-drip {
+  position: absolute;
+  top: 0;
+  width: auto;
+  transform-origin: 50% 0;
+  animation-name: pinga;
+  animation-timing-function: ease-in;
+  animation-iteration-count: infinite;
+}
+
+/* o pingo cresce e some: e agua acumulando na borda ate cair */
+@keyframes pinga {
+  0% {
+    transform: scaleY(0.35);
+    opacity: 0;
+  }
+  35% {
+    transform: scaleY(1);
+    opacity: inherit;
+  }
+  100% {
+    transform: scaleY(1.15) translateY(30%);
+    opacity: 0;
+  }
+}
+
+/* preferencia de acessibilidade: sem animacao, a chuva vira so um veu */
+.no-anim .rain-drop,
+.no-anim .rain-splash img,
+.no-anim .runoff-drip {
+  animation: none;
+}
+
+.no-anim .rain-splash img:not(:first-child) {
+  display: none;
+}
