@@ -146,8 +146,12 @@ export function ShopApp() {
 /**
  * O relogio do dia.
  *
- * Nao ha nada para comprar aqui: as quatro fases entram no ar sozinhas, 6
- * minutos cada, e a tela so mostra qual esta valendo e o que ela muda no jogo.
+ * Nao ha nada para comprar aqui: as fases entram no ar sozinhas, tres minutos
+ * cada, e a tela so mostra qual esta valendo e o que ela muda no jogo.
+ *
+ * O dia COMECA em manha clara e nao da a volta: chegando na noite profunda,
+ * fica nela ate o jogador dormir. O pre-amanhecer e o nascer do sol continuam
+ * no jogo, guardados - o painel de dev pula para eles.
  */
 function DayCycle() {
   const phase = useDayPhase();
@@ -155,8 +159,9 @@ function DayCycle() {
   return (
     <>
       <div className="desc" style={{ padding: '4px 2px 10px' }}>
-        Um dia no cais dura 24 minutos e não para: cada fase fica{' '}
-        {Math.round(PHASE_MS / 60000)} minutos no ar e passa a vez sozinha. Agora são{' '}
+        O dia no cais começa de manhã e anda sozinho: cada fase fica{' '}
+        {Math.round(PHASE_MS / 60000)} minutos no ar e passa a vez. Ele não dá a volta — na noite
+        profunda ele espera você dormir, e o cais só amanhece no dia seguinte. Agora são{' '}
         <strong>{clock}</strong>.
       </div>
       {REGION_ORDER.map((id) => {

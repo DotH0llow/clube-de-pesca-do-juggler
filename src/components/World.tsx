@@ -62,7 +62,7 @@ function grade(x: number, y: number): string {
  * sem ninguém perceber.
  */
 
-import { calcularCosta, clareia, corDoMar } from '../world/shore';
+import { calcularCosta, clareia, esverdeia } from '../world/shore';
 import { seaBottom, seaLeft, useWorld, worldBottom } from '../world/worldConfig';
 import { PLAYER_SPRITE_STYLE } from '../world/usePlayer';
 import { SceneLayer } from './SceneLayer';
@@ -220,14 +220,25 @@ export function World({
         {/* ---------------------------------------------------- plano do jogo */}
         <div className="layer" ref={cameraRef}>
           {/* ------------------------------------ o mar, na metade esquerda */}
+          {/* O MAR E UMA FORMA SO.
+
+              Um elemento, um degrade vertical continuo, e a borda direita
+              recortada pela linha de costa. Era isto que faltava: a agua
+              terminava num retangulo e a profundidade era pintada por oito
+              bandas horizontais chapadas por cima da areia submersa - oito
+              costuras atravessando a cena, e uma parede vertical no fim delas.
+              Aqui nao ha banda nenhuma. A caixa passa da costa de proposito
+              (`costa.mar` e mais larga que `shoreX`), e quem a termina e o
+              recorte, nao a largura. */}
           <div
             className="sea"
             style={{
-              left,
-              width: seaW,
-              top: w.waterY,
-              height: w.seaDepth,
+              left: costa.mar.x,
+              width: costa.mar.w,
+              top: costa.mar.y,
+              height: costa.mar.h,
               background: `linear-gradient(180deg, ${p.seaTop} 0%, ${p.seaTop} 4%, ${p.seaBottom} 42%, #02131f 100%)`,
+              clipPath: costa.marClip,
             }}
           >
             {/* OS RAIOS DE LUZ SAIRAM.
@@ -298,25 +309,34 @@ export function World({
               é essa quebra de padrão que se via como risco na areia, uma por
               junta. Agora o corpo vai do topo da praia até o fundo do mundo de
               uma vez, e a fase do tile sai da posição no mundo (`grade`). */}
+          {/* A AREIA COMECA NA COSTA, e nao num x fixo.
+
+              As duas pecas usam o MESMO recorte (`costa.areiaClip`) e a mesma
+              origem, entao a borda de cima e o corpo terminam exatamente no
+              mesmo degrau - dois recortes parecidos deixariam uma fresta de
+              um pixel entre eles, bem na linha da agua. A caixa entra bastante
+              agua adentro: e essa sobra que a agua rasa translucida cobre. */}
           <div
             className="sand"
             style={{
-              left: w.shoreX - 60,
-              width: WORLD_W - w.shoreX + 160,
-              top: w.sandY,
+              left: costa.areia.x,
+              width: costa.areia.w,
+              top: costa.areia.y,
               height: Math.max(0, chao + 420 - w.sandY),
               backgroundImage: `url(${asset(SAND_CHEIA)})`,
-              backgroundPosition: grade(w.shoreX - 60, w.sandY),
+              backgroundPosition: grade(costa.areia.x, costa.areia.y),
+              clipPath: costa.areiaClip,
             }}
           />
           <div
             className="sand-top"
             style={{
-              left: w.shoreX - 60,
-              width: WORLD_W - w.shoreX + 160,
-              top: w.sandY,
+              left: costa.areia.x,
+              width: costa.areia.w,
+              top: costa.areia.y,
               backgroundImage: `url(${asset(SAND_BORDA)})`,
-              backgroundPositionX: `${fase(w.shoreX - 60)}px`,
+              backgroundPositionX: `${fase(costa.areia.x)}px`,
+              clipPath: costa.areiaClip,
             }}
           />
           {/* Sobra sob o mundo: a agua termina numa tira chapada, porque nao ha
@@ -326,64 +346,38 @@ export function World({
 
           {/* ================================================== A COSTA
 
-              Cinco camadas, todas recortadas pelo MESMO perfil (`costa`), na
-              ordem: areia submersa, bandas de profundidade, água rasa, areia
-              molhada e espuma. O que saiu daqui foi o `.shore-veil` - um
-              degradê vertical que ia de transparente a `#02131f` em 460
-              unidades. Ele é o "degradê preto" do relato, e o defeito dele é
-              aritmético: a rampa do MAR só chega nessa cor a 2 088 unidades de
-              profundidade, então a beirada da praia ficava preta enquanto o mar
-              aberto ao lado dela, na mesma altura, continuava azul médio. */}
+              TRES camadas, e todas as tres saem do MESMO caminho de costa
+              (`world/shore.ts`): agua rasa, areia molhada e espuma. O mar e a
+              areia ja foram recortados por ele la em cima - o que vem aqui e
+              so o encontro dos dois.
 
-          {/* 1. A MASSA DE AREIA SUBMERSA, com o tile de sempre.
+              O QUE SAIU DAQUI:
 
-              Uma peça só recortada pelo perfil. Era 22 divs lado a lado, e
-              borda de elemento em escala fracionária cai entre pixels: à noite
-              cada emenda virava um risco vertical da superfície ao fundo. */}
-          <div
-            className="sand-orla"
-            style={{
-              left: costa.caixa.x,
-              top: costa.caixa.y,
-              width: costa.caixa.w,
-              height: costa.caixa.h,
-              backgroundImage: `url(${asset(SAND_CHEIA)})`,
-              backgroundPosition: grade(costa.caixa.x, costa.caixa.y),
-              clipPath: costa.areia,
-            }}
-          >
-            {/* 2. AS BANDAS DE PROFUNDIDADE.
+                - a massa de areia submersa e as OITO bandas de profundidade.
+                  Eram retangulos empilhados atravessando a cena, e retangulo
+                  chapado encostado em retangulo chapado e uma linha. Elas
+                  tambem paravam todas no mesmo x, e era esse alinhamento - e
+                  nao o perfil - que desenhava a parede vertical entre a agua e
+                  a praia;
 
-                Cinco degraus de cor, sem interpolação, cada um na cor que a
-                ÁGUA tem naquela profundidade. É isso que faz a areia sumir sem
-                escurecer: a beirada da praia passa a combinar com o mar aberto
-                que está do lado dela, porque as duas usam a mesma rampa.
+                - a SOMBRA DO PIER, tres faixas de xadrez numa caixa retangular
+                  de 68 unidades. Ela nao acompanhava peca nenhuma do cais:
+                  atravessava a agua e a areia como um bloco, e e o retangulo
+                  que aparece no print, tanto na areia quanto acima da linha
+                  d'agua.
 
-                Elas são filhas do elemento recortado, então herdam o recorte -
-                não há como uma banda vazar para fora da areia. */}
-            {costa.faixas.map((f) => (
-              <i
-                key={f.topo}
-                className="orla-faixa"
-                style={{
-                  top: f.topo,
-                  height: f.alt,
-                  // a banda para na COSTA: para a direita dela o que existe é
-                  // subsolo de praia seca, e não fundo de mar
-                  width: costa.faixaLarg,
-                  background: corDoMar(f.profundidade, p, w.seaDepth),
-                  opacity: f.alfa,
-                }}
-              />
-            ))}
-          </div>
+              A ordem de empilhamento e a da natureza, e nao a do arquivo:
+              agua funda, agua rasa translucida, espuma, areia molhada, areia
+              seca. */}
 
-          {/* 3. A ÁGUA RASA, em duas bandas discretas.
+          {/* 1. A AGUA RASA, em duas faixas que ATRAVESSAM a costa.
 
-              A de trás é mais grossa e mais apagada; a da frente é fina e mais
-              clara. Duas faixas chapadas em vez de um degradê: é assim que água
-              rasa se desenha em pixel art, e é o que deixa ver a areia por
-              baixo em vez de cobri-la. */}
+              Elas nao param na beira: entram `shoreRasoAvanco` unidades por
+              cima do tile de areia, com opacidade entre 20% e 40%, e por isso
+              o grao da areia continua aparecendo por baixo. Sao mais CLARAS e
+              mais esverdeadas que o mar aberto - agua rasa nunca e mais escura
+              que agua funda, e azul escuro encostado na areia e exatamente o
+              que fazia a beirada ler como sombra. */}
           <div
             className="mar-raso fundo"
             style={{
@@ -391,7 +385,7 @@ export function World({
               top: costa.caixa.y,
               width: costa.caixa.w,
               height: costa.caixa.h,
-              background: clareia(p.seaTop, 0.12),
+              background: esverdeia(p.seaTop, 0.38),
               opacity: w.shoreRasoAlfa * 0.55,
               clipPath: costa.rasoFundo,
             }}
@@ -403,18 +397,37 @@ export function World({
               top: costa.caixa.y,
               width: costa.caixa.w,
               height: costa.caixa.h,
-              background: clareia(p.seaTop, 0.34),
+              background: esverdeia(p.seaTop, 0.7),
               opacity: w.shoreRasoAlfa,
               clipPath: costa.raso,
             }}
           />
+          {/* A LAMINA SOBRE A AREIA.
 
-          {/* 4. A AREIA MOLHADA.
+              A mesma agua rasa, do outro lado da costa, e com a cor que agua
+              rasa tem quando o fundo e areia clara: mais CLARA que a areia,
+              com um resto de ciano. A mesma turquesa da faixa de dentro
+              d'agua, aqui, daria verde-oliva - que le como limo, e nao como
+              agua. As duas se encontram em cima da linha da espuma. */}
+          <div
+            className="mar-raso areia"
+            style={{
+              left: costa.caixa.x,
+              top: costa.caixa.y,
+              width: costa.caixa.w,
+              height: costa.caixa.h,
+              background: clareia(esverdeia(p.seaTop, 0.72), 0.5),
+              opacity: w.shoreRasoAlfa * 0.9,
+              clipPath: costa.rasoAreia,
+            }}
+          />
 
-              Uma camada de cor por cima do tile de areia, e não uma textura
-              nova: o asset original continua aparecendo por baixo, que é o
-              ponto. A cor é a própria areia rebaixada e dessaturada - nunca
-              preto nem cinza, que é o que faria a faixa ler como sombra. */}
+          {/* 2. A AREIA MOLHADA.
+
+              Uma cor por cima do tile, em `multiply`, e nao uma textura nova:
+              o asset original continua desenhando o grao por baixo. A cor e a
+              propria areia rebaixada e dessaturada - nunca cinza nem preto,
+              que e o que faria a faixa ler como sombra do pier. */}
           <div
             className="areia-molhada"
             style={{
@@ -427,13 +440,14 @@ export function World({
             }}
           />
 
-          {/* 5. A ESPUMA.
+          {/* 3. A ESPUMA, sobre a junta.
 
-              Um traço sobre o perfil, quebrado por `stroke-dasharray` em
-              pedaços de tamanhos diferentes - linha branca contínua ao longo da
-              costa é o defeito clássico de praia em 2D. São duas camadas com
-              padrões e fases diferentes; a animação sobe alguns pixels na
-              areia, fragmenta, apaga e recua, em vez de deslizar de lado. */}
+              Ela e o elemento que une os dois materiais, e por isso vem por
+              ultimo e por cima das duas. Um traco sobre o caminho da costa,
+              quebrado por `stroke-dasharray` em pedacos de tamanhos
+              diferentes; duas camadas com padroes primos entre si, entao os
+              vaos de uma nunca coincidem com os da outra. A animacao avanca na
+              areia, fragmenta, apaga e recua - e nao desliza de lado. */}
           <svg
             className="espuma"
             style={{
@@ -450,36 +464,8 @@ export function World({
             aria-hidden
           >
             <path className="espuma-a" d={costa.espuma} strokeWidth={w.shoreEspuma} />
-            <path className="espuma-b" d={costa.espuma} strokeWidth={Math.max(2, w.shoreEspuma - 3)} />
+            <path className="espuma-b" d={costa.espuma} strokeWidth={Math.max(2, w.shoreEspuma - 2)} />
           </svg>
-
-          {/* 6. A SOMBRA DO PÍER, em camada própria.
-
-              Ela existe porque o cais tapa o sol, e não porque a praia precisa
-              de uma emenda escura - e é justamente por isso que fica separada:
-              enquanto a transição água/areia era um degradê vertical escuro,
-              não havia como distinguir uma coisa da outra na tela.
-
-              Três faixas empilhadas, cada uma mais rala que a anterior, com
-              padrão de xadrez em vez de esmaecimento contínuo. Dithering é como
-              pixel art faz meio-tom; um degradê suave aqui brigaria com o resto
-              da cena. Ela atravessa água E areia (o cais passa por cima das
-              duas) e termina no meio da praia, longe da linha da costa. */}
-          {chovendo || sky.night ? null : (
-            <div
-              className="sombra-pier"
-              style={{
-                left: PIER_X0 + 26,
-                width: PIER_LARG,
-                top: w.pierY + 26,
-                opacity: w.shoreSombraPier,
-              }}
-            >
-              <i className="densa" />
-              <i className="media" />
-              <i className="rala" />
-            </div>
-          )}
 
           {/* --------------------------------------------------- o pier */}
           {/* O deck e a rampa saíram daqui.

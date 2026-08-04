@@ -55,29 +55,43 @@ de 4 tempos, mas dão um ar de hesitação. Quem quiser o ciclo completo escreve
 Cada clipe vira duas pastas, `-left` e `-right`; a versão da direita é o espelho
 da esquerda, gerado na importação.
 
-### As poses que a importação de agosto apagou
+### As poses soltas, e de onde elas vêm
 
-Isto não é "arte que faltou importar": é **arte que estava no repositório e foi
-apagada**. O commit `9b6b6f7` reescreveu este importador, e o importador
-reescreve `char/` inteira a partir da tabela `CLIPS`. A tabela nomeia UM quadro
-por pose estática, então os 43 quadros que a versão anterior tinha gerado -
-sentar de frente, sentar de costas, os perfis de três quartos, o ciclo inteiro
-de pescaria sem a vara - deixaram de ser gerados e saíram no mesmo commit.
+Além do pacote de animação, o Juggler tem **poses soltas**: um desenho, um
+clipe de um quadro. Hoje são seis.
 
-`scripts/resgatar-poses.py` traz todos de volta, lendo do próprio histórico do
-git. Não é um `git checkout`: o canvas mudou de 256×256 para 522×564 com âncora
-fixa, então cada quadro é re-normalizado com a mesma medida do importador
-(largura do chapéu, quadril e pé alinhados).
+| clipe | o que é |
+| --- | --- |
+| `sit-front` | sentado, de frente |
+| `sit-back` | sentado, de costas |
+| `sit-side-right` | sentado, perfil direito (o desenho, não o espelho de `sit-left`) |
+| `sit-three-quarter` | sentado, três quartos |
+| `angry` | em pé, de frente, punhos cerrados |
+| `crying` | em pé, de frente, chorando |
 
-Eles voltam como clipes com sufixo `-extra` (`sit-left-extra`,
-`back-idle-extra`, ...) e não como quadros a mais dos clipes existentes: somar
-dois quadros no fim de `walk-left` mudaria a caminhada de quem já jogava.
-`fish-no-rod-left` e `fish-no-rod-right` voltam com o nome original — eram
-clipes inteiros de seis quadros, apagados por completo.
+Elas entram por um importador próprio:
 
-**Lição para a próxima reescrita:** um importador que reescreve a pasta inteira
-precisa varrer o que existe, e não só o que a tabela cita. É o que a seção
-abaixo passou a fazer.
+```
+python3 scripts/import-poses.py arte-de-origem/juggler/*.zip
+```
+
+`import-poses.py` **acrescenta**; `import-character.py` **reescreve**. A
+diferença não é de estilo: foi uma reescrita de `char/` inteira, a partir de uma
+tabela que nomeia um quadro por pose, que apagou 43 quadros já versionados em
+agosto. Pose solta não passa por tabela nenhuma — um arquivo, um clipe, e nada é
+removido no caminho.
+
+**A escala não sai do chapéu.** O mesmo chapéu de palha mede 189 px de perfil e
+240 de frente: a aba é um círculo, e de perfil ela aparece escorçada. Medir por
+ele encolhia toda pose frontal em uns 20%. Um pacote com um arquivo que já está
+no jogo (`03_lateral_esquerda_sentado` → `sit-left`) tira a escala desse par e a
+aplica ao zip inteiro; um pacote solto de poses **em pé** mede pela altura do
+corpo, como o importador de personagem faz com frente e costas.
+
+**A origem fica no repositório.** Os zips estão em `arte-de-origem/juggler/`, e é
+de propósito: quando o importador foi reescrito, a única cópia dos 43 quadros
+apagados estava no histórico do git. Com o zip versionado, qualquer pessoa
+reimporta sem depender de um arquivo que alguém mandou por mensagem um dia.
 
 ### As poses que a tabela deixava para trás
 

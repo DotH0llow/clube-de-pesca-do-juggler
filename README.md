@@ -9,6 +9,16 @@ Estetica: pixel art tropical/oceanica com cara de anos 2000 - agua turquesa,
 ilhas ao longe, por do sol, barco ancorado. Nada de fantasia medieval.
 
 
+## Regra número um: não apague nada sem perguntar
+
+Arte, clipe, pasta, asset, objeto de cena, parâmetro salvo, texto — nada sai
+daqui sem passar pelo Leo antes. **Reescrever também é apagar**: script que
+regera uma pasta inteira a partir de uma tabela remove tudo o que a tabela não
+cita, e foi exatamente assim que 43 quadros de animação já versionados sumiram
+numa importação só. A regra inteira, com o que fazer em cada caso, está em
+[`CLAUDE.md`](CLAUDE.md).
+
+
 ## Regra de texto (leia antes de escrever qualquer frase)
 
 Texto que o jogador lê vai **acentuado**; comentário, nome de variável e id de

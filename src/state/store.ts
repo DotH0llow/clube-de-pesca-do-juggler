@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { startNewDay } from '../world/dayCycle';
 import { ACHIEVEMENTS, ACHIEVEMENTS_BY_ID } from '../data/achievements';
 import { FAMILIES, FAMILY_MEMBERS, FISH } from '../data/fish';
 import { matchesOrder, orderForDay, type MarketOrder } from '../data/market';
@@ -478,6 +479,9 @@ export function claimDaily(): DailyReward | null {
 export function endDay(): number {
   const s = state;
   set({ ...s, dia: s.dia + 1 });
+  // O CEU VOLTA PARA A MANHA CLARA. E o unico lugar em que ele amanhece: sem
+  // isto, dormir no meio da tarde comecaria o dia seguinte na mesma tarde.
+  startNewDay();
   return state.dia;
 }
 

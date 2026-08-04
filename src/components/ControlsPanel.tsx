@@ -100,9 +100,10 @@ export function ControlsApp() {
       <div className="section-title">Ciclo do dia</div>
       <div className="row">
         <div className="grow desc">
-          O dia no cais dura 24 minutos e não para: manhã, tarde de temporal, entardecer e madrugada,
-          6 minutos cada. Cada fase tem um teto de raridade — de manhã não sai lendário nenhum, por
-          mais que você pesque. Esperar a fase virar é o que abre raridade nova. O celular mostra que
+          O dia no cais sempre começa em manhã clara e anda para a frente: manhã, meio-dia, tarde,
+          pôr do sol, entardecer e noite, 3 minutos cada. Na noite profunda ele para e espera —
+          amanhecer só acontece quando você encerra o dia e dorme. Cada fase tem um teto de
+          raridade: de manhã não sai lendário nenhum, por mais que você pesque. O celular mostra que
           horas são na aba CICLO DO DIA.
         </div>
       </div>

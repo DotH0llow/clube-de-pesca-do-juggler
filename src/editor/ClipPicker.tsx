@@ -35,12 +35,12 @@ import { CLIP_FRAMES } from '../world/charFrames';
  * campo QUADRO era um número solto que ninguém sabia preencher. Aqui os
  * trinta e sete estão à mão, um clique cada.
  *
- * O que continua faltando é ARTE, e isso não se resolve na interface: sentado
- * de frente e de costas, as vistas de três quartos e as outras quatro poses do
- * `sentado/` existem no pacote de origem e nunca foram importadas.
- * `scripts/import-character.py` agora as traz sozinho - basta rodar o
- * importador com as pastas de origem à mão (ver
- * `docs/animacoes-do-personagem.md`).
+ * As POSES SOLTAS entram aqui do mesmo jeito que as outras, porque a lista sai
+ * de `CLIP_FRAMES` e não de uma relação escrita à mão: sentado de frente, de
+ * costas, de três quartos, o perfil direito desenhado, e as duas de reação
+ * (`angry`, `crying`). A arte de origem delas está em `arte-de-origem/juggler/`
+ * e o importador é o `scripts/import-poses.py` - ver
+ * `docs/animacoes-do-personagem.md`.
  */
 
 interface Clipe {

@@ -1,117 +1,107 @@
+import { WORLD_W } from './layout';
 import type { WorldConfig } from './worldConfig';
 
 /**
- * A LINHA DE COSTA, calculada UMA VEZ.
+ * A LINHA DE COSTA: UM caminho, e tudo o mais derivado dele.
  *
- * O que havia antes: a areia submersa era um bloco recortado, e por cima dela
- * um `.shore-veil` - um degradê vertical que ia de transparente a `#02131f`
- * em 460 unidades. Esse era o defeito, e ele tem nome: a rampa do MAR chega
- * nessa cor só a 2 088 unidades de profundidade, então a beirada da praia
- * ficava preta enquanto o mar aberto ao lado dela, na mesma altura, continuava
- * azul médio. Não era sombra nem máscara errada - era uma segunda rampa de cor,
- * mais curta e mais escura que a da água, encostada na primeira.
+ * -------------------------------------------------------------- o que saiu
  *
- * Aqui não há degradê nenhum entre água e areia. Há um PERFIL - a superfície da
- * areia descendo para dentro do mar - e cinco coisas derivadas dele:
+ * A versao anterior desenhava a beira do mar como uma pilha de retangulos: a
+ * areia submersa recortada por um perfil quase horizontal e, por cima dela,
+ * OITO bandas de profundidade, cada uma um retangulo de altura fixa que
+ * atravessava a cena inteira. Duas consequencias, e as duas apareciam na tela:
  *
- *   1. a massa de areia submersa, recortada pelo perfil;
- *   2. faixas discretas de profundidade por cima dela, na cor que a ÁGUA tem
- *      naquela profundidade (é isso que faz a areia sumir sem escurecer);
- *   3. a faixa de água rasa, acompanhando o perfil pelo lado da água;
- *   4. a espuma, em cima do perfil;
- *   5. a areia molhada, acompanhando o perfil pelo lado da areia.
+ *   1. oito costuras horizontais no mar. Banda chapada encostada em banda
+ *      chapada e uma linha, por mais proximas que sejam as cores;
+ *   2. uma parede vertical entre agua e areia. As bandas paravam todas no
+ *      mesmo x (`faixaLarg`), entao a borda da agua era uma reta perfeita -
+ *      o resto do perfil ficava escondido debaixo delas.
  *
- * Todas saem do MESMO array de pontos. É a exigência que mais importa: quatro
- * formas geradas em separado desalinham no primeiro ajuste de `sandY`, e o
- * desalinho aparece como costura branca ou como sombra dupla.
+ * A agua nao precisa de banda nenhuma: ela ja e UM elemento com UM degrade
+ * vertical continuo, do azul de superficie ao breu do fundo. O que faltava
+ * nao era profundidade pintada - era a agua terminar numa forma de costa.
  *
- * ------------------------------------------------------ o corte é de perfil
+ * ----------------------------------------------------------- o que entra
  *
- * Isto não é uma praia vista de cima. A cena é um corte transversal: a água
- * fica à ESQUERDA, a areia à DIREITA, e a "linha de costa" é a superfície da
- * areia mergulhando. Por isso "faixa do lado da água" quer dizer ACIMA do
- * perfil, e "faixa do lado da areia" quer dizer ABAIXO dele.
+ * Um caminho so, `perfil`, descendo a tela em degraus de 4 unidades, com a
+ * costa andando de 4 a 12 unidades para os lados. Dele saem, na mesma
+ * chamada e com as mesmas coordenadas:
+ *
+ *   `marClip`     - recorte do MAR: tudo o que fica a esquerda do caminho;
+ *   `areiaClip`   - recorte da AREIA: tudo o que fica a direita dele;
+ *   `raso`/`rasoFundo` - duas faixas de agua rasa, que ATRAVESSAM a costa e
+ *                   entram na areia (e por isso a areia continua visivel
+ *                   debaixo delas: sao translucidas);
+ *   `molhada`     - a areia molhada, do lado da areia;
+ *   `espuma`      - o `d` de um `<path>`, tracejado em pedacos desiguais.
+ *
+ * Nenhuma dessas formas tem geometria propria. Mudar a ondulacao da costa
+ * move as cinco juntas, porque as cinco sao o mesmo array de pontos com
+ * deslocamentos diferentes em x - e e isso que evita costura, buraco e
+ * sobreposicao entre camadas.
+ *
+ * ------------------------------------------------------ o corte e de perfil
+ *
+ * A cena e um corte transversal, e nao uma praia vista de cima: a agua fica a
+ * ESQUERDA, a areia a DIREITA, e a costa desce a tela quase na vertical. Por
+ * isso "lado da agua" quer dizer x MENOR e "lado da areia" quer dizer x MAIOR
+ * - e nao acima e abaixo, como na versao do perfil deitado.
  */
 
-/** Lado do tile de areia. O perfil anda nesta grade para não sair do encaixe. */
-export const GRADE = 32;
+/** Grade de desenho. Tudo cai nela: costa em meio pixel nao e pixel art. */
+export const GRADE = 4;
 
 export interface CostaPonto {
   x: number;
   y: number;
 }
 
-export interface FaixaProfundidade {
-  /** topo da faixa, relativo à caixa */
-  topo: number;
-  alt: number;
-  /** a que profundidade de água esta faixa corresponde, em unidades */
-  profundidade: number;
-  /** o quanto ela apaga a areia, de 0 a 1 */
-  alfa: number;
+export interface Caixa {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 export interface Costa {
-  /** a caixa comum a todas as camadas, em unidades de mundo */
-  caixa: { x: number; y: number; w: number; h: number };
-  /** o perfil, da esquerda (fundo) para a direita (praia seca) */
+  /** a caixa da faixa de costa, em unidades de mundo */
+  caixa: Caixa;
+  /** o caminho da costa, de cima para baixo */
   perfil: CostaPonto[];
-  /** onde o perfil cruza a linha d'água: é aqui que a praia começa */
+  /** x medio da costa: onde a crista da onda para */
   costaX: number;
-  /** massa de areia: do perfil para baixo */
-  areia: string;
-  /** faixa de água rasa: do perfil para cima, no lado da água */
+  /** a caixa do MAR e o recorte que o termina na costa */
+  mar: Caixa;
+  marClip: string;
+  /** a caixa da AREIA e o recorte que a comeca na costa */
+  areia: Caixa;
+  areiaClip: string;
+  /** agua rasa: a faixa fina, mais clara, do lado da agua */
   raso: string;
-  /** a mesma faixa, mais grossa - a segunda banda discreta */
+  /** agua rasa: a faixa larga de tras, mais apagada */
   rasoFundo: string;
-  /** areia molhada: do perfil para baixo, no lado da areia */
+  /** a lamina de agua que entra POR CIMA da areia */
+  rasoAreia: string;
+  /** areia molhada, do lado da areia */
   molhada: string;
-  /** linha da espuma, para o `d` de um `<path>` */
+  /** espuma: o `d` de um `<path>` que segue a costa */
   espuma: string;
-  /** as bandas que apagam a areia conforme ela afunda */
-  faixas: FaixaProfundidade[];
-  /**
-   * Ate onde as bandas de profundidade vao, relativo a caixa.
-   *
-   * Elas param na COSTA, e nao na borda da caixa. A massa de areia continua
-   * para a direita - e a praia seca, vista de perfil, com subsolo - e uma banda
-   * de profundidade em cima dela pintaria de azul o que esta debaixo da areia
-   * enxuta. Foi exatamente o que aconteceu na primeira tentativa: a praia
-   * inteira ficou dentro d'agua abaixo de uma certa altura.
-   */
-  faixaLarg: number;
 }
 
 /**
- * A COR DA ÁGUA numa dada profundidade.
+ * Le uma cor, em `#rrggbb` OU em `rgb(r,g,b)`.
  *
- * Esta função é o conserto do degradê preto. Ela reproduz as mesmas paradas do
- * `background` do `.sea` - topo até 4%, meio em 42%, fundo em 100% - sobre a
- * profundidade REAL do mar. Assim a banda que apaga a areia a 300 unidades usa
- * exatamente a cor que a água tem a 300 unidades, e a beirada da praia deixa
- * de destoar do mar aberto que está do lado dela.
+ * Os dois formatos, e nao so o hexadecimal, porque estas funcoes se ENCAIXAM:
+ * `esverdeia(clareia(azul))` recebe de volta o que a de dentro devolveu. Com
+ * um leitor so de hexadecimal isso dava `NaN` em silencio - a cor saia
+ * `rgb(NaN,NaN,NaN)`, o CSS descartava a regra inteira e a faixa de agua rasa
+ * simplesmente nao aparecia na tela.
  */
-export function corDoMar(
-  profundidade: number,
-  p: { seaTop: string; seaBottom: string },
-  seaDepth: number,
-): string {
-  const t = Math.max(0, Math.min(1, profundidade / Math.max(1, seaDepth)));
-  const paradas: [number, string][] = [
-    [0.04, p.seaTop],
-    [0.42, p.seaBottom],
-    [1, '#02131f'],
-  ];
-  if (t <= paradas[0][0]) return p.seaTop;
-  for (let i = 1; i < paradas.length; i++) {
-    const [t1, c1] = paradas[i];
-    const [t0, c0] = paradas[i - 1];
-    if (t <= t1) return mistura(c0, c1, (t - t0) / (t1 - t0));
-  }
-  return '#02131f';
-}
-
 function hex(c: string): [number, number, number] {
+  if (c.startsWith('rgb')) {
+    const n = c.replace(/[^0-9,.]/g, '').split(',').map(Number);
+    return [n[0] || 0, n[1] || 0, n[2] || 0];
+  }
   const s = c.replace('#', '');
   return [
     parseInt(s.slice(0, 2), 16),
@@ -129,29 +119,26 @@ function mistura(a: string, b: string, t: number): string {
   )})`;
 }
 
-/** Clareia uma cor em direção ao branco: a água rasa é a de cima, mais clara. */
+/** Clareia uma cor em direcao ao branco: agua rasa e mais clara, nunca escura. */
 export function clareia(c: string, t: number): string {
   return mistura(c, '#ffffff', t);
 }
 
-/**
- * Quantiza para a grade de desenho.
- *
- * Sem isto o perfil nasce em coordenadas fracionárias e, com a cena escalada
- * por um número que não é inteiro, cada vértice cai entre dois pixels - o
- * recorte serrilha de um jeito que não parece pixel art, parece antialias
- * quebrado.
- */
-function naGrade(v: number, passo = 4): number {
+/** Puxa a cor para o verde-agua: rasa e esverdeada, funda e azul. */
+export function esverdeia(c: string, t: number): string {
+  return mistura(c, '#7fe3d2', t);
+}
+
+function naGrade(v: number, passo = GRADE): number {
   return Math.round(v / passo) * passo;
 }
 
 /**
- * Um sorteio com semente: o mesmo mundo dá a mesma costa.
+ * Sorteio com semente: o mesmo mundo da a mesma costa.
  *
- * `Math.random()` aqui seria um erro que só aparece em movimento: a costa
- * mudaria a cada render do React, e o requisito "não gere ruído aleatório
- * diferente a cada frame" existe justamente por isso.
+ * `Math.random()` aqui seria um defeito que so aparece em movimento - a costa
+ * mudaria a cada render do React, e "sem ruido aleatorio por quadro" e
+ * requisito de pixel art, nao preferencia.
  */
 function rng(seed: number) {
   let s = seed >>> 0;
@@ -161,165 +148,170 @@ function rng(seed: number) {
   };
 }
 
-/** Junta pontos num `polygon()` de `clip-path`, em px relativos à caixa. */
-function poligono(pts: CostaPonto[], cx: number, cy: number): string {
-  return `polygon(${pts.map((p) => `${p.x - cx}px ${p.y - cy}px`).join(',')})`;
+/**
+ * O caminho em DEGRAUS, deslocado em x.
+ *
+ * Desce reto ate o proximo y, anda reto ate o proximo x. E o serrilhado de
+ * mapa de tiles; uma diagonal ligando ponto a ponto viraria uma reta suave
+ * que o resto da cena nao tem.
+ */
+function degraus(pts: CostaPonto[], dx: number): CostaPonto[] {
+  const out: CostaPonto[] = [];
+  for (let i = 0; i < pts.length; i++) {
+    out.push({ x: pts[i].x + dx, y: pts[i].y });
+    const prox = pts[i + 1];
+    if (prox) out.push({ x: pts[i].x + dx, y: prox.y });
+  }
+  return out;
+}
+
+/** Junta pontos num `polygon()` de `clip-path`, em px relativos a uma caixa. */
+function poligono(pts: CostaPonto[], c: Caixa): string {
+  return `polygon(${pts.map((p) => `${p.x - c.x}px ${p.y - c.y}px`).join(',')})`;
 }
 
 export function calcularCosta(w: WorldConfig): Costa {
-  const colunas = Math.max(4, Math.round(w.shoreColunas));
   const r = rng(20260805);
 
+  const topo = naGrade(Math.min(w.sandY, w.waterY) - 48);
+  const fundo = naGrade(w.waterY + w.seaDepth);
+  const amp = Math.max(0, w.shoreIrregular);
+  const passo = Math.max(8, w.shorePasso);
+
   /*
-   * O PERFIL.
+   * O CAMINHO.
    *
-   * A queda é uma curva (`n^curva`), e não um passo constante: passo constante
-   * é uma diagonal reta feita de blocos, e praia nenhuma desce assim - a beira
-   * é quase plana e o fundo cai depois. O sorteio por coluna tira a aparência
-   * de fórmula sem virar ruído: a amplitude é uma fração do degrau, então o
-   * perfil continua monotônico e legível.
+   * Passeio aleatorio com passo curto e limite: cada degrau anda 0, 4 ou 8
+   * unidades para um lado, e a soma nunca passa de `shoreIrregular`. Sortear
+   * um x novo a cada degrau daria serrilhado de 1 px - o "ruido" que o pedido
+   * descarta; um seno daria ondulacao regular, que le como enfeite. Passeio
+   * limitado da poucas reentrancias grandes, que e o que praia tem.
+   *
+   * A ALTURA DE CADA DEGRAU tambem varia (de 1 a 3 passos). Com altura fixa a
+   * costa vira escada de tamanho unico, e escada de tamanho unico o olho
+   * reconhece como padrao na primeira olhada.
    */
-  const seco = w.shoreX - 60;
   const perfil: CostaPonto[] = [];
-  for (let n = colunas; n >= 1; n--) {
-    const queda = w.shoreQueda * Math.pow(n, w.shoreCurva) + (r() - 0.5) * w.shoreIrregular;
-    perfil.push({
-      x: naGrade(seco - n * GRADE, GRADE),
-      y: naGrade(w.sandY + Math.max(2, queda)),
-    });
+  let x = w.shoreX;
+  for (let y = topo; y < fundo; ) {
+    perfil.push({ x: naGrade(x), y: naGrade(y) });
+    const anda = [-8, -4, -4, 0, 0, 4, 4, 8][Math.floor(r() * 8)];
+    x = Math.max(w.shoreX - amp, Math.min(w.shoreX + amp, x + anda));
+    y += passo * (1 + Math.floor(r() * 3));
   }
-  // a praia seca: o perfil continua reto até bem depois da orla
-  const direita = naGrade(seco + w.shoreMolhadaAvanco + 200, GRADE);
-  perfil.push({ x: seco, y: naGrade(w.sandY) });
-  perfil.push({ x: direita, y: naGrade(w.sandY) });
+  perfil.push({ x: naGrade(x), y: fundo });
 
-  /** Onde o perfil cruza a linha d'água, andando da direita para a esquerda. */
-  let costaX = perfil[perfil.length - 1].x;
-  for (let i = perfil.length - 1; i >= 0; i--) {
-    if (perfil[i].y >= w.waterY) {
-      costaX = perfil[i].x;
-      break;
-    }
-  }
+  const costaX = naGrade(w.shoreX);
+  const caixa = { x: w.shoreX - 240, y: topo, w: 480, h: fundo - topo };
 
-  const esq = perfil[0].x;
-  const topo = naGrade(Math.min(w.sandY, w.waterY) - w.shoreRaso * 2 - 16);
-  const fundo = naGrade(w.waterY + w.shoreFundo);
-  const caixa = { x: esq, y: topo, w: direita - esq, h: fundo - topo };
+  // ----------------------------------------------------------- os recortes
+  //
+  // O MAR e a AREIA sao os dois lados do MESMO caminho. Se um recuasse meia
+  // unidade em relacao ao outro apareceria uma fresta de fundo entre os dois,
+  // e e por isso que os dois saem daqui e nao de dois calculos parecidos.
 
-  // ------------------------------------------------------------- as formas
-
-  /** Um degrau por ponto: sobe reto, anda reto. É o que dá o serrilhado certo. */
-  const degraus = (pts: CostaPonto[], dy: number): CostaPonto[] => {
-    const out: CostaPonto[] = [];
-    for (let i = 0; i < pts.length; i++) {
-      out.push({ x: pts[i].x, y: pts[i].y + dy });
-      const prox = pts[i + 1];
-      if (prox) out.push({ x: prox.x, y: pts[i].y + dy });
-    }
-    return out;
+  const mar: Caixa = {
+    x: w.shoreX - w.seaWidth,
+    y: w.waterY,
+    w: w.seaWidth + 240,
+    h: w.seaDepth,
   };
+  /*
+   * O caminho vai ALEM das duas caixas, em cima e embaixo, e cada recorte
+   * PRENDE o que sobra na propria borda em vez de descartar. Descartar seria
+   * o mesmo defeito de sempre: o ponto que falta vira uma reta ligando os dois
+   * vizinhos, e essa reta e uma emenda visivel bem na linha d'agua.
+   */
+  const preso = (c: Caixa): CostaPonto[] =>
+    degraus(perfil, 0).map((p) => ({ x: p.x, y: Math.max(c.y, Math.min(c.y + c.h, p.y)) }));
 
-  const areia = poligono(
-    [...degraus(perfil, 0), { x: direita, y: fundo }, { x: esq, y: fundo }],
-    caixa.x,
-    caixa.y,
+  const linhaMar = preso(mar);
+  const marClip = poligono(
+    [
+      { x: mar.x, y: mar.y },
+      ...linhaMar,
+      { x: mar.x, y: mar.y + mar.h },
+    ],
+    mar,
   );
 
-  /** Recorta o perfil numa janela de x, para as faixas não irem até o fundo. */
-  const janela = (x0: number, x1: number): CostaPonto[] =>
-    perfil.filter((p) => p.x >= x0 && p.x <= x1);
-
-  const faixa = (pts: CostaPonto[], espessura: number): string => {
-    if (pts.length < 2) return 'polygon(0 0,0 0,0 0)';
-    const cima = degraus(pts, -espessura);
-    const baixo = degraus(pts, 0).reverse();
-    return poligono([...cima, ...baixo], caixa.x, caixa.y);
+  const areia: Caixa = {
+    x: w.shoreX - 240,
+    y: w.sandY,
+    w: WORLD_W - w.shoreX + 400,
+    h: fundo + 420 - w.sandY,
   };
-
-  /*
-   * A faixa rasa PARA NA COSTA.
-   *
-   * Sem o limite à direita ela seguia o perfil até o fim da caixa - e à direita
-   * da costa o perfil é a praia seca, então a faixa virava uma tira de água
-   * pairando 34 unidades ACIMA da areia enxuta. É o tipo de erro que só
-   * aparece na tela: a geometria estava certa, o domínio é que estava errado.
-   */
-  const raso = faixa(janela(costaX - w.shoreRasoLarg, costaX), w.shoreRaso);
-  const rasoFundo = faixa(
-    janela(costaX - w.shoreRasoLarg * 1.8, costaX),
-    w.shoreRaso * 2.2,
+  const areiaClip = poligono(
+    [
+      ...preso(areia),
+      { x: areia.x + areia.w, y: areia.y + areia.h },
+      { x: areia.x + areia.w, y: areia.y },
+    ],
+    areia,
   );
 
-  const ptsMolhada = janela(costaX - w.shoreMolhadaRecuo, costaX + w.shoreMolhadaAvanco);
-  const molhada = (() => {
-    if (ptsMolhada.length < 2) return 'polygon(0 0,0 0,0 0)';
-    const cima = degraus(ptsMolhada, 0);
-    const baixo = degraus(ptsMolhada, w.shoreMolhada).reverse();
-    return poligono([...cima, ...baixo], caixa.x, caixa.y);
-  })();
+  // ------------------------------------------------------------- as faixas
+  //
+  // Uma faixa e o caminho deslocado para os dois lados e fechado: `-esq` entra
+  // na agua, `+dir` entra na areia. Trocar a ondulacao da costa move todas
+  // juntas, porque todas sao `perfil`.
+
+  const faixa = (esq: number, dir: number): string =>
+    poligono([...degraus(perfil, -esq), ...degraus(perfil, dir).reverse()], caixa);
 
   /*
-   * A ESPUMA é uma polilinha, e não um polígono: ela é traçada com `stroke`, e
-   * é o `stroke-dasharray` que a quebra em pedaços. Uma linha branca contínua
-   * ao longo da costa é o defeito clássico de praia em jogo 2D.
-   */
-  const ptsEspuma = degraus(
-    janela(costaX - w.shoreEspumaRecuo, costaX + w.shoreEspumaAvancoX),
-    0,
-  );
-  const espuma = ptsEspuma.length
-    ? ptsEspuma
-        .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x - caixa.x} ${p.y - caixa.y}`)
-        .join(' ')
-    : 'M 0 0';
-
-  /*
-   * AS FAIXAS DE PROFUNDIDADE.
+   * A AGUA RASA ATRAVESSA A COSTA.
    *
-   * Discretas de propósito - cinco degraus de cor, sem interpolação - porque é
-   * assim que água funda se desenha em pixel art. Cada uma usa a cor que a
-   * ÁGUA tem naquela profundidade (`corDoMar`), e não uma cor escura inventada:
-   * é essa escolha que faz a beirada da praia combinar com o mar aberto ao
-   * lado dela em vez de virar uma mancha preta.
+   * Ela nao para na beira da agua: avanca `shoreRasoAvanco` unidades por cima
+   * do tile de areia, translucida, e e essa sobreposicao que faz a praia
+   * entrar na agua em vez de encostar nela. Duas faixas, e nao um degrade: a
+   * de tras mais larga e mais apagada, a da frente fina e mais clara.
    */
-  const faixas: FaixaProfundidade[] = [];
-  const passos = 8;
-  const alto = w.waterY + w.shoreRaso;
-  const alcance = fundo - alto;
-  for (let i = 0; i < passos; i++) {
-    const y0 = alto + (alcance * i) / passos;
-    const y1 = alto + (alcance * (i + 1)) / passos;
-    const prof = (y0 + y1) / 2 - w.waterY;
-    faixas.push({
-      topo: naGrade(y0) - caixa.y,
-      alt: Math.max(1, naGrade(y1) - naGrade(y0)),
-      /*
-       * A profundidade REAL do meio da faixa. É dela que sai a cor, e é por
-       * isso que as bandas continuam escurecendo depois que a areia já sumiu:
-       * elas seguem a mesma rampa do mar aberto ao lado. A primeira tentativa
-       * parava de escurecer no fim da absorção e o resultado era um retângulo
-       * ciano chapado - piscina, não mar.
-       */
-      profundidade: prof,
-      alfa: Math.min(1, (y0 - w.waterY) / Math.max(1, w.shoreAbsorcao)),
-    });
-  }
-  // a última desce até o pé da caixa: abaixo dela não há mais areia para ver
-  const ultima = faixas[faixas.length - 1];
-  ultima.alt = Math.max(ultima.alt, caixa.h - ultima.topo);
+  const raso = faixa(w.shoreRaso, 0);
+  const rasoFundo = faixa(w.shoreRaso * 2.2, 0);
+
+  /*
+   * A LAMINA SOBRE A AREIA e uma camada propria, e nao a ponta da faixa de
+   * cima. O motivo e de cor: agua turquesa a 34% por cima de areia amarela da
+   * verde-oliva, que le como limo, nao como agua. Sobre areia clara a agua
+   * rasa aparece MAIS CLARA que a areia, com um resto de ciano - entao esta
+   * camada e clara e a de dentro d'agua e saturada, e as duas se encontram
+   * exatamente em cima da linha da espuma, que e o que esconde a junta.
+   */
+  const rasoAreia = faixa(0, w.shoreRasoAvanco);
+
+  /*
+   * A AREIA MOLHADA COMECA ONDE A AGUA RASA TERMINA.
+   *
+   * Ela nao encosta na costa: fica DEPOIS do avanco da agua rasa, ja em areia
+   * exposta. Debaixo da agua ela nao teria o que fazer - a faixa molhada e
+   * justamente o rastro que a onda deixa quando recua, e a ordem da praia e
+   * agua funda, agua rasa, espuma, areia molhada, areia seca.
+   */
+  const molhada = faixa(-w.shoreRasoAvanco, w.shoreRasoAvanco + w.shoreMolhada);
+
+  /*
+   * A ESPUMA e polilinha, e nao poligono: quem a quebra em pedacos e o
+   * `stroke-dasharray` do CSS. Linha branca continua ao longo da costa e o
+   * defeito classico de praia em 2D.
+   */
+  const pts = degraus(perfil, 0);
+  const espuma = pts
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x - caixa.x} ${p.y - caixa.y}`)
+    .join(' ');
 
   return {
     caixa,
     perfil,
     costaX,
+    mar,
+    marClip,
     areia,
+    areiaClip,
     raso,
     rasoFundo,
+    rasoAreia,
     molhada,
     espuma,
-    faixas,
-    // um tile de folga para a banda nao terminar exatamente no degrau
-    faixaLarg: Math.max(0, costaX + GRADE - caixa.x),
   };
 }

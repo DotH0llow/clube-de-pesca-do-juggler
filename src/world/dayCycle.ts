@@ -27,6 +27,20 @@ import type { RegionId } from '../state/types';
 
 let offsetMs = 0;
 
+/**
+ * QUANDO ESTE DIA COMECOU.
+ *
+ * O relogio deixou de ser o resto de uma divisao (`Date.now() % 24min`), e essa
+ * e a mudanca inteira. Com o resto, a hora do jogo dependia da hora do mundo:
+ * abrir o jogo as 11h47 podia cair no meio da noite profunda, e o ciclo dava a
+ * volta sozinho e amanhecia de novo no meio da tarde de quem estava jogando.
+ *
+ * Agora o dia tem um COMECO, e ele e o comeco do dia do jogador: a primeira
+ * abertura, ou o "dormir" que encerra o dia. Dali o ceu anda para a frente e
+ * so para a frente.
+ */
+let inicioDia = Date.now();
+
 /** O agora do JOGO: relogio da maquina mais o desvio do painel de dev. */
 export function gameNow(): number {
   return Date.now() + offsetMs;
@@ -40,6 +54,36 @@ export const DAY_LENGTH_MS = 24 * 60 * 1000;
 
 /** As oito horas do dia, na ordem em que entram no ar. */
 export const HOUR_ORDER: SkyPhaseId[] = SKY_ORDER;
+
+/**
+ * ONDE O DIA COMECA.
+ *
+ * Em MANHA CLARA, sempre. O pre-amanhecer e o nascer do sol continuam aqui,
+ * inteiros, com pintura, paleta e regiao - eles so nao entram mais no ciclo
+ * sozinhos. Quem pesca chega no cais de manha; ver o ceu clarear e coisa de
+ * quem virou a noite, e virar a noite era o que o ciclo antigo fazia com todo
+ * mundo que abrisse o jogo na hora errada.
+ *
+ * Os dois guardados continuam alcancaveis: o painel de dev pula para qualquer
+ * hora, e atrasar o relogio (F6) volta ate eles.
+ */
+export const DIA_COMECA: SkyPhaseId = 'manha-clara';
+const INICIO = Math.max(0, HOUR_ORDER.indexOf(DIA_COMECA));
+
+/**
+ * Comeca um dia novo: o ceu volta para a manha clara.
+ *
+ * Chamado por `endDay()` - quando o jogador dorme - e uma vez na abertura do
+ * jogo, por este modulo carregar. O desvio do painel de dev e zerado junto:
+ * dormir com o relogio adiantado tres horas devolveria uma manha que ja
+ * comeca no fim.
+ */
+export function startNewDay(): void {
+  inicioDia = Date.now();
+  offsetMs = 0;
+  tick(true);
+  clockTick();
+}
 
 /**
  * A ordem das REGIOES no dia, sem repetir.
@@ -64,17 +108,34 @@ export interface DayPhase {
   msLeft: number;
 }
 
+/**
+ * A hora do dia, contada a partir do comeco DESTE dia.
+ *
+ * Duas diferencas para o ciclo antigo, e as duas sao o pedido:
+ *
+ *   COMECA NA MANHA CLARA. O indice parte de `INICIO`, e nao de zero.
+ *
+ *   NAO DA A VOLTA. Chegando na noite profunda, fica nela. Amanhecer no meio
+ *   da sessao era o efeito do resto da divisao, e e ele que some: o cais so
+ *   amanhece quando o jogador dorme e o dia seguinte comeca.
+ *
+ * O indice ainda pode cair ANTES do inicio - `shiftClock` com valor negativo,
+ * no painel de dev - e e assim que se olha o pre-amanhecer e o nascer do sol
+ * sem eles estarem no ciclo.
+ */
 export function dayPhaseAt(now = gameNow()): DayPhase {
-  const t = ((now % DAY_LENGTH_MS) + DAY_LENGTH_MS) % DAY_LENGTH_MS;
-  const index = Math.min(HOUR_ORDER.length - 1, Math.floor(t / PHASE_MS));
-  const into = t - index * PHASE_MS;
+  const t = now - inicioDia;
+  const passos = Math.floor(t / PHASE_MS);
+  const index = Math.max(0, Math.min(HOUR_ORDER.length - 1, INICIO + passos));
+  const into = ((t % PHASE_MS) + PHASE_MS) % PHASE_MS;
   const sky = HOUR_ORDER[index];
+  const parado = index === HOUR_ORDER.length - 1 && INICIO + passos >= index;
   return {
     id: SKY_BY_ID[sky].region,
     sky,
     index,
-    progress: into / PHASE_MS,
-    msLeft: PHASE_MS - into,
+    progress: parado ? 1 : into / PHASE_MS,
+    msLeft: parado ? Infinity : PHASE_MS - into,
   };
 }
 
@@ -89,10 +150,17 @@ export function currentSky(): SkyPhaseId {
 }
 
 /** Hora ficticia do mundo, em formato 24h, so para mostrar na tela. */
+/**
+ * Hora ficticia do mundo, em formato 24h, so para mostrar na tela.
+ *
+ * Sai da FASE, e nao mais de uma regra de tres em cima do dia inteiro: cada
+ * hora do dia ja diz a que hora ficticia ela comeca (`SkyPhase.hour`), e as
+ * fases sao de tres em tres. Com o ciclo pulando o pre-amanhecer e o nascer do
+ * sol, a regra de tres antiga mostraria 03:00 numa manha clara.
+ */
 export function clockLabel(now = gameNow()): string {
-  const t = ((now % DAY_LENGTH_MS) + DAY_LENGTH_MS) % DAY_LENGTH_MS;
-  // o dia do jogo comeca as 6h: as 24 horas ficticias cabem nos 24 minutos
-  const hours = (6 + (t / DAY_LENGTH_MS) * 24) % 24;
+  const fase = dayPhaseAt(now);
+  const hours = (SKY_BY_ID[fase.sky].hour + Math.min(0.999, fase.progress) * 3) % 24;
   const h = Math.floor(hours);
   const m = Math.floor((hours - h) * 60);
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
@@ -132,9 +200,9 @@ export function shiftClock(ms: number): void {
 export function jumpToSky(id: SkyPhaseId): void {
   const target = HOUR_ORDER.indexOf(id);
   if (target < 0) return;
-  const t = ((gameNow() % DAY_LENGTH_MS) + DAY_LENGTH_MS) % DAY_LENGTH_MS;
+  const t = gameNow() - inicioDia;
   // meio da fase, e nao a borda: parar em cima da virada troca de fase sozinho
-  const want = target * PHASE_MS + PHASE_MS * 0.15;
+  const want = (target - INICIO) * PHASE_MS + PHASE_MS * 0.15;
   shiftClock(want - t);
 }
 
@@ -144,7 +212,7 @@ export function jumpToPhase(id: RegionId): void {
   if (hour) jumpToSky(hour);
 }
 
-/** Devolve o relogio para a hora de verdade. */
+/** Devolve o relogio para a hora de verdade deste dia. */
 export function resetClock(): void {
   offsetMs = 0;
   tick(true);

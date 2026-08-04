@@ -158,41 +158,28 @@ export function WorldPanel() {
           Tudo o que desenha a beirada da praia mora aqui. Estava espalhado pelo
           `World.tsx` como número solto, e é assim que se chega num degradê
           preto de 460 unidades sem ninguém perceber que ele existia. */}
-      <div className="eanim-label">LINHA DE COSTA · PERFIL</div>
+      <div className="eanim-label">LINHA DE COSTA</div>
       <div className="efields">
         <NumberField
-          label="COLUNAS"
-          value={w.shoreColunas}
-          onChange={(v) => updateWorld({ shoreColunas: Math.max(4, Math.round(v)) })}
-          suffix="degraus de 32 un entrando na água"
-        />
-        <NumberField
-          label="PRIMEIRA QUEDA"
-          value={w.shoreQueda}
-          onChange={(v) => updateWorld({ shoreQueda: Math.max(0, v) })}
-          suffix="o quanto a beira já desce"
-        />
-        <NumberField
-          label="CURVA"
-          value={w.shoreCurva}
-          step={0.05}
-          onChange={(v) => updateWorld({ shoreCurva: Math.max(1, v) })}
-          suffix="1 é uma rampa reta; acima disso o fundo cai depois"
-        />
-        <NumberField
-          label="IRREGULARIDADE"
+          label="ONDULAÇÃO"
           value={w.shoreIrregular}
           step={2}
           onChange={(v) => updateWorld({ shoreIrregular: Math.max(0, v) })}
-          suffix="0 = curva limpa · alto vira ruído"
+          suffix="o quanto a costa anda para os lados · 0 = parede reta"
         />
         <NumberField
-          label="ABSORÇÃO"
-          value={w.shoreAbsorcao}
-          step={20}
-          onChange={(v) => updateWorld({ shoreAbsorcao: Math.max(40, v) })}
-          suffix="em quantas unidades de água a areia some"
+          label="DEGRAU"
+          value={w.shorePasso}
+          step={4}
+          onChange={(v) => updateWorld({ shorePasso: Math.max(8, v) })}
+          suffix="altura de cada degrau (a de verdade varia de 1 a 3x)"
         />
+      </div>
+      <div className="ehint">
+        A costa é UM caminho, e água rasa, areia molhada e espuma são esse mesmo caminho deslocado
+        para os lados. Mexer aqui move as três juntas — é isso que evita costura entre elas. O mar e
+        a areia são recortados por ele, então não existe mais borda vertical nem banda horizontal
+        atravessando a água.
       </div>
 
       <div className="eanim-label">ÁGUA RASA</div>
@@ -202,18 +189,20 @@ export function WorldPanel() {
           value={w.shoreRaso}
           step={2}
           onChange={(v) => updateWorld({ shoreRaso: Math.max(0, v) })}
+          suffix="do lado da água"
         />
         <NumberField
-          label="ALCANCE"
-          value={w.shoreRasoLarg}
-          step={10}
-          onChange={(v) => updateWorld({ shoreRasoLarg: Math.max(0, v) })}
-          suffix="até onde ela vai para o fundo"
+          label="AVANÇA NA AREIA"
+          value={w.shoreRasoAvanco}
+          step={2}
+          onChange={(v) => updateWorld({ shoreRasoAvanco: Math.max(0, v) })}
+          suffix="o quanto ela entra por cima do tile de areia"
         />
         <SliderField
           label="OPACIDADE"
           value={w.shoreRasoAlfa}
           onChange={(v) => updateWorld({ shoreRasoAlfa: v })}
+          suffix="entre 20% e 40% · acima disso a areia some debaixo dela"
         />
       </div>
 
@@ -224,20 +213,6 @@ export function WorldPanel() {
           value={w.shoreMolhada}
           step={2}
           onChange={(v) => updateWorld({ shoreMolhada: Math.max(0, v) })}
-        />
-        <NumberField
-          label="RECUA"
-          value={w.shoreMolhadaRecuo}
-          step={10}
-          onChange={(v) => updateWorld({ shoreMolhadaRecuo: Math.max(0, v) })}
-          suffix="para dentro d'água"
-        />
-        <NumberField
-          label="AVANÇA"
-          value={w.shoreMolhadaAvanco}
-          step={10}
-          onChange={(v) => updateWorld({ shoreMolhadaAvanco: Math.max(0, v) })}
-          suffix="para dentro da praia"
         />
         <SliderField
           label="OPACIDADE"
@@ -258,18 +233,6 @@ export function WorldPanel() {
           onChange={(v) => updateWorld({ shoreEspuma: Math.max(1, v) })}
         />
         <NumberField
-          label="RECUA"
-          value={w.shoreEspumaRecuo}
-          step={10}
-          onChange={(v) => updateWorld({ shoreEspumaRecuo: Math.max(0, v) })}
-        />
-        <NumberField
-          label="AVANÇA"
-          value={w.shoreEspumaAvancoX}
-          step={10}
-          onChange={(v) => updateWorld({ shoreEspumaAvancoX: Math.max(0, v) })}
-        />
-        <NumberField
           label="SUBIDA DA ONDA"
           value={w.shoreEspumaOnda}
           step={2}
@@ -282,12 +245,6 @@ export function WorldPanel() {
           step={0.5}
           onChange={(v) => updateWorld({ shoreEspumaSeg: Math.max(1, v) })}
           suffix="segundos por onda"
-        />
-        <SliderField
-          label="SOMBRA DO PÍER"
-          value={w.shoreSombraPier}
-          onChange={(v) => updateWorld({ shoreSombraPier: v })}
-          suffix="camada própria, não faz parte da costa"
         />
       </div>
 

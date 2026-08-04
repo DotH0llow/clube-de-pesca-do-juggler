@@ -397,55 +397,25 @@ button {
 /* ==========================================================================
    A LINHA DE COSTA
 
-   Cinco camadas, todas recortadas pelo MESMO poligono (`world/shore.ts`).
+   Tres camadas, todas recortadas por poligonos que saem do MESMO caminho
+   (`world/shore.ts`): agua rasa, areia molhada e espuma.
 
-   O que saiu daqui foi o `.shore-veil` - um degrade vertical de transparente a
-   `#02131f` em 460 unidades, encostado na beira da praia. Ele e o "degrade
-   preto" do relato, e o defeito dele e aritmetico: a rampa do MAR so chega
-   nessa cor a 2 088 unidades de profundidade, entao a beirada ficava preta
-   enquanto o mar aberto ao lado dela, na mesma altura, continuava azul medio.
+   O QUE SAIU DAQUI: `.sand-orla` e `.orla-faixa`, a areia submersa e as oito
+   bandas de profundidade. Eram retangulos empilhados - e retangulo chapado
+   encostado em retangulo chapado e uma linha horizontal, por mais proximas que
+   sejam as cores. As bandas tambem terminavam todas no mesmo x, e era esse
+   alinhamento que desenhava a parede vertical entre a agua e a praia.
 
-   Nada aqui usa blur, e nenhuma cor e inventada: as bandas de profundidade
-   usam a cor que a AGUA tem naquela profundidade.
+   A profundidade agora e do MAR: um elemento, um degrade vertical continuo,
+   recortado na costa. Nada aqui usa blur, feathering ou borda macia.
    ========================================================================== */
 
-/* 1. a massa de areia submersa, com o tile de sempre e o recorte do perfil */
-.sand-orla {
-  z-index: 15;
-  position: absolute;
-  background-repeat: repeat;
-  background-size: 32px 32px;
-  /* o recorte e por poligono, e nao por elementos lado a lado: elemento tem
-     borda, e borda em escala fracionaria cai entre pixels */
-  overflow: hidden;
-}
+/* 1. a agua rasa: duas faixas CHAPADAS e TRANSLUCIDAS, sem degrade e sem blur.
 
-/* 2. as bandas de profundidade, filhas do recorte - nao ha como vazarem */
-/* A largura vem do componente: a banda para na COSTA, e nao na borda da caixa.
-
-   A borda direita nao e um corte seco: sao tres degraus de mascara (cheio,
-   metade, nada) nos ultimos 24 px. Tres degraus e dithering grosso, nao
-   degrade - o requisito de pixel art continua de pe, e o que se evita e uma
-   linha vertical de navalha entre a areia submersa e o subsolo da praia. */
-.orla-faixa {
-  position: absolute;
-  left: 0;
-  display: block;
-  -webkit-mask-image: linear-gradient(
-    90deg,
-    #000 0 calc(100% - 24px),
-    rgba(0, 0, 0, 0.55) calc(100% - 24px) calc(100% - 12px),
-    transparent calc(100% - 12px)
-  );
-  mask-image: linear-gradient(
-    90deg,
-    #000 0 calc(100% - 24px),
-    rgba(0, 0, 0, 0.55) calc(100% - 24px) calc(100% - 12px),
-    transparent calc(100% - 12px)
-  );
-}
-
-/* 3. a agua rasa: duas faixas CHAPADAS, sem degrade e sem blur */
+   Elas atravessam a costa e entram na areia. A translucidez nao e enfeite: e
+   o que deixa o grao do tile de areia aparecer debaixo da agua, que e o
+   requisito. Mais claras e mais esverdeadas que o mar - agua rasa nunca e
+   mais escura que agua funda. */
 .mar-raso {
   z-index: 16;
   position: absolute;
@@ -453,15 +423,21 @@ button {
 }
 
 .mar-raso.fundo {
-  z-index: 15;
+  z-index: 16;
 }
 
-/* 4. a areia molhada.
+/* a lamina que entra na areia fica ACIMA do tile de areia (z 16 nao bastaria:
+   a borda do autotile tambem esta em 16) e ABAIXO da espuma */
+.mar-raso.areia {
+  z-index: 17;
+}
+
+/* 2. a areia molhada.
 
    E uma cor por cima do tile, e nao uma textura nova: a areia original
-   continua aparecendo por baixo, que e o requisito. A cor e a propria areia
-   rebaixada e dessaturada - nunca preto nem cinza neutro, que e o que faria a
-   faixa ler como sombra em vez de areia molhada.
+   continua aparecendo por baixo. A cor e a propria areia rebaixada e
+   dessaturada - nunca preto nem cinza neutro, que e o que faria a faixa ler
+   como sombra em vez de areia molhada.
 
    `multiply` escurece preservando o desenho do tile; um bloco opaco por cima
    apagaria o grao. */
@@ -469,7 +445,7 @@ button {
   z-index: 17;
   position: absolute;
   pointer-events: none;
-  background: #8a6a3f;
+  background: #c89f58;
   mix-blend-mode: multiply;
 }
 
@@ -535,61 +511,14 @@ button {
   }
 }
 
-/* 6. A SOMBRA DO PIER, em camada propria.
+/* A SOMBRA DO PIER SAIU.
 
-   Ela existe porque o cais tapa o sol - nao porque a praia precisa de uma
-   emenda escura. Enquanto a transicao agua/areia era um degrade vertical
-   escuro, nao havia como distinguir uma coisa da outra na tela.
-
-   Tres faixas, cada uma mais rala que a anterior, em XADREZ de 4 px. Dithering
-   e como pixel art faz meio-tom; um degrade suave aqui brigaria com o resto da
-   cena. O xadrez sai de um `conic-gradient` com paradas duras - sem
-   interpolacao, sem borda macia. */
-.sombra-pier {
-  z-index: 19;
-  position: absolute;
-  pointer-events: none;
-}
-
-.sombra-pier i {
-  position: absolute;
-  left: 0;
-  right: 0;
-  display: block;
-}
-
-.sombra-pier .densa {
-  top: 0;
-  height: 26px;
-  background: rgba(6, 22, 34, 0.55);
-}
-
-.sombra-pier .media {
-  top: 26px;
-  height: 22px;
-  background:
-    conic-gradient(
-      from 0deg at 50% 50%,
-      rgba(6, 22, 34, 0.5) 0 25%,
-      transparent 0 50%,
-      rgba(6, 22, 34, 0.5) 0 75%,
-      transparent 0
-    );
-  background-size: 4px 4px;
-}
-
-.sombra-pier .rala {
-  top: 48px;
-  height: 20px;
-  background:
-    conic-gradient(
-      from 0deg at 50% 50%,
-      rgba(6, 22, 34, 0.4) 0 25%,
-      transparent 0 75%,
-      transparent 0
-    );
-  background-size: 8px 8px;
-}
+   Eram tres faixas de xadrez (`.sombra-pier .densa/.media/.rala`) numa caixa
+   retangular de 68 unidades, presa a `PIER_X0`. Ela nao acompanhava peca
+   nenhuma do cais: atravessava a agua e a areia como um bloco, e e o retangulo
+   que aparecia no print - na areia e acima da linha d'agua. Sombra de cais e
+   feita das estacas, e cada estaca ja e um objeto de cena; quando ela voltar,
+   volta por peca, e nao como faixa. */
 
 /* preferencia de acessibilidade: a onda para, mas a espuma continua la */
 .no-anim .espuma path {
@@ -2856,12 +2785,54 @@ button {
   border-color: #bf3f56;
 }
 
+/* O PAINEL CABE NA TELA.
+
+   Ele nascia com altura livre: cabecalho, lista de camadas, dica, e o
+   inspetor do que esta selecionado - que sozinho tem grupo, profundidade,
+   posicao, tamanho, rotacao e os botoes. Somado, isso passa do pe da janela, e
+   o que passa fica inalcancavel: nao ha barra de rolagem numa altura que o
+   navegador nao sabe que acabou. A saida era diminuir o zoom do navegador.
+
+   `bottom` prende o painel na moldura da tela e `overflow-y` devolve a rolagem
+   ao que sobra. O `flex` existe para o inspetor rolar SOZINHO, com a lista de
+   camadas parada em cima: rolar a lista para chegar num campo do inspetor e
+   perder de vista em que camada voce esta. */
 .editor-layers {
   position: absolute;
   left: 8px;
   top: 54px;
+  bottom: 8px;
   width: 210px;
   padding: 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* recolhido, ele volta a ter a altura do proprio cabecalho */
+.editor-layers.recolhido {
+  bottom: auto;
+}
+
+.editor-layers .einspect {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* barra de rolagem fina, na paleta do editor: a do sistema aparece branca e
+   larga por cima de um painel de 210 px */
+.editor-layers .einspect::-webkit-scrollbar {
+  width: 8px;
+}
+
+.editor-layers .einspect::-webkit-scrollbar-thumb {
+  background: #2c4d61;
+}
+
+.editor-layers .einspect::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .etitle {

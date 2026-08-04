@@ -105,41 +105,33 @@ export interface WorldConfig {
    * espuma, a areia molhada e a sombra do pier - sai daqui. Sao decisoes de
    * olho, e decisao de olho se acerta mexendo e olhando.
    */
-  /** quantas colunas de tile o perfil desce para dentro da agua */
-  shoreColunas: number;
-  /** quanto a primeira coluna ja desce, e com que curva as seguintes descem */
-  shoreQueda: number;
-  shoreCurva: number;
-  /** amplitude do sorteio por coluna: 0 e uma curva limpa, alto vira ruido */
+  /**
+   * O quanto a costa anda para os lados, em unidades.
+   *
+   * Este e o numero que impede a parede vertical: 0 devolve uma reta perfeita
+   * entre agua e areia, 10 da as reentrancias de 4 a 12 unidades que a beira
+   * do mar tem. Acima de uns 24 a costa comeca a ler como rasgo, e nao como
+   * praia.
+   */
   shoreIrregular: number;
-  /** ate onde a caixa da costa desce abaixo da linha d'agua */
-  shoreFundo: number;
-  /** em quantas unidades de agua a areia submersa some por completo */
-  shoreAbsorcao: number;
+  /** altura de cada degrau da costa, em unidades (a de verdade varia de 1 a 3x) */
+  shorePasso: number;
 
-  /** espessura da faixa de agua rasa, no lado da agua */
+  /** espessura da faixa de agua rasa, do lado da agua */
   shoreRaso: number;
-  /** ate que distancia da costa a faixa rasa vai */
-  shoreRasoLarg: number;
+  /** o quanto a agua rasa AVANCA por cima da areia */
+  shoreRasoAvanco: number;
   shoreRasoAlfa: number;
 
-  /** espessura da areia molhada, no lado da areia */
+  /** espessura da areia molhada, do lado da areia */
   shoreMolhada: number;
-  /** o quanto ela recua para dentro d'agua e avanca para dentro da praia */
-  shoreMolhadaRecuo: number;
-  shoreMolhadaAvanco: number;
   shoreMolhadaAlfa: number;
 
   /** grossura do traco da espuma */
   shoreEspuma: number;
-  shoreEspumaRecuo: number;
-  shoreEspumaAvancoX: number;
   /** quantas unidades a onda sobe na areia e volta, e em quantos segundos */
   shoreEspumaOnda: number;
   shoreEspumaSeg: number;
-
-  /** o quanto a sombra do pier escurece o que esta debaixo dele */
-  shoreSombraPier: number;
 
   // ------------------------------------------------------------------ ondas
   /** altura da faixa de espuma e ondas, em unidades */
@@ -187,37 +179,26 @@ export function seedWorld(): WorldConfig {
     parallaxMid: 0.52,
 
     /*
-     * O PERFIL E RASO E LONGO, e nao curto e ingreme.
+     * A COSTA ONDULA POUCO E EM BLOCO.
      *
-     * A primeira tentativa descia 480 unidades em 704 - 34 graus - e o
-     * resultado lia como escada geometrica, nao como praia. Praia de verdade
-     * tem uns 10 graus na faixa de arrebentacao. Aqui sao 165 unidades em 960,
-     * o que da uns 10 e poe o degrau em 7 unidades de queda para 32 de largura:
-     * o suficiente para o serrilhado ler como pixel art, e nao como escada.
+     * 10 unidades de amplitude com degrau de 4 da reentrancia de 4 a 12 - a
+     * faixa que o pedido descreve. O degrau de 28 unidades, sorteado de 1 a 3
+     * vezes, poe entre 28 e 84 unidades de costa reta entre uma mudanca e
+     * outra: e o que separa "praia irregular" de "serrilhado de 1 pixel".
      */
-    shoreColunas: 30,
-    shoreQueda: 2.2,
-    shoreCurva: 1.28,
     shoreIrregular: 10,
-    shoreFundo: 300,
-    shoreAbsorcao: 150,
+    shorePasso: 28,
 
-    shoreRaso: 34,
-    shoreRasoLarg: 260,
-    shoreRasoAlfa: 0.5,
+    shoreRaso: 42,
+    shoreRasoAvanco: 28,
+    shoreRasoAlfa: 0.34,
 
-    shoreMolhada: 14,
-    shoreMolhadaRecuo: 90,
-    shoreMolhadaAvanco: 120,
-    shoreMolhadaAlfa: 0.42,
+    shoreMolhada: 16,
+    shoreMolhadaAlfa: 0.3,
 
-    shoreEspuma: 6,
-    shoreEspumaRecuo: 130,
-    shoreEspumaAvancoX: 90,
-    shoreEspumaOnda: 14,
+    shoreEspuma: 5,
+    shoreEspumaOnda: 10,
     shoreEspumaSeg: 7,
-
-    shoreSombraPier: 0.3,
 
     waveH: 44,
     waveLift: 20,
