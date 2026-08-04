@@ -355,6 +355,8 @@ export const ASSET_DIMS: Record<string, [number, number]> = {
   'ui/tension-bar': [275, 107],
   'ui/tooltip': [314, 116],
   'ui/upgrade-icon': [181, 246],
+  'ui/window-frame': [192, 192],
+  'ui/window-title': [384, 64],
 };
 
 /** largura / altura; 1 quando o asset nao for conhecido */

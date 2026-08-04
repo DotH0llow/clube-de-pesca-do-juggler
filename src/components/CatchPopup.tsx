@@ -33,9 +33,11 @@ export function CatchPopup({ outcome, onAgain, onStop }: Props) {
   return (
     <div className="catch-popup">
       <div className="catch-card" onClick={(e) => e.stopPropagation()}>
+        {/* A placa agora estica com o texto (ver `.catch-banner`), entao ela
+            nao precisa mais da imagem solta por dentro nem de posicao em
+            porcentagem para centralizar o titulo. */}
         <div className="catch-banner">
-          <img src={asset('fx/capture-banner')} alt="" />
-          <span className="headline" style={{ color: failed ? '#a3301f' : '#3a2410' }}>
+          <span className="headline" style={{ color: failed ? '#7a1e12' : undefined }}>
             {failed ? 'ESCAPOU' : result.headline}
           </span>
         </div>
@@ -91,7 +93,12 @@ export function CatchPopup({ outcome, onAgain, onStop }: Props) {
           <div className="flavor">Três vultos passaram embaixo do barco. Não voltaram.</div>
         )}
 
-        {result.category === 'nada' && <div className="flavor">{result.headline}</div>}
+        {/* O texto do lance vazio saia DUAS vezes: uma na placa do titulo e
+            outra aqui embaixo, palavra por palavra. E o que se ve no print da
+            "boia nem piscou". A placa ja diz; aqui fica o comentario. */}
+        {result.category === 'nada' && (
+          <div className="flavor">Nem todo lance traz peixe. Joga de novo.</div>
+        )}
 
         {!failed && (result.value > 0 || result.eyes > 0) && (
           <div className="reward-line">

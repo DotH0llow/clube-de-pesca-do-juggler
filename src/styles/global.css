@@ -31,11 +31,23 @@
   --eye: #ff2e63;
   --neon: #12b39a;
 
-  /* telas: azul claro chapado, como pedido */
+  /* telas do celular: azul claro chapado */
   --screen: #b6e6f7;
   --screen-2: #94d8ee;
   --screen-ink: #0d3346;
   --screen-line: #6bb9d6;
+
+  /* JANELAS E POP-UPS: azul escuro.
+
+     Elas usavam a mesma paleta clara do celular e, pior, nao tinham fundo
+     proprio: a cor vinha do centro da moldura de folhagem, tiled atras do
+     texto. Agora a janela tem cor de verdade, escura, e a moldura so
+     emoldura. */
+  --janela: #0b2036;
+  --janela-2: #123049;
+  --janela-ink: #e8f4fb;
+  --janela-line: #2c5f85;
+  --janela-fraco: #9dc4dd;
 
   --font: 'VCR OSD Mono', ui-monospace, monospace;
   --font-title: var(--font);
@@ -892,16 +904,35 @@ button {
  * Regra geral: toda tela nova tem tamanho FIXO. O conteudo rola por dentro,
  * a janela nunca cresce nem encolhe conforme a aba.
  */
+/* TODO O CONTEUDO DE DENTRO DA JANELA MUDA DE PALETA DE UMA VEZ.
+
+   As dezenas de pecas que moram dentro de um pop-up (lista, cartao, aba,
+   divisoria, etiqueta) foram escritas contra as variaveis `--screen*`, que sao
+   as do celular: azul CLARO. Trocar so o fundo da janela para escuro deixaria
+   todas elas claras por cima do escuro.
+
+   Em vez de cacar regra por regra, a janela REDEFINE as variaveis para si e
+   para tudo que estiver dentro dela. O celular nao usa `.sheet`, entao ele
+   continua claro - que e o certo, ele e uma tela de celular. */
+.sheet,
+.catch-card {
+  --screen: var(--janela);
+  --screen-2: var(--janela-2);
+  --screen-ink: var(--janela-ink);
+  --screen-line: var(--janela-line);
+}
+
 .sheet {
   width: min(560px, 94vw);
   height: min(620px, 88vh);
   display: flex;
   flex-direction: column;
-  background: var(--screen);
-  color: var(--screen-ink);
-  border: 22px solid transparent;
+  background: var(--janela);
+  color: var(--janela-ink);
+  border: 26px solid transparent;
   border-image-source: var(--panel-frame);
-  border-image-slice: 46 fill;
+  /* SEM `fill`: e ele que mandava o miolo da imagem virar papel de parede */
+  border-image-slice: 64;
   border-image-repeat: round;
 }
 
@@ -911,7 +942,7 @@ button {
   justify-content: space-between;
   gap: 10px;
   padding-bottom: 8px;
-  border-bottom: 3px solid var(--screen-line);
+  border-bottom: 3px solid var(--janela-line);
 }
 
 .sheet-head h2 {
@@ -1393,36 +1424,39 @@ button {
   justify-content: center;
   gap: 8px;
   overflow-y: auto;
-  background: var(--screen);
-  color: var(--screen-ink);
-  border: 22px solid transparent;
+  background: var(--janela);
+  color: var(--janela-ink);
+  border: 26px solid transparent;
   border-image-source: var(--panel-frame);
-  border-image-slice: 46 fill;
+  border-image-slice: 64;
   border-image-repeat: round;
 }
 
+/* A PLACA DO TITULO.
+
+   Era `fx/capture-banner`, uma arte de largura fixa com o texto posicionado em
+   porcentagem por cima. Titulo curto sobrava madeira; titulo comprido
+   transbordava a placa. Agora a placa e uma tabua de 9-slice que ESTICA com o
+   texto, entao o texto manda no tamanho e nao o contrario. */
 .catch-banner {
   position: relative;
-  width: min(320px, 100%);
+  max-width: 100%;
+  flex: none;
+  padding: 10px 26px;
   display: grid;
   place-items: center;
-  flex: none;
-}
-
-.catch-banner img {
-  width: 100%;
-  height: auto;
-  display: block;
+  border: 14px solid transparent;
+  border-image-source: var(--banner-frame);
+  border-image-slice: 30 fill;
+  border-image-repeat: round;
 }
 
 .catch-banner .headline {
-  position: absolute;
-  top: 46%;
-  transform: translateY(-50%);
-  padding: 0 12%;
   font-size: 17px;
   letter-spacing: 1px;
   text-align: center;
+  color: #2a1a08;
+  text-shadow: 0 1px 0 rgba(255, 226, 170, 0.4);
 }
 
 .sprite-frame {
@@ -1451,7 +1485,7 @@ button {
 
 .flavor {
   font-size: 14px;
-  opacity: 0.85;
+  color: var(--janela-fraco);
   line-height: 1.4;
 }
 

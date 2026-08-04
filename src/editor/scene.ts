@@ -545,6 +545,55 @@ function seedBook(): Book {
  * onde levar ninguem. As areas que faltam entram; as que voce ja moveu ficam
  * exatamente onde estao.
  */
+/**
+ * Pecas que sairam do jogo e nao devem voltar por um save antigo.
+ *
+ * Uma por uma, e com o motivo escrito ao lado. E a alternativa a jogar a cena
+ * inteira fora: se tres familias de peca foram aposentadas, sao essas tres que
+ * saem - e nao as noventa que voce arrumou junto com elas.
+ */
+const APOSENTADOS: { por: (o: SceneObject) => boolean; motivo: string }[] = [
+  {
+    // virou 17 sprites soltos em `world/islands.ts`
+    por: (o) => o.sprite === 'sky/distant-island-strip',
+    motivo: 'faixa de ilha costurada',
+  },
+  {
+    // virou fileira de arvore do pacote `nature`
+    por: (o) => o.anim === 'treeline',
+    motivo: 'mata de gradiente radial',
+  },
+  {
+    // o cais virou pacote inteiro em `world/pier.ts`
+    por: (o) => o.id.startsWith('pier-post-') || o.id === 'pier-ladder',
+    motivo: 'estacaria solta do cais antigo',
+  },
+];
+
+function limparAposentados(st: SceneState): SceneState {
+  const objects = st.objects.filter((o) => !APOSENTADOS.some((a) => a.por(o)));
+  return objects.length === st.objects.length ? st : { ...st, objects };
+}
+
+/**
+ * Traz para a cena salva os GRUPOS que a semente ganhou depois dela.
+ *
+ * Compara por id, que e deterministico na semente. Assim o cais novo, as ilhas
+ * e a mata entram numa cena antiga sem duplicar nada e sem mexer no que ja
+ * estava la.
+ */
+function garantirGruposNovos(st: SceneState): SceneState {
+  const seed = seedMundo();
+  const ids = new Set(st.objects.map((o) => o.id));
+  const faltando = seed.filter(
+    (s) =>
+      !ids.has(s.id) &&
+      (s.id.startsWith('pier-') || s.id.startsWith('ilha-') || s.id.startsWith('mata-fundo-')),
+  );
+  if (faltando.length === 0) return st;
+  return { ...st, objects: [...st.objects, ...faltando] };
+}
+
 function garantirZonas(st: SceneState): SceneState {
   const seed = seedMundo();
   const faltando = seed.filter(
@@ -553,6 +602,47 @@ function garantirZonas(st: SceneState): SceneState {
       !ZONAS_REPETIVEIS.includes(s.zone ?? 'vara') &&
       !st.objects.some((o) => o.kind === 'zone' && o.zone === s.zone),
   );
+  if (faltando.length === 0) return st;
+  return { ...st, objects: [...st.objects, ...faltando] };
+}
+
+/**
+ * Garante que as PECAS DE INTERFACE do menu existam.
+ *
+ * Isto conserta um bug que eu mesmo criei: a tela de titulo passou a ter oito
+ * pecas onde antes havia duas (`titulo` e `botoes`), e o carregamento do menu
+ * copiava a cena salva como estava. Numa maquina que ja tinha menu salvo, as
+ * pecas novas simplesmente nao existiam na lista - e peca que nao existe nao e
+ * desenhada. Resultado: a tela de titulo abriu sem nenhum botao.
+ *
+ * A regra aqui e ADITIVA, e essa e a parte que importa: o que ja esta salvo
+ * fica exatamente onde voce deixou, e so entra o que faltava. As duas caixas
+ * velhas, se ainda estiverem la, saem - elas nao sao mais desenhadas por
+ * ninguem e ficariam como retangulo fantasma no meio do editor.
+ */
+function garantirPecasDoMenu(st: SceneState): SceneState {
+  const seed = seedMenu();
+  const novas = seed.filter((s) => s.role);
+
+  /*
+   * A caixa `botoes` e a assinatura de um menu ANTERIOR a divisao.
+   *
+   * Onde ela existe, a interface inteira do menu esta na arrumacao velha - duas
+   * caixas para dez elementos - e nao ha correspondencia peca a peca com a
+   * nova. Ai a interface (e SO ela) volta para a semente; o cenario do menu, o
+   * deck, o barco, as palmeiras, o que voce arrumou, fica intocado.
+   */
+  // `botoes` saiu do tipo quando a divisao aconteceu, entao a comparacao e
+  // feita como texto: e justamente um papel que NAO existe mais que estamos
+  // procurando aqui
+  const preDivisao = st.objects.some((o) => (o.role as string) === 'botoes');
+  if (preDivisao) {
+    const cenario = st.objects.filter((o) => !o.role);
+    return { ...st, objects: [...cenario, ...novas] };
+  }
+
+  // caso normal: so entra o que faltava, e o que existe fica onde esta
+  const faltando = novas.filter((s) => !st.objects.some((o) => o.role === s.role));
   if (faltando.length === 0) return st;
   return { ...st, objects: [...st.objects, ...faltando] };
 }
@@ -568,21 +658,41 @@ function load(): Book {
         const s = parsed[id];
         if (s && Array.isArray(s.objects) && s.objects.length > 0) {
           const st = { objects: s.objects, hidden: s.hidden ?? [] };
-          book[id] = id === 'mundo' ? garantirZonas(st) : st;
+          book[id] = id === 'mundo' ? garantirZonas(st) : garantirPecasDoMenu(st);
         }
       }
       return book;
     }
     /*
-     * Cena da v4 ou anterior: o cenario volta pela semente.
+     * Save de versao anterior: MIGRA, nao joga fora.
      *
-     * Da v4 para a v5 o pier, as ilhas e a mata foram REFEITOS com outro
-     * conjunto de pecas. Copiar a lista velha traria de volta a estaca solta, a
-     * faixa de ilha costurada e a caixa de gradiente da mata - exatamente o que
-     * saiu. Entao aqui a gente joga fora e planta de novo, de proposito.
+     * Aqui havia um `removeItem` em cada chave velha, com um comentario
+     * explicando por que descartar era proposital. Era uma decisao errada e ela
+     * custou trabalho de verdade: quem tinha espelhado a cabana no editor
+     * perdeu a edicao, refez, e perdeu de novo na versao seguinte. Cena salva e
+     * trabalho manual de quem usa o editor, e sumir com trabalho manual porque
+     * a semente mudou nao e uma troca justa.
+     *
+     * A regra passa a ser: o que estiver salvo entra, e o que a semente ganhou
+     * de novo entra junto. Peca que saiu do jogo (a estaca solta, a faixa de
+     * ilha costurada, a caixa de gradiente da mata) e descartada UMA a UMA pelo
+     * `limparAposentados`, em vez de a lista inteira ir para o lixo por causa
+     * delas.
      */
     for (const chave of [KEY_V4, KEY_V3, KEY_V2]) {
-      if (localStorage.getItem(chave)) localStorage.removeItem(chave);
+      const antigo = localStorage.getItem(chave);
+      if (!antigo) continue;
+      const parsed = JSON.parse(antigo) as Partial<Book>;
+      for (const id of ['mundo', 'menu'] as SceneId[]) {
+        const s = parsed[id];
+        if (!s || !Array.isArray(s.objects) || s.objects.length === 0) continue;
+        const st = limparAposentados({ objects: s.objects, hidden: s.hidden ?? [] });
+        book[id] =
+          id === 'mundo'
+            ? garantirZonas(garantirGruposNovos(st))
+            : garantirPecasDoMenu(st);
+      }
+      break;
     }
   } catch {
     /* save corrompido: volta para a semente */
