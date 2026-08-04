@@ -42,6 +42,7 @@ que se quer na maioria das cenas.
 | `CENÁRIO` | o que fica de pé no mapa: píer, coqueiro, cabana, mercado, barco, mata |
 | `OBJETOS` | tralha solta e vida do mar: barril, caixa, vara, coral, alga, cardume |
 | `INTERAGÍVEIS` | as caixas verdes de PESCAR e MERCADO |
+| `MARCADORES` | referências de jogo: nascimento, limiar da câmera, áreas de ação e as caixas de CHÃO |
 
 O céu e as nuvens não são objetos de cena: eles seguem a fase do dia
 (`src/components/Sky.tsx`) e trocam sozinhos de manhã, à tarde, no entardecer e
@@ -134,6 +135,51 @@ A organização fica salva em `juggler-fishing/biblioteca/v1`.
 As áreas de PESCAR e MERCADO são caixas verdes: mover e redimensionar muda de
 verdade onde o botão de interagir aparece no jogo. A vara e a boia acompanham a
 posição da área de pesca.
+
+## O chão é uma área
+
+`FORMAS ▾ → CHÃO` cria um trecho de piso. **A linha de cima da caixa é a altura
+em que o Juggler anda** — o corpo dela é só volume de seleção, e é por isso que
+só a borda superior vem acesa.
+
+Isto era `groundAt`, três linhas de `if` sobre o piso do deck, o topo da areia e
+um comprimento de rampa. O mapa começa com três caixas dizendo exatamente a
+mesma coisa que aquele `if` dizia:
+
+| caixa | o que é |
+| --- | --- |
+| `chao-deck` | o tabuado, plano |
+| `chao-rampa` | a descida para a praia, com `QUEDA` |
+| `chao-praia` | a areia, dali até o fim do mapa |
+
+- **encoste** duas caixas e o piso continua; deixe um vão e não há onde pisar;
+- **`QUEDA`** é quanto o piso desce da esquerda para a direita. `0` é plano,
+  negativo sobe. É o único campo que uma rampa precisa — não há tipo separado
+  para ela;
+- **onde duas se sobrepõem vale a mais alta**, então um estrado jogado em cima
+  do deck vira degrau em vez de buraco;
+- **duplicar e arrastar a borda** é como se corta um trecho em dois.
+
+Apagar todas devolve o chão para o cálculo antigo, que continua no
+`layout.ts` como rede de segurança — o Juggler nunca fica sem piso, mesmo com a
+cena vazia.
+
+A chuva lê estas caixas: o respingo só cai onde há chão.
+
+## Escolher pose
+
+Nas áreas de `AÇÃO · ANIMAÇÃO` e `AÇÃO · POSE`, a pose se escolhe **olhando para
+ela**: uma grade de miniaturas, uma por clipe, que anima quando o cursor passa
+por cima. Em `AÇÃO · POSE` abre embaixo a tira com **todos os quadros** do clipe
+escolhido — é ali que moram as poses de verdade, porque a pescaria sozinha tem
+seis desenhos de corpo inteiro dentro de uma pasta só.
+
+Era um combo com nome de pasta (`sit-right (1 quadro)`) e um campo de número ao
+lado. Escolher significava adivinhar, fechar o inspetor, olhar o boneco na cena
+e voltar.
+
+Clipe novo aparece aqui sozinho: a lista sai do registro que o importador gera,
+não de uma relação escrita à mão.
 
 ## Levar a cena para o código
 

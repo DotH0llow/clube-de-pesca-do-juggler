@@ -9,6 +9,7 @@ import {
   MARKET_X,
   PIER_END,
   PIER_PROPS,
+  PIER_RAMP,
   PIER_START,
   PIER_Y,
   ROD_X,
@@ -21,6 +22,7 @@ import {
   WORLD_W,
   type Prop,
 } from '../world/layout';
+import { setPisos } from '../world/ground';
 import { islandObjects, menuIslandObjects } from '../world/islands';
 import { largura, peca, pierPieces } from '../world/pier';
 import { pier25Pieces } from '../world/pier25';
@@ -53,8 +55,10 @@ const USAR_PIER_25 = true;
  *   1  cais de perfil, desenhado a mao
  *   2  2.5D de baixa resolucao, misturado com estrutura de perfil, sem rampa
  *   3  a-raso puro, em resolucao de verdade, com rampa
+ *   4  deck terminando no fim do cais (a "segunda rampa" era ele passando do
+ *      ponto), corrimao emendando no mourao e rampa encostando na areia
  */
-const PIER_VERSAO = 3;
+const PIER_VERSAO = 4;
 import { seaBottom, seaLeft } from '../world/worldConfig';
 import { ZONAS_REPETIVEIS } from './types';
 import type { LayerId, SceneId, SceneObject, SceneState, ShapeKind, ZoneId } from './types';
@@ -347,6 +351,37 @@ function seedMundo(): SceneObject[] {
     rot: 0,
     depth: 9,
   });
+
+  /*
+   * O CHAO, em tres pedacos.
+   *
+   * Isto era `groundAt`: um `if` no `layout.ts` que dizia "ate o fim do pier a
+   * altura e a do deck, depois desce numa rampa de 289, depois e a areia".
+   * Ninguem conseguia abrir um buraco no meio do deck, pendurar um estrado
+   * mais alto na praia ou encurtar a rampa sem abrir o codigo - e o editor nao
+   * tinha o que mostrar, porque nao havia objeto nenhum.
+   *
+   * As tres caixas abaixo dizem exatamente a mesma coisa que o `if` dizia. A
+   * diferenca e que agora sao objetos: arraste a borda e o deck fica mais
+   * curto, duplique e voce tem um degrau, apague e o chao some. A do meio tem
+   * QUEDA, que e o que faz dela uma rampa sem precisar de um tipo proprio.
+   */
+  const chao = (id: string, x: number, w: number, y: number, queda = 0): SceneObject => ({
+    id,
+    layer: 'marcadores',
+    kind: 'zone',
+    zone: 'piso',
+    x,
+    y,
+    w,
+    h: 26,
+    rot: 0,
+    depth: 9,
+    queda,
+  });
+  out.push(chao('chao-deck', PIER_START - 70, PIER_END - (PIER_START - 70), PIER_Y));
+  out.push(chao('chao-rampa', PIER_END, PIER_RAMP, PIER_Y, SAND_Y - PIER_Y));
+  out.push(chao('chao-praia', PIER_END + PIER_RAMP, WORLD_W - (PIER_END + PIER_RAMP), SAND_Y));
 
   /*
    * O limiar do pier: a fronteira entre dois enquadramentos.
@@ -662,6 +697,21 @@ function trocarPier(st: SceneState): SceneState {
   };
 }
 
+/**
+ * Traz as caixas de CHAO para uma cena salva antes de elas existirem.
+ *
+ * Nao da para usar o `garantirZonas` aqui: ele so cuida das areas UNICAS, e
+ * chao e repetivel (a graca e poder cortar em varios). A regra e tudo ou nada -
+ * se a cena ja tem qualquer piso, o desenho do chao e seu e nao ha o que
+ * completar; se nao tem nenhum, o mundo esta usando a rede de seguranca do
+ * `layout.ts` e as tres caixas da semente entram para voce poder mexer nelas.
+ */
+function garantirPiso(st: SceneState): SceneState {
+  if (st.objects.some((o) => o.kind === 'zone' && o.zone === 'piso')) return st;
+  const novos = seedMundo().filter((o) => o.zone === 'piso');
+  return { ...st, objects: [...st.objects, ...novos] };
+}
+
 function garantirZonas(st: SceneState): SceneState {
   const seed = seedMundo();
   const faltando = seed.filter(
@@ -726,7 +776,8 @@ function load(): Book {
         const s = parsed[id];
         if (s && Array.isArray(s.objects) && s.objects.length > 0) {
           const st = { objects: s.objects, hidden: s.hidden ?? [], pierV: s.pierV };
-          book[id] = id === 'mundo' ? garantirZonas(trocarPier(st)) : garantirPecasDoMenu(st);
+          book[id] =
+            id === 'mundo' ? garantirPiso(garantirZonas(trocarPier(st))) : garantirPecasDoMenu(st);
         }
       }
       return book;
@@ -757,7 +808,7 @@ function load(): Book {
         const st = limparAposentados({ objects: s.objects, hidden: s.hidden ?? [] });
         book[id] =
           id === 'mundo'
-            ? garantirZonas(garantirGruposNovos(st))
+            ? garantirPiso(garantirZonas(garantirGruposNovos(st)))
             : garantirPecasDoMenu(st);
       }
       break;
@@ -768,7 +819,26 @@ function load(): Book {
   return book;
 }
 
+/**
+ * Entrega o desenho do chao para quem anda em cima dele.
+ *
+ * O `layout.ts` nao pode importar este arquivo - ele e importado POR este
+ * arquivo, e os dois se enrolariam num circulo. Entao a cena EMPURRA a lista
+ * para `world/ground.ts`, que nao importa ninguem, e o `layout` so le de la.
+ *
+ * Roda em toda alteracao de cena: arrastar a borda de uma caixa de chao move o
+ * piso debaixo do Juggler no mesmo quadro.
+ */
+function publicarPiso() {
+  setPisos(
+    book.mundo.objects
+      .filter((o) => o.kind === 'zone' && o.zone === 'piso' && !o.off)
+      .map((o) => ({ x: o.x, w: o.w, y: o.y, queda: o.queda ?? 0 })),
+  );
+}
+
 let book: Book = load();
+publicarPiso();
 let active: SceneId = 'mundo';
 const listeners = new Set<() => void>();
 let saveTimer: number | undefined;
@@ -798,6 +868,7 @@ function persist() {
 }
 
 function notify() {
+  publicarPiso();
   persist();
   for (const l of listeners) l();
 }
@@ -1015,6 +1086,32 @@ export function actionAt(x: number): SceneObject | null {
       x <= o.x + o.w,
   );
   return list.length ? list[list.length - 1] : null;
+}
+
+/**
+ * Cria um trecho de CHAO onde a tela estiver.
+ *
+ * Ele nasce plano e com 300 de largura. Rampa se faz depois, pondo QUEDA no
+ * inspetor - e cortar um trecho em dois e duplicar e arrastar a borda, que e
+ * o mesmo gesto de qualquer outro objeto.
+ */
+export function addFloor(x: number, y: number): SceneObject {
+  const s = book[active];
+  const obj: SceneObject = {
+    id: `piso-${Date.now().toString(36)}`,
+    layer: 'marcadores',
+    kind: 'zone',
+    zone: 'piso',
+    x: Math.round(x - 150),
+    y: Math.round(y),
+    w: 300,
+    h: 26,
+    rot: 0,
+    depth: 9,
+    queda: 0,
+  };
+  set({ ...s, objects: [...s.objects, obj] });
+  return obj;
 }
 
 /** Cria uma parede nova onde a tela estiver. */

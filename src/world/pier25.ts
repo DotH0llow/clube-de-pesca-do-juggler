@@ -150,10 +150,26 @@ export function pier25Pieces(): SceneObject[] {
     );
   }
 
-  // ------------------------------------------------------------- tabuado
-  for (let x = x0; x < x1; x += passo) {
+  /*
+   * O TABUADO, e ele TERMINA ONDE O CAIS TERMINA.
+   *
+   * O laço era `x < x1` com passo de 230 e tábua de 289: a última tábua nascia
+   * a 8 unidades do fim do cais e seguia por mais 280 sobre a areia. Como a
+   * rampa começa exatamente ali e desce, o que se via eram DUAS rampas - uma
+   * tábua reta pendurada no ar por cima da rampa de verdade, que era a de
+   * baixo. A "rampa alta" nunca foi uma rampa: era o deck passando do ponto.
+   *
+   * Agora as tábuas cheias entram enquanto couberem inteiras, e a última é
+   * encostada pela DIREITA em `x1`. Elas já se sobrepõem entre si (a peça é
+   * mais larga que o passo), então uma sobreposição maior no fim não aparece.
+   */
+  const tabuaW = G.tile * P;
+  let ultima = x0;
+  for (let x = x0; x + tabuaW <= x1; x += passo) {
     out.push(p25('deck', x, deckY, G.tile, G.tileAlt, 5));
+    ultima = x;
   }
+  if (ultima + tabuaW < x1 - 1) out.push(p25('deck', x1 - tabuaW, deckY, G.tile, G.tileAlt, 5));
   out.push(p25('deck-fim', x1 - G.fim * P * 0.4, deckY, G.fim, G.tileAlt, 5));
 
   // --------------------------------------------------- mourões da frente
@@ -161,9 +177,21 @@ export function pier25Pieces(): SceneObject[] {
     out.push(p25('poste', x - (G.posteL / 2) * P, deckY - G.posteAcima * P, G.posteL, G.posteAlt, 6));
   }
 
-  // ------------------------------------------------------------ corrimão
-  const corrimaoW = G.corrimaoL * P;
-  for (let x = x0; x < x1 - 20; x += corrimaoW) {
+  /*
+   * O CORRIMÃO ANDA NO PASSO DO MOURÃO, e não no tamanho da própria peça.
+   *
+   * A peça tem 408 px de caixa, mas a BARRA dentro dela tem 384 - os 24 que
+   * sobram são a aba do topo em perspectiva, que existe justamente para cair
+   * por cima do mourão seguinte. E 384 px é o passo do cais (`TILE * 2` no
+   * gerador). O laço andava de 408 em 408, ou seja, arrastava a aba junto: a
+   * cada vão o corrimão saía 14 unidades mais para a direita e, quatro vãos
+   * depois, a emenda estava no meio do vão em vez de encostada no mourão.
+   *
+   * Andando de `passo` em `passo`, a emenda cai sempre em cima do mourão -
+   * que é onde uma emenda de corrimão cai num cais de verdade - e a aba de
+   * cada peça cobre a junta da seguinte.
+   */
+  for (let x = x0; x + passo <= x1; x += passo) {
     out.push(
       p25('corrimao', x, deckY + (G.piso - G.corrimaoY) * P, G.corrimaoL, G.corrimaoAlt, 6, {
         opacity: 0.97,
@@ -180,10 +208,21 @@ export function pier25Pieces(): SceneObject[] {
    * A largura dela é o que manda no `PIER_RAMP` do `layout.ts` - os dois
    * precisam concordar, senão o Juggler desce a rampa no desenho e continua no
    * nível do deck na física, ou o contrário. Aqui a rampa é desenhada com a
-   * largura que a peça tem, e a queda dela já foi calculada no gerador para
-   * bater com o desnível do mundo.
+   * largura que a peça tem.
+   *
+   * A ALTURA, essa, é calculada aqui. No desenho a rampa desce 25 unidades
+   * (106 px de caixa contra 64 da tábua reta, a 0,6), e o desnível do mundo é
+   * `sandY - pierY` - hoje 32. Sete unidades de diferença é o bastante para a
+   * rampa terminar boiando acima da praia, que é o que se via. Esticar a peça
+   * até a queda do mundo resolve, e continua resolvendo quando alguém mexer no
+   * piso do deck ou no topo da areia pela seção MUNDO do editor.
    */
-  out.push(p25('deck-rampa', x1 - 6, deckY, G.rampa, G.rampaAlt, 5));
+  const quedaMundo = Math.max(0, w.sandY - w.pierY);
+  out.push(
+    p25('deck-rampa', x1 - 6, deckY, G.rampa, G.rampaAlt, 5, {
+      h: Math.round(G.tileAlt * P + quedaMundo),
+    }),
+  );
 
   return out;
 }

@@ -393,10 +393,17 @@ INTERAGIVEIS:
 | MERCADO | abre o mercado de peixe |
 | PAREDE | barra o Juggler pelo lado de onde ele vem. Da para criar, mover e apagar |
 | LIMIAR DO PIER | a fronteira dos dois enquadramentos da camera |
+| CHAO | onde da para pisar e em que altura; com QUEDA, e uma rampa |
 
 O **limiar** e o que faz a tela respirar: a esquerda dele a camera abre e mostra
 o mar fundo; a direita ela fecha e volta para a superficie. Os dois valores de
 zoom estao na secao MUNDO.
+
+O **chao** foi a ultima regra invisivel a cair. Ele era `groundAt`: tres linhas
+de `if` sobre o piso do deck, o topo da areia e o comprimento da rampa. Agora
+sao caixas - a LINHA DE CIMA de cada uma e a altura em que o Juggler anda, e
+encostar duas faz o piso continuar. O calculo antigo ficou no `layout.ts` como
+rede de seguranca: apagar todas as caixas nao derruba ninguem no vazio.
 
 ### Por que o mar mais fundo nao encolheu o jogo
 

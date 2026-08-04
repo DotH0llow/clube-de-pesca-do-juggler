@@ -393,23 +393,49 @@ button {
   background-size: 32px 32px;
 }
 
-/* cada degrau da orla: borda em cima, corpo embaixo, um tile de largura */
+/* cada coluna da orla: corpo por baixo, borda por cima, um tile de largura */
 .sand-degrau {
   z-index: 15;
   position: absolute;
 }
 
-.sand-degrau > .sand,
+.sand-degrau > .sand {
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: auto;
+  height: auto;
+}
+
 .sand-degrau > .sand-top {
   left: 0;
   right: 0;
+  top: 0;
   width: auto;
 }
 
-.wet-sand {
+/* O VÉU: a mesma rampa de cor do mar, comprimida na faixa da orla.
+
+   Ele passa por cima da areia (z 15) e por baixo do detalhe de orla (z 30),
+   então o que ele apaga é a areia submersa - e é só ela que precisa sumir na
+   água. A máscara da esquerda existe para o véu não invadir o mar aberto, que
+   já tem a rampa dele. */
+.shore-veil {
+  z-index: 18;
   position: absolute;
-  height: 26px;
-  background: linear-gradient(90deg, rgba(190, 168, 116, 0) 0%, rgba(150, 176, 150, 0.5) 60%, rgba(120, 180, 190, 0.6) 100%);
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 92%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 92%, transparent 100%);
+}
+
+/* areia molhada: a faixa que a onda deixou, escurecendo a beira da praia seca */
+.wet-sand {
+  z-index: 17;
+  position: absolute;
+  height: 20px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(84, 116, 128, 0.55) 0%, rgba(120, 150, 148, 0.28) 45%, rgba(190, 168, 116, 0) 100%);
 }
 
 /* `.pier-deck`, `.pier-post`, `.pier-ramp` e `.treeline` sairam daqui.
@@ -3063,6 +3089,95 @@ button {
   object-fit: contain;
 }
 
+/* ==========================================================================
+   ESCOLHER POSE OLHANDO PARA A POSE
+
+   Era um `<select>` com nome de pasta. Uma grade de miniatura ocupa mais
+   espaco - e e o unico jeito de escolher entre a fisgada e o recolhimento, que
+   sao o mesmo nome com um numero diferente no fim.
+   ========================================================================== */
+
+.eclip {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.eclip-grade {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  /* treze clipes cabem em cinco linhas; passando disso o painel rola, em vez
+     de empurrar o AVISO e o APAGAR para fora da tela */
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.eclip-quadros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.eclip-item {
+  position: relative;
+  cursor: pointer;
+  padding: 2px;
+  background: #13293a;
+  border: 2px solid #274a5e;
+  color: inherit;
+  font: inherit;
+  display: grid;
+  gap: 1px;
+}
+
+.eclip-quadros .eclip-item {
+  width: 62px;
+}
+
+.eclip-item img {
+  width: 100%;
+  height: 58px;
+  object-fit: contain;
+  /* o quadro do personagem tem muito ar em volta: encostar embaixo poe todas
+     as poses na mesma linha de piso, e ai da para compara-las */
+  object-position: center bottom;
+}
+
+.eclip-item span {
+  font-size: 9px;
+  line-height: 1.1;
+  opacity: 0.65;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* o numero de quadros (ou do quadro) fica no canto, sem roubar linha */
+.eclip-item i {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  font-style: normal;
+  font-size: 9px;
+  padding: 0 3px;
+  background: rgba(4, 20, 30, 0.8);
+  opacity: 0.75;
+}
+
+.eclip-item:hover {
+  border-color: #3f7f9e;
+}
+
+.eclip-item.on {
+  border-color: #ffd166;
+  background: #1d3a4c;
+}
+
+.eclip-item.on span {
+  opacity: 1;
+}
+
 .eanim-slot-bar,
 .eanim-slot-foot {
   display: flex;
@@ -3648,6 +3763,22 @@ button {
   color: #2b1704;
 }
 
+/* CHÃO: a linha de cima é a que importa.
+
+   O corpo da caixa é quase transparente e a borda superior é grossa de
+   propósito - é nela que o Juggler anda. Ver a caixa inteira acesa faria
+   pensar que o volume todo é sólido, e ele não é: chão é uma linha. */
+.editor-zone.piso {
+  border-color: rgba(93, 226, 160, 0.35);
+  border-top: 3px solid #5de2a0;
+  background: rgba(93, 226, 160, 0.08);
+}
+
+.editor-zone.piso span {
+  background: #5de2a0;
+  color: #06301d;
+}
+
 /* ==========================================================================
    A MOLDURA DO JOGADOR
 
@@ -4135,6 +4266,13 @@ button {
   will-change: transform;
 }
 
+/* O PERCURSO SEGUE O EIXO DO DESENHO.
+
+   `--queda-x` e `--queda-y` vem do componente, e nao daqui, porque quem sabe a
+   inclinacao da arte e quem le a arte. Eram 14vh de lado para 118 de queda:
+   sete graus, ou seja, uma gota desenhada deitada caindo a prumo - e para o
+   lado errado, ainda por cima. O risco apontava para um canto e a gota andava
+   para o outro, o que le como deslize, nao como queda. */
 @keyframes gota-cai {
   from {
     transform: translate3d(0, 0, 0);
@@ -4143,16 +4281,21 @@ button {
     opacity: inherit;
   }
   to {
-    transform: translate3d(14vh, 118vh, 0);
+    transform: translate3d(var(--queda-x), var(--queda-y), 0);
     opacity: 0;
   }
 }
 
-/* o respingo: quatro arquivos empilhados, acendendo um de cada vez */
+/* O RESPINGO: quatro arquivos empilhados, acendendo um de cada vez.
+
+   Ele e de MUNDO agora - `left`/`top` sao unidades de mundo escritas pelo
+   componente, e nao `bottom: 2vh` colado no rodape da janela. Por isso nao ha
+   mais posicao nenhuma aqui embaixo. */
 .rain-splash {
+  z-index: 44;
   position: absolute;
-  bottom: 2vh;
   display: block;
+  pointer-events: none;
 }
 
 .rain-splash img {
@@ -4162,18 +4305,23 @@ button {
   height: 100%;
   width: auto;
   opacity: 0;
+  transform: translateX(-50%);
   animation-name: respingo;
   animation-timing-function: steps(1, end);
   animation-iteration-count: infinite;
 }
 
-/* cada quadro fica aceso um quarto do ciclo; o `steps(1)` corta a interpolacao
-   e mantem o desenho chapado, que e como pixel art anima */
+/* Cada quadro fica aceso 5% do CICLO, e sao quatro: 20% do tempo ha respingo e
+   80% nao ha. Antes cada quadro pegava um quarto do ciclo e o respingo era
+   continuo - piscava sem parar, no mesmo ponto, para sempre.
+
+   O `steps(1)` corta a interpolacao e mantem o desenho chapado, que e como
+   pixel art anima. */
 @keyframes respingo {
   0% {
     opacity: 1;
   }
-  25% {
+  5% {
     opacity: 0;
   }
   100% {

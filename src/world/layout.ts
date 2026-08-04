@@ -1,3 +1,4 @@
+import { pisoAt } from './ground';
 import { getWorld, seaLeft } from './worldConfig';
 
 /**
@@ -99,10 +100,20 @@ export const SPAWN_X = 1780;
 /**
  * Altura do chao em cada ponto do mundo.
  *
- * Le do `worldConfig`, nao das constantes: mexer no topo da areia ou no piso do
- * deck pelo editor tem de mover o chao junto, senao o Juggler anda no ar.
+ * A resposta sai das CAIXAS DE CHAO da cena (camada MARCADORES), que o editor
+ * arrasta, corta e apaga. Este arquivo nao decide mais onde o piso esta: ele
+ * so pergunta.
+ *
+ * O calculo antigo continua aqui embaixo como REDE DE SEGURANCA, e nao como
+ * plano B qualquer: e ele que responde antes de a cena carregar (o modulo do
+ * jogo sobe antes do `localStorage` ser lido) e quando alguem apaga todas as
+ * caixas. Sem isso o Juggler cairia no vazio em vez de andar por um mundo sem
+ * piso configurado - que e um jeito ruim de descobrir que voce apagou algo.
  */
 export function groundAt(x: number): number {
+  const doEditor = pisoAt(x);
+  if (doEditor !== null) return doEditor;
+
   const w = getWorld();
   if (x <= PIER_END) return w.pierY;
   if (x < PIER_END + PIER_RAMP) {

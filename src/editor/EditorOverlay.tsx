@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../assets';
 import {
   addAction,
+  addFloor,
   addShape,
   addSprite,
   addWall,
@@ -44,7 +45,7 @@ import { LibraryPanel } from './LibraryPanel';
 import { AnimationsPanel, MechanicsPanel } from './AnimationsPanel';
 import { WorldPanel } from './WorldPanel';
 import { FloatersPanel } from './FloatersPanel';
-import { ColorField, SliderField } from './fields';
+import { ColorField, NumberField, SliderField } from './fields';
 import {
   beginFxBatch,
   canRedoFx,
@@ -60,18 +61,7 @@ import { currentStep, getPreview, stopPreview, usePreview } from './preview';
 import { zoneRect } from './scene';
 import { groundAt } from '../world/layout';
 import { panMaxY, panMinY, updateWorld, useWorld } from '../world/worldConfig';
-import { CLIP_FRAMES } from '../world/charFrames';
-
-/**
- * Os clipes de personagem que existem no pacote, para o editor oferecer.
- *
- * Sai do registro gerado pelo importador, e nao de uma lista escrita na mao:
- * soltar uma pasta de quadros nova em `game/char/` faz ela aparecer aqui
- * sozinha, que e a mesma regra da secao ANIMAÇÕES.
- */
-const CLIPES = Object.entries(CLIP_FRAMES)
-  .map(([nome, quadros]) => ({ nome, quadros }))
-  .sort((a, b) => a.nome.localeCompare(b.nome));
+import { ClipPicker } from './ClipPicker';
 
 /** Prende o deslocamento vertical da tela dentro do mundo. */
 function clampPan(v: number): number {
@@ -1316,6 +1306,18 @@ export function EditorOverlay({
                   >
                     AÇÃO · POSE
                   </button>
+                  <button
+                    onClick={() => {
+                      const c = centro();
+                      const p = addFloor(c.x, groundAt(c.x));
+                      setLayer('todas');
+                      setSelected(p.id);
+                      setFormas(false);
+                    }}
+                    title="Trecho de chão: onde dá para pisar e em que altura. Com QUEDA, vira rampa."
+                  >
+                    CHÃO
+                  </button>
                 </>
               )}
             </div>
@@ -1623,8 +1625,46 @@ export function EditorOverlay({
                         ? 'Onde a pescaria abre. O Juggler para no meio dela.'
                         : sel.zone === 'spawn'
                           ? 'Onde o Juggler nasce. É para o meio desta caixa que o botão "Travei!" do celular o traz de volta — arraste-a e o ponto de partida muda junto.'
-                          : 'Onde o mercado de peixe abre.'}
+                          : sel.zone === 'piso'
+                            ? 'O chão: o TOPO desta caixa é a altura em que o Juggler anda. Encoste uma na outra para o piso continuar; deixe um vão e não há onde pisar. Onde duas se sobrepõem vale a mais alta.'
+                            : 'Onde o mercado de peixe abre.'}
                 </div>
+
+                {/* ------------------------------------------- chão
+
+                    Duas coisas e mais nada: a queda (que é o que transforma um
+                    piso em rampa) e os botões de desligar e apagar. Largura,
+                    altura e posição já são os campos de sempre lá em cima -
+                    chão é um objeto como qualquer outro, e essa é a graça. */}
+                {sel.zone === 'piso' && (
+                  <>
+                    <NumberField
+                      label="QUEDA"
+                      value={sel.queda ?? 0}
+                      onChange={(v) => updateObject(sel.id, { queda: Math.round(v) })}
+                      step={2}
+                      suffix="quanto desce da esquerda para a direita; 0 é plano, negativo sobe"
+                    />
+                    <div className="ehint">
+                      Da esquerda ({Math.round(sel.y)}) para a direita (
+                      {Math.round(sel.y + (sel.queda ?? 0))}).
+                    </div>
+                    <div className="erow">
+                      <button className="ebtn" onClick={() => updateObject(sel.id, { off: !sel.off })}>
+                        {sel.off ? 'LIGAR CHÃO' : 'DESLIGAR CHÃO'}
+                      </button>
+                      <button
+                        className="ebtn danger"
+                        onClick={() => {
+                          removeObject(sel.id);
+                          setSelected(null);
+                        }}
+                      >
+                        APAGAR
+                      </button>
+                    </div>
+                  </>
+                )}
                 {sel.zone === 'parede' && (
                   <div className="erow">
                     <button className="ebtn" onClick={() => updateObject(sel.id, { off: !sel.off })}>
@@ -1644,40 +1684,23 @@ export function EditorOverlay({
 
                 {/* ------------------------------ configuração da ação
 
-                    Três campos e nada mais: o que a área faz, o que ela diz e
-                    (em pose) qual quadro. A lista de clipes sai sozinha da
-                    pasta de assets - clipe novo no pacote aparece aqui sem
-                    ninguém escrever nada. */}
+                    A escolha da pose é VISUAL, e não uma lista de nomes de
+                    pasta: `sit-right (1 quadro)` não diz como a pose é, e era
+                    preciso escolher no escuro e ir olhar o boneco na cena.
+                    Ver `ClipPicker` - lá também está escrito por que a tira de
+                    quadros é onde moram as poses que "faltavam". */}
                 {(sel.zone === 'animacao' || sel.zone === 'pose') && (
                   <>
-                    <label className="efield">
-                      ANIMAÇÃO
-                      <select
-                        value={sel.clip ?? ''}
-                        onChange={(e) => updateObject(sel.id, { clip: e.target.value })}
-                      >
-                        {CLIPES.map((c) => (
-                          <option key={c.nome} value={c.nome}>
-                            {c.nome} ({c.quadros} quadro{c.quadros > 1 ? 's' : ''})
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    {sel.zone === 'pose' && (
-                      <label className="efield">
-                        QUADRO
-                        <input
-                          type="number"
-                          min={0}
-                          max={Math.max(0, (CLIP_FRAMES[sel.clip ?? ''] ?? 1) - 1)}
-                          value={sel.poseFrame ?? 0}
-                          onChange={(e) =>
-                            updateObject(sel.id, { poseFrame: Math.max(0, Number(e.target.value)) })
-                          }
-                        />
-                      </label>
-                    )}
+                    <ClipPicker
+                      clipe={sel.clip ?? 'side-idle-left'}
+                      quadro={sel.zone === 'pose' ? (sel.poseFrame ?? 0) : undefined}
+                      onClipe={(nome) => updateObject(sel.id, { clip: nome })}
+                      onQuadro={
+                        sel.zone === 'pose'
+                          ? (n) => updateObject(sel.id, { poseFrame: n })
+                          : undefined
+                      }
+                    />
 
                     <label className="efield">
                       AVISO PARA O JOGADOR

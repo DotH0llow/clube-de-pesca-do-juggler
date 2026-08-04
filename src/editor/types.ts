@@ -106,9 +106,10 @@ export function parallaxFactor(o: Pick<SceneObject, 'parallax'>): number {
  *   spawn    - onde o Juggler nasce e para onde o "Travei!" o traz de volta
  *   animacao - toca um clipe animado quando o jogador aperta E
  *   pose     - trava num quadro so quando o jogador aperta E
+ *   piso     - o CHAO: onde da para pisar, e em que altura
  *
- * Pode existir mais de uma parede, e quantas acoes voce quiser. As outras sao
- * unicas.
+ * Pode existir mais de uma parede, mais de um piso e quantas acoes voce
+ * quiser. As outras sao unicas.
  */
 export type ZoneId =
   | 'vara'
@@ -117,7 +118,8 @@ export type ZoneId =
   | 'limiar'
   | 'spawn'
   | 'animacao'
-  | 'pose';
+  | 'pose'
+  | 'piso';
 
 export const ZONE_LABEL: Record<ZoneId, string> = {
   vara: 'PESCAR',
@@ -127,10 +129,11 @@ export const ZONE_LABEL: Record<ZoneId, string> = {
   spawn: 'NASCIMENTO',
   animacao: 'AÇÃO · ANIMAÇÃO',
   pose: 'AÇÃO · POSE',
+  piso: 'CHÃO',
 };
 
 /** As areas que podem existir mais de uma vez na cena. */
-export const ZONAS_REPETIVEIS: ZoneId[] = ['parede', 'animacao', 'pose'];
+export const ZONAS_REPETIVEIS: ZoneId[] = ['parede', 'animacao', 'pose', 'piso'];
 
 /** Formas geometricas que da para criar direto no editor, sem sprite. */
 export type ShapeKind = 'retangulo' | 'elipse' | 'triangulo' | 'losango';
@@ -237,6 +240,18 @@ export interface SceneObject {
    * "APERTE E" sozinho nao diz para que.
    */
   prompt?: string;
+
+  // ---------------------------------------------------------- chao (zone = piso)
+  /**
+   * Quanto o piso DESCE da borda esquerda para a direita, em unidades.
+   *
+   * 0 é plano; positivo desce para a direita (a rampa que sai do deck para a
+   * areia); negativo sobe. O topo da caixa é a altura do piso na esquerda.
+   *
+   * Uma rampa não precisa de um tipo de objeto próprio por causa disto: é uma
+   * caixa de chão com queda.
+   */
+  queda?: number;
 
   // ------------------------------------------------- forma geometrica (kind = forma)
   shape?: ShapeKind;

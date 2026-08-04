@@ -43,26 +43,70 @@ water_y = WATER_Y - Y0
 if 0 < water_y < H:
     sheet.paste(Image.new('RGBA', (W, H - water_y), (32, 120, 160, 255)), (0, water_y))
 
-# a areia, do jeito que o `World.tsx` desenha: peca de borda em cima, peca
-# cheia no corpo, e a orla descendo em degrau para dentro da agua
+# A areia, do jeito que o `World.tsx` desenha. Duas regras importam aqui, e as
+# duas existem para nao aparecer emenda:
+#
+#   1. a fase do tile sai da posicao no MUNDO, e nao do topo do elemento - e
+#      uma grade so, entao dois pedacos vizinhos encaixam;
+#   2. as colunas da orla tem topo diferente e PE IGUAL, e o corte do pe fica
+#      escondido debaixo do veu de profundidade.
+ORLA_COLUNAS, ORLA_FUNDO = 22, 560
+
+
 def tile_band(img_path, x, y, w, h):
+    """Preenche uma caixa com o tile, na grade global da areia."""
     if h <= 0 or w <= 0:
         return
     src = Image.open(os.path.join(GAME, img_path)).convert('RGBA').resize((TILE, TILE), Image.NEAREST)
     band = Image.new('RGBA', (w, h))
-    for ty in range(0, h, TILE):
-        for tx in range(0, w, TILE):
+    for ty in range(-(y % TILE), h, TILE):
+        for tx in range(-(x % TILE), w, TILE):
             band.alpha_composite(src, (tx, ty))
     sheet.alpha_composite(band, (x - X0, y - Y0))
 
+
 BORDA, CHEIA = 'sand/sand_12_01110110.webp', 'sand/sand_46_11111111.webp'
+# o corpo da praia, de uma vez so, do topo ate bem abaixo do mundo
+tile_band(CHEIA, SHORE_X - 60, SAND_Y, 4000, 900)
 tile_band(BORDA, SHORE_X - 60, SAND_Y, 4000, TILE)
-tile_band(CHEIA, SHORE_X - 60, SAND_Y + TILE, 4000, SAND_DEPTH - TILE + 300)
-for n in range(12):
+
+# a orla: queda em curva, com deslocamento sorteado por coluna
+_s = 20260804
+
+
+def _r():
+    global _s
+    _s = (_s * 1664525 + 1013904223) % (2 ** 32)
+    return _s / 2 ** 32
+
+
+orla_fundo = WATER_Y + ORLA_FUNDO
+for n in range(ORLA_COLUNAS):
     dx = SHORE_X - 60 - (n + 1) * TILE
-    dy = SAND_Y + n * 14
+    dy = round(SAND_Y + max(2, 5 * (n + 1) ** 1.4 + (_r() - 0.5) * 16))
+    tile_band(CHEIA, dx, dy, TILE, max(0, orla_fundo - dy))
     tile_band(BORDA, dx, dy, TILE, TILE)
-    tile_band(CHEIA, dx, dy + TILE, TILE, max(TILE, SAND_DEPTH + n * 22))
+
+# o veu de profundidade: aproximacao chapada do gradiente que o CSS faz
+veu_x = SHORE_X - 60 - ORLA_COLUNAS * TILE - 220
+veu_w = ORLA_COLUNAS * TILE + 280
+veu = Image.new('RGBA', (veu_w, ORLA_FUNDO))
+for yy in range(ORLA_FUNDO):
+    t = yy / ORLA_FUNDO
+    a = 0 if t < 0.02 else min(1.0, (t - 0.02) / 0.62)
+    cor = (32, 120, 160) if t < 0.3 else (6, 62, 99)
+    if t > 0.7:
+        cor = (2, 19, 31)
+    veu.paste(cor + (int(a * 255),), (0, yy, veu_w, yy + 1))
+mask = Image.new('L', (veu_w, ORLA_FUNDO))
+for xx in range(veu_w):
+    t = xx / veu_w
+    m = min(1.0, t / 0.22) if t < 0.22 else (1.0 if t < 0.92 else max(0.0, (1 - t) / 0.08))
+    mask.paste(int(m * 255), (xx, 0, xx + 1, ORLA_FUNDO))
+alfa = Image.new('L', veu.size)
+alfa.putdata([round(a * m / 255) for a, m in zip(veu.getchannel('A').getdata(), mask.getdata())])
+veu.putalpha(alfa)
+sheet.alpha_composite(veu, (veu_x - X0, WATER_Y - Y0))
 
 faltando = set()
 for o in objs:

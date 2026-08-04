@@ -35,6 +35,24 @@ de 4 tempos, mas dão um ar de hesitação. Quem quiser o ciclo completo escreve
 Cada clipe vira duas pastas, `-left` e `-right`; a versão da direita é o espelho
 da esquerda, gerado na importação.
 
+### As poses que a tabela deixava para trás
+
+A tabela acima é uma **lista de escolha**, e escolher significa deixar de fora.
+`juggler_new_anim/` tem as vistas de frente e de três quartos e **cinco** poses
+em `sentado/`; a tabela nomeava `01_back.png` e uma das cinco. Todo o resto
+nunca foi importado, nunca virou pasta e nunca apareceu no editor — que é o que
+se vê, do outro lado, como "faltam várias poses no marcador de animação".
+
+O importador agora faz uma varredura depois da tabela: **todo PNG na raiz do
+pacote e todo PNG de `sentado/` que a tabela não citou vira um clipe de um
+quadro**, com o nome do arquivo (`02_front.png` → `pose-front`,
+`01_frente_sentado.png` → `sit-frente-sentado`). Não há lista para manter em
+dia — pose nova no pacote de origem entra sozinha na próxima importação.
+
+O que **não** dá para fazer sem a arte: as pastas só nascem quando o importador
+roda com `juggler_new_anim/` e `fishing-left/` à mão. O repositório guarda o
+resultado, não a origem.
+
 ### O espelho que veio trocado
 
 A importação anterior gerou parte dos quadros com o espelho invertido em relação

@@ -115,7 +115,10 @@ export function Sky({ hour }: { hour: SkyPhaseId }) {
           <div className="storm-tint" />
           {/* Era `sky/rain-streaks` duas vezes: uma imagem de riscos esticada
               na tela e deslizada em loop. Agora a chuva é feita de gota, em
-              três distâncias, com respingo onde a água bate - ver `Rain`. */}
+              três distâncias, caindo no próprio eixo do desenho - ver `Rain`.
+
+              Aqui só cai a água. O RESPINGO saiu para o `World`: ele bate no
+              chão, e chão é coisa de mundo, não de tela. */}
           <Rain />
           <img className="lightning" src={asset('sky/lightning-bolt')} alt="" />
         </>

@@ -90,6 +90,54 @@ SINGLE = {'back-idle': ([P('01_back.png')], FRONT)}
 BASE_FACING = 'left'
 
 
+# ------------------------------------------------- as poses que ficaram de fora
+#
+# A TABELA ACIMA E UMA LISTA DE ESCOLHA, e por isso ela perdia arte.
+#
+# O pacote de origem tem as vistas de frente e de tres quartos e CINCO poses em
+# `sentado/`. A tabela nomeia uma de cada: `01_back.png` virou `back-idle` e
+# `03_lateral_esquerda_sentado.png` virou `sit`. Todo o resto foi importado
+# nenhuma vez e nunca apareceu no editor - o que, do lado de la, se ve como
+# "faltam varias poses no marcador".
+#
+# A varredura abaixo pega o que sobrou: todo PNG na raiz do pacote e todo PNG
+# de `sentado/` que a tabela nao citou vira um clipe de um quadro so, com o
+# nome do arquivo. Nao ha lista para manter em dia - pose nova no pacote de
+# origem entra sozinha na proxima importacao, que e o comportamento que a
+# secao ANIMACOES do editor ja tem para pastas de quadro.
+
+def _slug(nome):
+    """`03_lateral_esquerda_sentado.png` -> `lateral-esquerda-sentado`."""
+    base = os.path.splitext(os.path.basename(nome))[0].lower()
+    # o numero da frente e ordem de arquivo, nao faz parte do nome da pose
+    if '_' in base and base.split('_')[0].isdigit():
+        base = base.split('_', 1)[1]
+    return base.replace('_', '-').replace(' ', '-')
+
+
+def poses_soltas():
+    """Clipes de um quadro para a arte que a tabela nao citou."""
+    citados = set()
+    for paths, _ in list(CLIPS.values()) + list(SINGLE.values()):
+        citados.update(os.path.abspath(p) for p in paths)
+
+    achados = {}
+    # a raiz traz as vistas estaticas; `sentado/`, as poses de sentar
+    for pasta, prefixo, vista in ((ANIM, 'pose', SIDE), (os.path.join(ANIM, 'sentado'), 'sit', SIDE)):
+        if not os.path.isdir(pasta):
+            continue
+        for arq in sorted(os.listdir(pasta)):
+            if not arq.lower().endswith('.png'):
+                continue
+            caminho = os.path.join(pasta, arq)
+            if os.path.abspath(caminho) in citados:
+                continue
+            # frente e costas medem pela altura do corpo; perfil, pelo chapeu
+            v = FRONT if any(t in arq.lower() for t in ('front', 'frente', 'back', 'costas')) else vista
+            achados[f'{prefixo}-{_slug(arq)}'] = ([caminho], v)
+    return achados
+
+
 # --------------------------------------------------------------- leitura
 
 def load_rgba(path):
@@ -148,6 +196,12 @@ def metrics(im):
 # ---------------------------------------------------------------- montagem
 
 def main():
+    # a arte que a tabela nao citou entra aqui, uma pose por arquivo
+    soltas = poses_soltas()
+    SINGLE.update(soltas)
+    if soltas:
+        print(f'{len(soltas)} poses soltas no pacote: ' + ', '.join(sorted(soltas)))
+
     jobs = {**CLIPS, **SINGLE}
     loaded = {}
     for clip, (paths, view) in jobs.items():

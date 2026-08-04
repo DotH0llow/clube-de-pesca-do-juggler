@@ -91,6 +91,16 @@ async function main() {
     const novo = depois.filter((o) => o.id.startsWith('pier25-')).length;
     const rampa = depois.filter((o) => o.sprite === 'pier2d/deck-rampa').length;
     const coqueiro = depois.find((o) => o.id === 'coqueiro-teste');
+    /*
+     * O CHAO tem de chegar numa cena salva antes de ele existir.
+     *
+     * Sem isto, quem ja jogou abriria o editor sem caixa de chao nenhuma: o
+     * jogo continuaria andando, porque o `layout.ts` guarda o calculo antigo
+     * como rede de seguranca, mas o chao seria invisivel e inarrastavel - que e
+     * exatamente o que este item veio resolver.
+     */
+    const pisos = depois.filter((o) => o.kind === 'zone' && o.zone === 'piso');
+    const rampaDoChao = pisos.filter((o) => (o.queda ?? 0) !== 0).length;
 
     const checa = (nome: string, ok: boolean, valor: unknown) => {
       if (!ok) falhou = true;
@@ -102,6 +112,8 @@ async function main() {
     checa('pecas 2.5D', novo > 0, novo);
     checa('rampa', rampa === 1, rampa);
     checa('o coqueiro espelhado sobreviveu', coqueiro?.flip === true, String(coqueiro?.flip));
+    checa('caixas de chao', pisos.length === 3, pisos.length);
+    checa('uma delas e rampa (tem queda)', rampaDoChao === 1, rampaDoChao);
   }
 
   console.log(falhou ? '\nA MIGRACAO NAO ACONTECEU COMO DEVIA.' : '\nmigracao ok nos dois casos');
