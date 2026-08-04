@@ -196,7 +196,7 @@ function SequenceEditor({ path, count }: { path: string; count: number }) {
 
 export function AnimationsPanel() {
   const [open, setOpen] = useState<string | null>('char');
-  const [clip, setClipSel] = useState<string | null>('char/walk-right');
+  const [clip, setClipSel] = useState<string | null>('char/juggler/walk-right');
 
   const groups = new Map<string, typeof CLIPS>();
   for (const c of CLIPS) {

@@ -3,6 +3,7 @@ import { RARITIES, rarityBadge } from '../data/rarities';
 import type { Outcome } from '../hooks/useFishingLoop';
 import type { Rarity } from '../state/types';
 import { FishSprite, JunkSprite, Sprite } from './Sprite';
+import { telaVars, useTelas } from '../editor/telas';
 
 interface Props {
   outcome: Outcome;
@@ -30,8 +31,17 @@ export function CatchPopup({ outcome, onAgain, onStop }: Props) {
 
   const accent = failed ? '#ff5f7e' : rarity ? rarity.color : '#cfe8f5';
 
+  /*
+   * A geometria da janela vem da secao TELAS do editor.
+   *
+   * `pegou` e `escapou` sao a MESMA tela com dados diferentes - por isso as
+   * duas leem a mesma configuracao. Separa-las daria duas caixas para manter
+   * alinhadas na mao, e a diferenca entre elas e o texto, nao o tamanho.
+   */
+  useTelas();
+
   return (
-    <div className="catch-popup">
+    <div className="catch-popup" style={telaVars('catch')}>
       <div className="catch-card" onClick={(e) => e.stopPropagation()}>
         {/* A placa agora estica com o texto (ver `.catch-banner`), entao ela
             nao precisa mais da imagem solta por dentro nem de posicao em

@@ -34,6 +34,12 @@ from scipy.ndimage import binary_erosion, label
 ANIM = os.environ.get('ANIM_DIR', './juggler_new_anim')
 FISH = os.environ.get('FISH_DIR', './fishing-left')
 OUT = os.environ.get('OUT_DIR', './src/assets/game/char')
+# QUEM esta sendo importado. A arte mora em `char/<personagem>/<clipe>`, e nao
+# em `char/<clipe>`: sem a pasta do personagem no meio so cabe UM elenco no
+# jogo inteiro, porque dois personagens com uma pose `sit-left` cada
+# disputariam o mesmo caminho de arquivo. Para trazer um personagem novo, rode
+# com PERSONAGEM=sazon e as pastas de origem dele.
+PERSONAGEM = os.environ.get('PERSONAGEM', 'juggler')
 FRAMES_TS = os.environ.get('FRAMES_TS', './src/world/charFrames.ts')
 
 # altura do corpo em pe, em unidades de mundo
@@ -257,7 +263,7 @@ def main():
                 canvas.paste(src, (round(AX - f['hip']), round(AY - f['foot'])), src)
                 if mirror:
                     canvas = canvas.transpose(Image.FLIP_LEFT_RIGHT)
-                dst = os.path.join(OUT, name, f'{i:02d}.webp')
+                dst = os.path.join(OUT, PERSONAGEM, name, f'{i:02d}.webp')
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                 canvas.save(dst, 'WEBP', quality=82, method=5)
                 total += os.path.getsize(dst)
@@ -303,11 +309,17 @@ def main():
         ' */',
         f'export const CHAR_ANCHOR = {{ dx: {dx:.1f}, dy: {dy:.1f} }};',
         '',
-        '/** quantos quadros cada clipe tem */',
+        '/**',
+        ' * Quantos quadros cada clipe tem, POR PERSONAGEM.',
+        ' *',
+        ' * A chave e `personagem/clipe`, e nao mais so `clipe`. A arte mora em',
+        ' * `src/assets/game/char/<personagem>/<clipe>/00.webp`, entao acrescentar um',
+        ' * personagem e soltar uma pasta - ninguem edita lista aqui.',
+        ' */',
         'export const CLIP_FRAMES: Record<string, number> = {',
     ]
     for n in names:
-        lines.append(f"  '{n}': {counts[n]},")
+        lines.append(f"  '{PERSONAGEM}/{n}': {counts[n]},")
     lines += ['};', '']
 
     with open(FRAMES_TS, 'w', encoding='utf-8') as fh:

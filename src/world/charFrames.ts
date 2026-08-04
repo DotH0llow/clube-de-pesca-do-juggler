@@ -19,19 +19,25 @@ export const CHAR_FRAME_H = 352.5;
  */
 export const CHAR_ANCHOR = { dx: 0.0, dy: -132.0 };
 
-/** quantos quadros cada clipe tem */
+/**
+ * Quantos quadros cada clipe tem, POR PERSONAGEM.
+ *
+ * A chave e `personagem/clipe`, e nao mais so `clipe`. A arte mora em
+ * `src/assets/game/char/<personagem>/<clipe>/00.webp`, entao acrescentar um
+ * personagem e soltar uma pasta - ninguem edita lista aqui.
+ */
 export const CLIP_FRAMES: Record<string, number> = {
-  'back-idle': 1,
-  'fish-left': 6,
-  'fish-right': 6,
-  'jump-left': 2,
-  'jump-right': 2,
-  'run-left': 4,
-  'run-right': 4,
-  'side-idle-left': 1,
-  'side-idle-right': 1,
-  'sit-left': 1,
-  'sit-right': 1,
-  'walk-left': 4,
-  'walk-right': 4,
+  'juggler/back-idle': 1,
+  'juggler/fish-left': 6,
+  'juggler/fish-right': 6,
+  'juggler/jump-left': 2,
+  'juggler/jump-right': 2,
+  'juggler/run-left': 4,
+  'juggler/run-right': 4,
+  'juggler/side-idle-left': 1,
+  'juggler/side-idle-right': 1,
+  'juggler/sit-left': 1,
+  'juggler/sit-right': 1,
+  'juggler/walk-left': 4,
+  'juggler/walk-right': 4,
 };

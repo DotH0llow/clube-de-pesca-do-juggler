@@ -153,23 +153,45 @@ export function World({
    * o pedaço de areia solto que aparecia lá embaixo. Agora todas descem até
    * `orlaFundo`, onde o véu de profundidade já é opaco e não há corte para ver.
    */
-  const orla = useMemo(() => {
+  const orlaCaixa = useMemo(() => {
     // sorteio com semente fixa: a orla é a mesma entre um render e outro
     let s = 20260804;
     const r = () => {
       s = (s * 1664525 + 1013904223) >>> 0;
       return s / 4294967296;
     };
-    const list: { x: number; y: number }[] = [];
+    /** um degrau por coluna, do mais raso (junto da praia) ao mais fundo */
+    const degraus: number[] = [];
     for (let n = 0; n < ORLA_COLUNAS; n++) {
-      const x = w.shoreX - 60 - (n + 1) * SAND_TILE;
       const queda = 5 * Math.pow(n + 1, 1.4) + (r() - 0.5) * 16;
-      list.push({ x, y: Math.round(w.sandY + Math.max(2, queda)) });
+      degraus.push(Math.round(w.sandY + Math.max(2, queda)));
     }
-    return list;
-  }, [w.shoreX, w.sandY]);
-  /** Onde o pé de TODAS as colunas da orla se encontra. */
-  const orlaFundo = w.waterY + ORLA_FUNDO;
+
+    const x = w.shoreX - 60 - ORLA_COLUNAS * SAND_TILE;
+    const larg = ORLA_COLUNAS * SAND_TILE;
+    const topo = Math.min(...degraus);
+    const alt = Math.max(0, w.waterY + ORLA_FUNDO - topo);
+
+    /*
+     * O PERFIL VIRA POLÍGONO.
+     *
+     * Da esquerda para a direita, dois pontos por degrau (o canto de cima e o
+     * canto de baixo do ressalto); depois o pé, que é reto e comum a todos, e
+     * volta. O `clip-path` faz o resto.
+     *
+     * `degraus` está do mais raso para o mais fundo, e o mais fundo é o da
+     * ESQUERDA - por isso o laço anda de trás para a frente.
+     */
+    const pts: string[] = [];
+    for (let n = ORLA_COLUNAS - 1; n >= 0; n--) {
+      const cx = (ORLA_COLUNAS - 1 - n) * SAND_TILE;
+      const cy = degraus[n] - topo;
+      pts.push(`${cx}px ${cy}px`, `${cx + SAND_TILE}px ${cy}px`);
+    }
+    pts.push(`${larg}px ${alt}px`, `0px ${alt}px`);
+
+    return { x, y: topo, w: larg, h: alt, recorte: `polygon(${pts.join(',')})` };
+  }, [w.shoreX, w.sandY, w.waterY]);
 
   // ------------------------------------------------ apetrecho (linha e boia)
   // Ancora da boia e ponta da vara saem da configuracao de mecanicas: e o que o
@@ -247,14 +269,19 @@ export function World({
               background: `linear-gradient(180deg, ${p.seaTop} 0%, ${p.seaTop} 4%, ${p.seaBottom} 42%, #02131f 100%)`,
             }}
           >
-            {/* raios de luz atravessando a coluna de agua */}
-            {!sky.night && (
-              <>
-                <img className="ray" src={asset('props/light-ray-strip')} alt="" style={{ left: 520 - left, height: w.seaDepth * 0.42 }} />
-                <img className="ray ray-b" src={asset('props/light-ray-strip')} alt="" style={{ left: 900 - left, height: w.seaDepth * 0.34 }} />
-                <img className="ray" src={asset('props/light-ray-strip')} alt="" style={{ left: 1300 - left, height: w.seaDepth * 0.46 }} />
-              </>
-            )}
+            {/* OS RAIOS DE LUZ SAIRAM.
+
+                Eram tres copias de `props/light-ray-strip` penduradas na
+                coluna de agua, balancando em `ray-sway`. O sprite e uma faixa
+                de listras verticais claras, e esticado na altura do mar ele
+                nao lia como luz atravessando agua - lia como risco vertical
+                por cima do azul, que e o que o print mostrava. Nao ha
+                substituto aqui de proposito: a agua ja tem a rampa de cor e a
+                superficie desenhada, e enfeite que nao le como o que promete e
+                pior do que ausencia.
+
+                O sprite continua no pacote, para quem quiser jogar um na cena
+                pelo editor e posicionar na mao. */}
             {/* Areia do fundo do mar: o mesmo autotile da praia, escurecido
                 pela agua. Era um gradiente bege desbotando para cima. */}
             <div
@@ -330,33 +357,33 @@ export function World({
               sobra - o corpo dela ja desce ate embaixo. */}
           <div className="world-spill" style={{ left, width: seaW, top: fundo, background: '#02131f' }} />
 
-          {/* A ORLA, coluna por coluna.
+          {/* A ORLA É UMA PEÇA SÓ, RECORTADA.
 
-              Cada uma é a peça de borda em cima e a peça cheia embaixo, na
-              mesma grade de tile do resto da praia - o que muda de uma para a
-              outra é só onde a coluna começa. */}
-          {orla.map((d) => (
-            <div
-              key={d.x}
-              className="sand-degrau"
-              style={{ left: d.x, top: d.y, width: SAND_TILE, height: Math.max(0, orlaFundo - d.y) }}
-            >
-              <div
-                className="sand"
-                style={{
-                  backgroundImage: `url(${asset(SAND_CHEIA)})`,
-                  backgroundPosition: grade(d.x, d.y),
-                }}
-              />
-              <div
-                className="sand-top"
-                style={{
-                  backgroundImage: `url(${asset(SAND_BORDA)})`,
-                  backgroundPositionX: `${fase(d.x)}px`,
-                }}
-              />
-            </div>
-          ))}
+              Ela era 22 divs, um por degrau. Cada div tem borda, e borda de
+              elemento em escala fracionária cai entre pixels: o navegador
+              arredonda e sobra meia coluna de fundo aparecendo, ou meia coluna
+              desenhada duas vezes. De dia, com a areia clara, ninguém via; à
+              noite, com o véu escuro por cima, cada emenda virava um risco
+              vertical do topo até o fundo da água - vinte e dois deles,
+              igualmente espaçados, que é a assinatura de "isto aqui são
+              elementos lado a lado".
+
+              Agora é UM elemento com a areia inteira, e o perfil de degraus
+              vem de um `clip-path`. Recorte não tem borda: onde o polígono
+              corta, corta, e não há emenda porque não há dois elementos
+              encostados. */}
+          <div
+            className="sand-orla"
+            style={{
+              left: orlaCaixa.x,
+              top: orlaCaixa.y,
+              width: orlaCaixa.w,
+              height: orlaCaixa.h,
+              backgroundImage: `url(${asset(SAND_CHEIA)})`,
+              backgroundPosition: grade(orlaCaixa.x, orlaCaixa.y),
+              clipPath: orlaCaixa.recorte,
+            }}
+          />
 
           {/* O VÉU DE PROFUNDIDADE: onde a praia vira mar.
 
@@ -393,21 +420,18 @@ export function World({
               degradê que faltava entre uma coisa e outra - o véu resolve o
               lado de baixo, esta resolve o de cima. */}
           <div className="wet-sand" style={{ left: w.shoreX - 60, width: 280, top: w.sandY }} />
-          {/* A LINHA DE MARÉ: espuma acumulada na beira, e não um degradê.
+          {/* A LINHA DE MARÉ SAIU.
 
-              Ela começava 380 unidades à esquerda da orla, ou seja, dentro
-              d'água e por cima das colunas submersas - espuma flutuando no meio
-              do mar. Agora ela nasce na beira e corre para dentro da praia, que
-              é onde a maré deixa espuma. */}
-          <div
-            className="tide-line"
-            style={{
-              left: w.shoreX - 76,
-              width: 300,
-              top: w.sandY + 4,
-              backgroundImage: `url(${asset('fx/foam-strip')})`,
-            }}
-          />
+              Era `fx/foam-strip` deslizando numa faixa de 300 unidades a
+              partir da orla. O problema não era a arte: é que a praia entra
+              por baixo do píer, e a faixa ia parar bem na boca dele - lida na
+              tela, aquilo era espuma SAINDO DE DENTRO do píer, brotando da
+              entrada e correndo para a areia.
+
+              Encurtar não resolvia: a faixa precisa de comprimento para a
+              espuma não virar um selo, e comprimento é justamente o que a
+              enfia embaixo do deck. O degradê entre água e praia já é feito
+              pelo véu de profundidade e pela areia molhada, que ficam. */}
 
           {/* --------------------------------------------------- o pier */}
           {/* O deck e a rampa saíram daqui.
@@ -525,7 +549,7 @@ export function World({
             <img
               ref={spriteRef}
               className="player-sprite"
-              src={asset('char/side-idle-left/00')}
+              src={asset('char/juggler/side-idle-left/00')}
               alt="Juggler"
               style={PLAYER_SPRITE_STYLE}
             />

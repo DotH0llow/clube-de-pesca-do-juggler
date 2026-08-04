@@ -371,6 +371,7 @@ tela de titulo. Ele pausa o jogo e salva tudo no navegador.
 | MECANICAS | a pescaria passo a passo: pecas, camadas, tempos e audio |
 | MUNDO | a planta do cenario: mar, areia, ondas e enquadramento |
 | FLUTUADORES | o que atravessa o ceu: nuvem, bando, gaivota, neblina |
+| TELAS | todas as janelas do jogo, agrupadas por utilidade: abrir, ver e ajustar |
 
 Duas coisas valem ser ditas em voz alta:
 

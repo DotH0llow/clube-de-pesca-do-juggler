@@ -712,6 +712,28 @@ function garantirPiso(st: SceneState): SceneState {
   return { ...st, objects: [...st.objects, ...novos] };
 }
 
+/**
+ * O clipe das caixas de acao ganhou PERSONAGEM na frente.
+ *
+ * A arte era `char/<clipe>` e virou `char/<personagem>/<clipe>` - sem a pasta
+ * do personagem no meio so cabe um elenco no jogo inteiro, porque dois
+ * personagens com uma pose `sit-left` cada disputariam o mesmo arquivo.
+ *
+ * Uma cena salva antes disso guarda `sit-left`, que agora nao aponta para
+ * arquivo nenhum: a caixa de acao existiria e nao faria nada. Toda caixa sem
+ * barra no nome do clipe e do Juggler, porque ele era o unico que havia.
+ */
+function migrarClipes(st: SceneState): SceneState {
+  const precisa = st.objects.some((o) => o.clip && !o.clip.includes('/'));
+  if (!precisa) return st;
+  return {
+    ...st,
+    objects: st.objects.map((o) =>
+      o.clip && !o.clip.includes('/') ? { ...o, clip: `juggler/${o.clip}` } : o,
+    ),
+  };
+}
+
 function garantirZonas(st: SceneState): SceneState {
   const seed = seedMundo();
   const faltando = seed.filter(
@@ -777,7 +799,9 @@ function load(): Book {
         if (s && Array.isArray(s.objects) && s.objects.length > 0) {
           const st = { objects: s.objects, hidden: s.hidden ?? [], pierV: s.pierV };
           book[id] =
-            id === 'mundo' ? garantirPiso(garantirZonas(trocarPier(st))) : garantirPecasDoMenu(st);
+            id === 'mundo'
+              ? migrarClipes(garantirPiso(garantirZonas(trocarPier(st))))
+              : garantirPecasDoMenu(st);
         }
       }
       return book;
@@ -808,7 +832,7 @@ function load(): Book {
         const st = limparAposentados({ objects: s.objects, hidden: s.hidden ?? [] });
         book[id] =
           id === 'mundo'
-            ? garantirPiso(garantirZonas(garantirGruposNovos(st)))
+            ? migrarClipes(garantirPiso(garantirZonas(garantirGruposNovos(st))))
             : garantirPecasDoMenu(st);
       }
       break;
@@ -973,6 +997,39 @@ export function updateObject(id: string, patch: Partial<SceneObject>): void {
 }
 
 /**
+ * A MESMA MUDANCA EM VARIOS OBJETOS, num passo so do desfazer.
+ *
+ * Isto existe por dois motivos, e o segundo e o que importa. O primeiro e
+ * obvio: chamar `updateObject` num laco escreve a cena N vezes e empilha N
+ * passos no Ctrl+Z, entao desfazer uma mudanca feita em dez pecas exigiria dez
+ * Ctrl+Z.
+ *
+ * O segundo e que o editor tem selecao multipla desde que o laco foi feito,
+ * mas o INSPETOR sempre escreveu num id so - o da ultima peca clicada. Baixar
+ * a opacidade com dez pecas selecionadas mexia numa. Aqui a regra passa a ser
+ * a que a selecao multipla sempre prometeu: o que voce mexe vale para o que
+ * esta selecionado.
+ *
+ * O `patch` pode ser uma FUNCAO do objeto, e nao so um valor fixo. E o que
+ * permite mudanca relativa - empurrar dez pecas 5 unidades para o lado sem
+ * empilhar todas no mesmo x.
+ */
+export function updateObjects(
+  ids: string[],
+  patch: Partial<SceneObject> | ((o: SceneObject) => Partial<SceneObject>),
+): void {
+  if (ids.length === 0) return;
+  const alvo = new Set(ids);
+  const s = book[active];
+  set({
+    ...s,
+    objects: s.objects.map((o) =>
+      alvo.has(o.id) ? { ...o, ...(typeof patch === 'function' ? patch(o) : patch) } : o,
+    ),
+  });
+}
+
+/**
  * Apaga um objeto.
  *
  * Area de interacao unica (vara, mercado, limiar) nao sai: o jogo depende dela
@@ -1062,7 +1119,7 @@ export function addAction(kind: 'animacao' | 'pose', x: number, y: number): Scen
     h: 220,
     rot: 0,
     depth: 9,
-    clip: kind === 'pose' ? 'sit-left' : 'walk-left',
+    clip: kind === 'pose' ? 'juggler/sit-left' : 'juggler/walk-left',
     poseFrame: 0,
     prompt: kind === 'pose' ? 'Sentar' : 'Fazer',
   };
@@ -1131,6 +1188,153 @@ export function addWall(x: number, y: number): SceneObject {
   };
   set({ ...s, objects: [...s.objects, obj] });
   return obj;
+}
+
+// ------------------------------------------------------------------ grupos
+
+/**
+ * GRUPO: pecas que andam juntas porque sao uma coisa so.
+ *
+ * A cena tem 130 objetos e um cais e feito de vinte. Sem grupo, mover o cais
+ * inteiro dois passos para a esquerda e um exercicio de laco de selecao, e
+ * qualquer clique perdido no meio do caminho desfaz a selecao e recomeca.
+ *
+ * O grupo NAO e um objeto novo: e uma etiqueta (`group`) escrita em cada peca.
+ * Isso e de proposito. Um objeto-grupo de verdade teria posicao e tamanho
+ * proprios, e ai haveria duas verdades sobre onde a peca esta - a dela e a do
+ * pai. Etiqueta nao tem esse problema: as pecas continuam soltas na lista e
+ * so o CLIQUE sabe que elas se pegam juntas.
+ *
+ * Travar um grupo e travar cada peca dele, pelo mesmo motivo: nao ha um lugar
+ * central para guardar "este grupo esta travado" sem inventar o pai.
+ */
+let grupoSeq = 0;
+
+export function groupObjects(ids: string[]): string | null {
+  if (ids.length < 2) return null;
+  const nome = `g${Date.now().toString(36)}${(++grupoSeq).toString(36)}`;
+  /*
+   * Grupo de grupo NAO ANINHA: ele funde.
+   *
+   * Selecionar duas pecas de um grupo A mais uma solta e apertar G poderia
+   * criar um grupo B dentro do A - e ai clicar numa peca teria duas respostas
+   * certas ("seleciona o B" e "seleciona o A"), e nenhuma forma de o usuario
+   * saber qual vai sair. Fundir e a resposta previsivel: as pecas selecionadas
+   * e TODAS as dos grupos que elas tocam viram um grupo so.
+   */
+  const s = book[active];
+  const tocados = new Set(ids);
+  const grupos = new Set(
+    s.objects.filter((o) => tocados.has(o.id) && o.group).map((o) => o.group as string),
+  );
+  const objects = s.objects.map((o) =>
+    tocados.has(o.id) || (o.group && grupos.has(o.group)) ? { ...o, group: nome } : o,
+  );
+  set({ ...s, objects });
+  return nome;
+}
+
+export function ungroupObjects(ids: string[]): void {
+  const s = book[active];
+  const grupos = new Set(
+    s.objects.filter((o) => ids.includes(o.id) && o.group).map((o) => o.group as string),
+  );
+  if (grupos.size === 0) return;
+  set({
+    ...s,
+    objects: s.objects.map((o) => (o.group && grupos.has(o.group) ? { ...o, group: undefined } : o)),
+  });
+}
+
+/** Todo mundo que anda junto com esta peca (ela inclusa). */
+export function groupMembers(id: string): string[] {
+  const o = book[active].objects.find((x) => x.id === id);
+  if (!o?.group) return [id];
+  return book[active].objects.filter((x) => x.group === o.group).map((x) => x.id);
+}
+
+/** Os grupos da cena, com quantas pecas e se estao travados. */
+export function groupList(): { nome: string; pecas: number; travado: boolean }[] {
+  const por = new Map<string, SceneObject[]>();
+  for (const o of book[active].objects) {
+    if (!o.group) continue;
+    const atual = por.get(o.group);
+    if (atual) atual.push(o);
+    else por.set(o.group, [o]);
+  }
+  return [...por.entries()].map(([nome, pecas]) => ({
+    nome,
+    pecas: pecas.length,
+    travado: pecas.every((p) => p.locked),
+  }));
+}
+
+// --------------------------------------------------- copiar e colar
+
+/**
+ * A area de transferencia do editor.
+ *
+ * Ela guarda uma COPIA dos objetos, e nao os ids: colar depois de apagar o
+ * original tem de funcionar, e um id na mao nao serve para nada quando a peca
+ * saiu da lista.
+ *
+ * Vive em memoria, e nao no `localStorage`, porque copiar e uma acao de
+ * sessao. Recarregar a pagina e um jeito razoavel de esperar que a area de
+ * transferencia esvazie - e uma cheia de uma semana atras, colada por engano,
+ * e pior do que uma vazia.
+ */
+let prancheta: SceneObject[] = [];
+
+export function copyObjects(ids: string[]): number {
+  const alvo = new Set(ids);
+  prancheta = book[active].objects.filter((o) => alvo.has(o.id)).map((o) => ({ ...o }));
+  return prancheta.length;
+}
+
+export function clipboardSize(): number {
+  return prancheta.length;
+}
+
+/**
+ * Cola o que foi copiado, com o CANTO SUPERIOR ESQUERDO do conjunto em (x, y).
+ *
+ * O arranjo relativo entre as pecas e preservado: o que importa numa colagem
+ * de cinco pecas de cais nao e onde cada uma cai, e a distancia entre elas.
+ *
+ * Area de interacao UNICA nao cola. Duas caixas de PESCAR na cena e um estado
+ * que o jogo nao sabe ler - `zoneRect` devolve a primeira que encontrar - e
+ * colar sem querer a caixa da vara junto com um barril daria um bug que so
+ * apareceria muito depois, na hora de pescar.
+ */
+export function pasteObjects(x: number, y: number): string[] {
+  if (prancheta.length === 0) return [];
+  const podem = prancheta.filter(
+    (o) => o.kind !== 'zone' || ZONAS_REPETIVEIS.includes(o.zone ?? 'vara'),
+  );
+  if (podem.length === 0) return [];
+
+  const x0 = Math.min(...podem.map((o) => o.x));
+  const y0 = Math.min(...podem.map((o) => o.y));
+  const marca = Date.now().toString(36);
+  // grupo copiado continua grupo, mas com nome NOVO: colar dentro do grupo de
+  // origem faria a copia arrastar o original junto
+  const renome = new Map<string, string>();
+  for (const o of podem) {
+    if (o.group && !renome.has(o.group)) renome.set(o.group, `g${marca}${renome.size}`);
+  }
+
+  const novos = podem.map((o, i) => ({
+    ...o,
+    id: `${o.id.replace(/-copia-.*$/, '')}-copia-${marca}${i}`,
+    x: Math.round(x + (o.x - x0)),
+    y: Math.round(y + (o.y - y0)),
+    locked: false,
+    group: o.group ? renome.get(o.group) : undefined,
+  }));
+
+  const s = book[active];
+  set({ ...s, objects: [...s.objects, ...novos] });
+  return novos.map((o) => o.id);
 }
 
 export function duplicateObject(id: string): SceneObject | null {

@@ -298,19 +298,11 @@ button {
   overflow: hidden;
 }
 
-.sea .ray {
-  position: absolute;
-  top: 0;
-  opacity: 0.28;
-  mix-blend-mode: screen;
-  animation: ray-sway 9s ease-in-out infinite alternate;
-}
+/* `.ray` e `.ray-b` sairam daqui junto com os raios de luz da agua.
 
-.sea .ray-b {
-  animation-duration: 13s;
-  animation-direction: alternate-reverse;
-  opacity: 0.2;
-}
+   Eram tres faixas de listras claras esticadas na coluna do mar, balancando em
+   `ray-sway`. Esticada, a faixa nao le como luz atravessando agua - le como
+   risco vertical por cima do azul. */
 
 /* areia do fundo do mar: o autotile da praia, apagado pela profundidade */
 .seabed {
@@ -344,28 +336,9 @@ button {
    `background-position`. A superficie da agua virou uma linha desenhada por
    quadro (ver `WaterSurface`), entao nao ha mais faixa para deslizar.
 
-   O `surf-drift` fica: a linha de mare da praia (`.tide-line`) ainda o usa, e
-   ali deslizar e o certo - e espuma acumulada na areia, nao onda. */
-
-@keyframes surf-drift {
-  from {
-    background-position-x: 0;
-  }
-  to {
-    background-position-x: 600px;
-  }
-}
-
-@keyframes ray-sway {
-  from {
-    transform: translateX(-14px) scaleY(0.96);
-    opacity: 0.16;
-  }
-  to {
-    transform: translateX(14px) scaleY(1.04);
-    opacity: 0.32;
-  }
-}
+   O `surf-drift` foi junto: o ultimo usuario dele era a linha de mare da
+   praia, que saiu porque a faixa ia parar dentro da boca do pier e lia como
+   espuma brotando de dentro dele. */
 
 /* ------------------------------------------------------------ terra e pier */
 
@@ -393,26 +366,17 @@ button {
   background-size: 32px 32px;
 }
 
-/* cada coluna da orla: corpo por baixo, borda por cima, um tile de largura */
-.sand-degrau {
+/* A ORLA: uma peca so, com o perfil de degraus vindo do `clip-path`.
+
+   Eram 22 colunas lado a lado. Elemento tem borda, e borda em escala
+   fracionaria cai entre pixels - a noite, com o veu escuro por cima, cada
+   emenda virava um risco vertical da superficie ao fundo. Recorte nao tem
+   emenda porque nao ha dois elementos se encostando. */
+.sand-orla {
   z-index: 15;
   position: absolute;
-}
-
-.sand-degrau > .sand {
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: auto;
-  height: auto;
-}
-
-.sand-degrau > .sand-top {
-  left: 0;
-  right: 0;
-  top: 0;
-  width: auto;
+  background-repeat: repeat;
+  background-size: 32px 32px;
 }
 
 /* O VÉU: a mesma rampa de cor do mar, comprimida na faixa da orla.
@@ -483,17 +447,10 @@ button {
 }
 
 /* linha de mare: a MESMA espuma que corre na linha d'agua, e nao um degrade */
-.tide-line {
-  z-index: 17;
-  position: absolute;
-  height: 18px;
-  opacity: 0.5;
-  background-repeat: repeat-x;
-  background-size: auto 18px;
-  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 55%, transparent 100%);
-  mask-image: linear-gradient(90deg, #000 0%, #000 55%, transparent 100%);
-  animation: surf-drift 24s linear infinite;
-}
+/* `.tide-line` saiu: a praia entra por baixo do pier, entao a faixa de espuma
+   ia parar na boca dele e lia como espuma brotando de dentro do cais. O
+   degrade entre agua e areia continua sendo feito pelo veu de profundidade
+   (`.shore-veil`) e pela areia molhada (`.wet-sand`). */
 
 .anchored-boat {
   position: absolute;
@@ -877,11 +834,28 @@ button {
    TELAS DE TAMANHO FIXO (sheet) E CELULAR
    ========================================================================== */
 
+/* A GEOMETRIA DA JANELA E CONFIGURACAO, e nao numero de folha de estilo.
+
+   Os valores aqui sao o PADRAO. A secao TELAS do editor escreve as mesmas
+   variaveis no elemento de fundo de cada tela, e a janela herda dali - por
+   isso o ajuste vale no jogo de verdade, e nao so numa previa.
+
+   Elas ficam no `:where` para ter especificidade zero: qualquer regra de tela
+   especifica (a `.cards-sheet`, por exemplo) continua ganhando sem `!important`. */
+:where(.modal-backdrop, .catch-popup) {
+  --tela-larg: 560px;
+  --tela-alt: 620px;
+  --tela-dx: 0px;
+  --tela-dy: 0px;
+  --tela-esc: 1;
+  --tela-fundo: 0.74;
+}
+
 .modal-backdrop {
   position: absolute;
   inset: 0;
   z-index: 6;
-  background: rgba(2, 10, 16, 0.74);
+  background: rgba(2, 10, 16, var(--tela-fundo));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -911,8 +885,9 @@ button {
 }
 
 .sheet {
-  width: min(560px, 94vw);
-  height: min(620px, 88vh);
+  width: min(var(--tela-larg), 94vw);
+  height: min(var(--tela-alt), 88vh);
+  transform: translate(var(--tela-dx), var(--tela-dy)) scale(var(--tela-esc));
   display: flex;
   flex-direction: column;
   background: var(--janela);
@@ -949,9 +924,11 @@ button {
 }
 
 .sheet.daily {
+  /* esta cresce com o conteudo (sao quatro linhas), entao a ALTURA da secao
+     TELAS vira um teto em vez de uma medida */
   height: auto;
-  max-height: 88vh;
-  width: min(400px, 92vw);
+  max-height: min(var(--tela-alt), 88vh);
+  width: min(var(--tela-larg), 92vw);
 }
 
 .daily-body {
@@ -1398,13 +1375,18 @@ button {
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgba(2, 10, 16, 0.6);
+  background: rgba(2, 10, 16, var(--tela-fundo));
   animation: fade-in 0.16s steps(3);
+  /* A janela do resultado e mais estreita que as outras (420 por 600, e nao
+     560 por 620), mas o numero NAO mora aqui: ele mora na tabela de padroes de
+     `editor/telas.ts`, junto com o de todas as outras telas. Dois lugares
+     dizendo o tamanho da mesma janela e um lugar a mais para discordar. */
 }
 
 .catch-card {
-  width: min(420px, 94vw);
-  height: min(600px, 88vh);
+  width: min(var(--tela-larg), 94vw);
+  height: min(var(--tela-alt), 88vh);
+  transform: translate(var(--tela-dx), var(--tela-dy)) scale(var(--tela-esc));
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -1424,19 +1406,38 @@ button {
 
    Era `fx/capture-banner`, uma arte de largura fixa com o texto posicionado em
    porcentagem por cima. Titulo curto sobrava madeira; titulo comprido
-   transbordava a placa. Agora a placa e uma tabua de 9-slice que ESTICA com o
-   texto, entao o texto manda no tamanho e nao o contrario. */
+   transbordava a placa. A placa virou 9-slice, que ESTICA com o texto.
+
+   AS FATIAS ESTAVAM ERRADAS, e e isso que fazia o miolo parecer cem placas
+   empilhadas. `ui/window-title` tem 384x64 e as amarracoes de corda ficam em
+   22-55 (esquerda) e 312-345 (direita). Fatiando a 30, as duas cordas caiam
+   DENTRO da fatia do meio - e a fatia do meio e a que se repete. Com
+   `border-image-repeat: round` numa placa de 350 px, o miolo repetia umas seis
+   vezes, e cada repeticao trazia as duas cordas junto: seis pares de corda
+   espremidos no meio da tabua.
+
+   Agora a fatia da esquerda vai ate 56 e a da direita comeca em 312, ou seja,
+   cada corda fica inteira dentro do proprio canto. O miolo e madeira lisa, e
+   `stretch` estica em vez de repetir - veio de grao esticado nao se ve, corda
+   repetida se ve na hora.
+
+   A largura da borda e a MESMA da fatia (56 e 72) de proposito: assim os
+   cantos saem em 1:1 e a arte nao borra. Isso da a placa um minimo de 128 px
+   de madeira, que e menos do que qualquer titulo do jogo ocupa. */
 .catch-banner {
   position: relative;
   max-width: 100%;
   flex: none;
-  padding: 10px 26px;
+  min-height: 64px;
+  padding: 0 6px;
   display: grid;
   place-items: center;
-  border: 14px solid transparent;
+  border-style: solid;
+  border-color: transparent;
+  border-width: 0 72px 0 56px;
   border-image-source: var(--banner-frame);
-  border-image-slice: 30 fill;
-  border-image-repeat: round;
+  border-image-slice: 0 72 0 56 fill;
+  border-image-repeat: stretch;
 }
 
 .catch-banner .headline {
@@ -2088,8 +2089,9 @@ button {
 /* ------------------------------------------------------------------ cartas */
 
 .cards-sheet {
-  width: min(700px, 96vw);
-  height: min(540px, 88vh);
+  /* a largura e a altura vem da secao TELAS (`carta`), como nas outras */
+  width: min(var(--tela-larg), 96vw);
+  height: min(var(--tela-alt), 88vh);
 }
 
 .card-row {
@@ -3777,6 +3779,74 @@ button {
 .editor-zone.piso span {
   background: #5de2a0;
   color: #06301d;
+}
+
+/* ==========================================================================
+   PREVIA DE TELA
+
+   A janela escolhida na secao TELAS, desenhada por cima do editor. Ela fica
+   ACIMA de tudo porque a graca e mexer no painel e ver a janela mudar - e o
+   painel continua clicavel porque so o CONTEUDO da previa recebe clique, e nao
+   o vazio em volta dele.
+   ========================================================================== */
+
+.tela-previa {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  pointer-events: none;
+}
+
+.tela-previa > * {
+  pointer-events: auto;
+}
+
+.tela-previa-tag {
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  background: rgba(4, 20, 30, 0.9);
+  border: 2px solid #ffd166;
+  color: #ffd166;
+}
+
+/* As pecas de HUD (barra de forca, medidor, recolhimento) nao tem fundo
+   proprio: no jogo elas vivem dentro da interface da pescaria. Na previa elas
+   ganham um palco, senao ficariam soltas no meio do editor. */
+.tela-previa-hud {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(2, 10, 16, 0.6);
+}
+
+/* a lista de TELAS, agrupada por utilidade */
+.elist.telas .eitem small {
+  opacity: 0.5;
+  font-size: 10px;
+}
+
+/* a lista de GRUPOS da aba CENA: e por ela que um grupo travado se destrava */
+.elist.grupos {
+  max-height: 140px;
+}
+
+.elist.grupos .eitem small {
+  opacity: 0.6;
+}
+
+.elist.grupos .eitem.locked {
+  opacity: 0.6;
+  cursor: default;
 }
 
 /* ==========================================================================

@@ -102,9 +102,57 @@ seleção: ele abre o menu de contexto do objeto que está embaixo do cursor.
 | Ajuste fino | setas (`Shift` = 10 px) |
 | Navegar o mapa | arrastar o fundo vazio, ou o botão do meio em qualquer lugar |
 | Menu | botão direito no objeto |
+| Copiar / colar | `Ctrl+C` / `Ctrl+V` |
+| Duplicar ao lado | `Ctrl+D` |
+| Agrupar / desagrupar | `G` / `Shift+G` |
+| Pegar uma peça de um grupo | `Alt` + clique |
 | Sair da seleção | `Esc` |
 
 O menu do botão direito tem cadeado, troca de camada, duplicar e apagar.
+
+## Grupos
+
+`G` junta a seleção num grupo; `Shift+G` desmancha. Depois disso, **clicar em
+qualquer peça pega o grupo inteiro** — é para isso que ele existe: o cais são
+vinte peças, e mover o cais não deveria ser um exercício de laço de seleção.
+`Alt` + clique pega uma peça só, sem desmanchar nada.
+
+O grupo é uma **etiqueta**, não um pai. As peças continuam soltas na lista, com
+posição própria; quem sabe do grupo é o clique. Um objeto-grupo de verdade teria
+caixa própria, e aí passariam a existir duas verdades sobre onde cada peça está.
+
+Grupo de grupo não aninha, **funde**: selecionar peças de dois grupos e apertar
+`G` faz um só. A alternativa (aninhar) deixaria "clicar numa peça" com duas
+respostas certas e nenhuma forma de saber qual sai.
+
+**Travar** um grupo trava cada peça dele, e peça travada não responde ao clique
+na tela — que é a razão de travar. A saída fica na aba `CENA`, numa lista de
+grupos com o número de peças e um botão de destravar: sem ela, travar vinte
+peças seria uma porta só de ida.
+
+## Copiar e colar
+
+`Ctrl+C` copia a seleção, `Ctrl+V` cola no meio da tela do editor. O **arranjo
+relativo** entre as peças é preservado — o que importa ao copiar cinco peças de
+cais não é onde cada uma cai, é a distância entre elas.
+
+A cópia guarda os objetos, e não os ids: colar depois de apagar o original
+funciona. Ela vive na sessão, então recarregar a página esvazia — uma área de
+transferência de uma semana atrás, colada por engano, é pior que uma vazia.
+
+Área de interação **única** (PESCAR, MERCADO, LIMIAR, NASCIMENTO) não cola: duas
+caixas de PESCAR na cena é um estado que o jogo não sabe ler.
+
+`Ctrl+D` continua duplicando no lugar, 40 unidades ao lado. São gestos
+diferentes: duplicar é "mais uma aqui", colar é "aquilo, ali".
+
+## Seleção múltipla
+
+**Tudo o que o inspetor escreve vale para a seleção inteira**, num passo só do
+`Ctrl+Z`: profundidade, opacidade, virar, girar, cor, ligar/desligar, o clipe da
+ação. As medidas mostradas e as alças na tela continuam sendo da última peça
+clicada — esticar dez peças de tamanhos diferentes de uma vez daria dez
+resultados que ninguém pediu.
 
 ## Desfazer
 
@@ -178,8 +226,38 @@ Era um combo com nome de pasta (`sit-right (1 quadro)`) e um campo de número ao
 lado. Escolher significava adivinhar, fechar o inspetor, olhar o boneco na cena
 e voltar.
 
+No topo fica o **personagem**. A arte era `char/<clipe>` e virou
+`char/<personagem>/<clipe>`: sem a pasta do personagem no meio só cabe um elenco
+no jogo inteiro, porque dois personagens com uma pose `sit-left` cada
+disputariam o mesmo arquivo. Hoje há um só (o Juggler), e com um a barra de
+escolha não aparece — escolha de uma opção só é ruído. Ela aparece sozinha
+quando a segunda pasta existir.
+
 Clipe novo aparece aqui sozinho: a lista sai do registro que o importador gera,
 não de uma relação escrita à mão.
+
+## Telas
+
+`TELAS` na barra do topo lista **todas as janelas do jogo**, agrupadas por para
+que servem: PESCARIA, MERCADO E LOJA, SEQUÊNCIA E PRÊMIO, CELULAR, SISTEMA.
+
+O agrupamento é por utilidade e não por arquivo. As cinco telas da sequência de
+pesca ficam juntas mesmo morando em quatro componentes diferentes, porque quem
+vai mexer nelas está pensando "a pescaria está feia", e não "o `CatchPopup` está
+feio".
+
+`ABRIR` desenha a tela **de verdade** por cima do editor — mesmo componente,
+mesmo CSS — com dados de mentira. Antes, ver a tela de ESCAPOU exigia perder um
+peixe e ver a ESCADA DE PRÊMIO exigia uma sequência. As telas que leem a partida
+(mercado, loja, álbum, conquistas) aparecem com o save de verdade, porque para
+elas isso é mais útil do que qualquer invenção.
+
+Cada tela tem largura, altura, deslocamento, escala e o quanto o fundo escurece.
+Isso **vale no jogo**, e não só na prévia: a janela lê as mesmas variáveis.
+
+Não há edição peça a peça dentro de cada tela, e isso é escolha: as janelas do
+jogo são todas a mesma estrutura (moldura, cabeçalho, corpo), e marcar cada
+bloco de cada uma na mão faria o primeiro botão novo nascer de fora do editor.
 
 ## Levar a cena para o código
 

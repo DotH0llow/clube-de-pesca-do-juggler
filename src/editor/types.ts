@@ -1,3 +1,5 @@
+import { getWorld } from '../world/worldConfig';
+
 /**
  * Camadas de TRABALHO. Elas dizem em que gaveta o objeto mora - nao dizem quem
  * fica na frente de quem. Ordem de desenho e a `depth`, logo abaixo.
@@ -77,11 +79,22 @@ export function depthZ(depth: number): number {
  */
 export type BandId = 'longe' | 'meio' | 'perto';
 
-export const BAND_FACTOR: Record<BandId, number> = {
-  longe: 0.22,
-  meio: 0.52,
-  perto: 1,
-};
+/**
+ * OS FATORES SAIRAM DAQUI e viraram configuracao.
+ *
+ * Eram 0,22 e 0,52 escritos em pedra. Sao os dois numeros que decidem o quanto
+ * o horizonte "desliza" quando a camera anda - e essa e uma decisao de olho, do
+ * tipo que so se acerta mexendo e olhando. Agora moram no `worldConfig` e a
+ * secao MUNDO do editor tem um slider para cada.
+ *
+ * `perto` continua sendo 1 e nao e configuravel: essa faixa e o proprio mundo,
+ * e mundo que anda em velocidade diferente da camera nao e parallax, e bug.
+ */
+export function bandFactor(band: BandId): number {
+  if (band === 'perto') return 1;
+  const w = getWorld();
+  return band === 'longe' ? w.parallaxFar : w.parallaxMid;
+}
 
 /** Em que faixa de parallax o objeto cai. */
 export function bandOf(o: Pick<SceneObject, 'parallax'>): BandId {
@@ -93,7 +106,7 @@ export function bandOf(o: Pick<SceneObject, 'parallax'>): BandId {
 
 /** Quanto o objeto anda em relação à câmera, na prática. */
 export function parallaxFactor(o: Pick<SceneObject, 'parallax'>): number {
-  return BAND_FACTOR[bandOf(o)];
+  return bandFactor(bandOf(o));
 }
 
 /**
@@ -176,6 +189,18 @@ export interface SceneObject {
   under?: boolean;
   /** classe extra de animacao (drift, rise...) */
   anim?: string;
+  /**
+   * A que GRUPO a peca pertence.
+   *
+   * Etiqueta, e nao pai: o grupo nao tem posicao nem tamanho proprios, e as
+   * pecas continuam soltas na lista. Quem sabe do grupo e o CLIQUE - pegar uma
+   * peca agrupada pega o grupo inteiro. `Alt` pega so ela.
+   *
+   * A alternativa seria um objeto-grupo de verdade, com caixa propria e filhos
+   * dentro. Ai passariam a existir duas verdades sobre onde a peca esta - a
+   * dela e a do pai - e toda conta de posicao no editor teria de escolher uma.
+   */
+  group?: string;
   /**
    * Papel especial da peca.
    *

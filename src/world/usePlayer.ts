@@ -6,7 +6,7 @@ import { getSettings } from '../state/settings';
 import { clipConfig, frameAt, seqLength } from '../editor/anims';
 import { actionAt, blockWalls, inZone, rodX, spawnX, thresholdX, zoneRect } from '../editor/scene';
 import { getFx } from '../editor/fx';
-import { BAND_FACTOR } from '../editor/types';
+import { bandFactor } from '../editor/types';
 import { CHAR_ANCHOR, CHAR_CANVAS, CHAR_FRAME_H, CLIP_FRAMES } from './charFrames';
 import { camMinX, groundAt, WORLD_W } from './layout';
 import { getWorld, panMaxY, panMinY, useWorld } from './worldConfig';
@@ -125,8 +125,23 @@ const ZOOM_STEP = 0.08;
 /** Altura do quadro inteiro em unidades de mundo (inclui a vara). */
 export const PLAYER_H = CHAR_FRAME_H * CHAR_SCALE;
 
+/**
+ * Quem o jogador controla.
+ *
+ * A arte passou a morar em `char/<personagem>/<clipe>`, e nao mais em
+ * `char/<clipe>`. Sem a pasta do personagem no meio, so existe UM elenco
+ * possivel no jogo inteiro: dois personagens com uma pose `sit-left` cada
+ * disputariam o mesmo caminho de arquivo.
+ *
+ * Este numero e uma constante e nao uma configuracao porque o Juggler e quem
+ * se anda com o teclado. Os outros personagens, quando existirem, entram como
+ * cenario animado - e ai quem escolhe o personagem e a caixa de acao do
+ * editor, uma por uma.
+ */
+export const PERSONAGEM_JOGADOR = 'juggler';
+
 function clipName(anim: AnimName, facing: Facing): string {
-  return `${anim}-${facing}`;
+  return `${PERSONAGEM_JOGADOR}/${anim}-${facing}`;
 }
 
 function framePath(clip: string, i: number): string {
@@ -265,7 +280,7 @@ export function usePlayer({
    * e o que entra e agua embaixo - em vez de a cena inteira escorregar.
    */
   const scale = (viewH / world.frameH) * zoom * frame;
-  const viewY = viewH * world.waterAnchor - world.waterY * scale;
+  const viewY = viewH * world.waterAnchor - (world.waterY - world.frameOffsetY) * scale;
   /*
    * Os refs sao a versao de QUADRO desses dois numeros; estes aqui sao a versao
    * de RENDER, que vira propriedade para o editor desenhar as caixas.
@@ -472,10 +487,10 @@ export function usePlayer({
       // compartilhada - o editor le a MESMA para saber onde desenhar a caixa
       // de selecao de uma ilha do horizonte
       if (farRef.current) {
-        farRef.current.style.transform = `translate3d(${-camX.current * BAND_FACTOR.longe}px,0,0)`;
+        farRef.current.style.transform = `translate3d(${-camX.current * bandFactor('longe')}px,0,0)`;
       }
       if (midRef.current) {
-        midRef.current.style.transform = `translate3d(${-camX.current * BAND_FACTOR.meio}px,0,0)`;
+        midRef.current.style.transform = `translate3d(${-camX.current * bandFactor('meio')}px,0,0)`;
       }
     };
 
@@ -520,7 +535,9 @@ export function usePlayer({
       // deixa o zoom correr a 60 quadros sem re-renderizar a cena inteira
       const mundoAgora = getWorld();
       scaleRef.current = (viewHRef.current / mundoAgora.frameH) * zoomRef.current * frameRef.current;
-      viewYRef.current = viewHRef.current * mundoAgora.waterAnchor - mundoAgora.waterY * scaleRef.current;
+      viewYRef.current =
+        viewHRef.current * mundoAgora.waterAnchor -
+        (mundoAgora.waterY - mundoAgora.frameOffsetY) * scaleRef.current;
 
       // o React so precisa saber quando o numero muda de verdade (o editor le
       // esse valor para desenhar as caixas, e o topo mostra a porcentagem)

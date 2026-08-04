@@ -24,6 +24,26 @@ root.setProperty('--btn-frame', `url("${asset('ui/button')}")`);
 root.setProperty('--panel-frame', `url("${asset('ui/window-frame')}")`);
 root.setProperty('--banner-frame', `url("${asset('ui/window-title')}")`);
 
+/*
+ * O BOTÃO DIREITO É DO JOGO, não do navegador.
+ *
+ * O editor já usa o direito para abrir o menu de contexto do objeto, e o menu
+ * do Firefox abria por cima dele - "Recarregar", "Salvar como", "Criar QR
+ * Code". Dentro do jogo era pior: o direito não faz nada e o menu do navegador
+ * aparecia mesmo assim, no meio da pescaria.
+ *
+ * O bloqueio é na janela inteira e não em cada componente, porque a lista de
+ * componentes cresce e um `onContextMenu` esquecido em qualquer um deles traz
+ * o menu de volta. As exceções são os campos de TEXTO: ali o menu do navegador
+ * é útil de verdade (copiar, colar, corrigir), e o editor tem campo de texto
+ * em três painéis.
+ */
+window.addEventListener('contextmenu', (e) => {
+  const alvo = e.target as HTMLElement | null;
+  if (alvo?.closest('input, textarea, [contenteditable="true"]')) return;
+  e.preventDefault();
+});
+
 const el = document.getElementById('root');
 if (!el) throw new Error('#root não encontrado');
 

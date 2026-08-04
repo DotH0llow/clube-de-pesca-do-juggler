@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { asset } from '../assets';
 import {
   addAction,
@@ -9,20 +9,28 @@ import {
   beginBatch,
   canRedo,
   canUndo,
+  clipboardSize,
+  copyObjects,
   duplicateObject,
   endBatch,
   exportScene,
+  groupList,
+  groupMembers,
+  groupObjects,
   importScene,
   moveToLayer,
+  pasteObjects,
   redo,
   removeObject,
   resetScene,
   toggleLayer,
   toggleLock,
   undo,
+  ungroupObjects,
   reorder,
   rodX,
   updateObject,
+  updateObjects,
   useActiveScene,
   useScene,
   MENU_H,
@@ -44,6 +52,8 @@ import {
 import { LibraryPanel } from './LibraryPanel';
 import { AnimationsPanel, MechanicsPanel } from './AnimationsPanel';
 import { WorldPanel } from './WorldPanel';
+import { TelasPanel } from './TelasPanel';
+import { abrirTela } from './telas';
 import { FloatersPanel } from './FloatersPanel';
 import { ColorField, NumberField, SliderField } from './fields';
 import {
@@ -133,13 +143,21 @@ const HANDLES: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
  */
 function molduraRect(
   frame: number,
-  mundo: { frameH: number; waterY: number; waterAnchor: number },
+  mundo: { frameH: number; waterY: number; waterAnchor: number; frameOffsetY: number },
   centroX: number,
 ): { x: number; y: number; w: number; h: number } {
   const h = mundo.frameH / frame;
   const razao = window.innerWidth / Math.max(1, window.innerHeight);
   const w = h * razao;
-  return { x: centroX - w / 2, y: mundo.waterY - h * mundo.waterAnchor, w, h };
+  // o topo sai da ancora da linha d'agua MENOS o deslocamento livre: e o
+  // deslocamento que deixa a moldura sair de perto da agua sem esbarrar em
+  // limite nenhum
+  return {
+    x: centroX - w / 2,
+    y: mundo.waterY - mundo.frameOffsetY - h * mundo.waterAnchor,
+    w,
+    h,
+  };
 }
 
 /** Camada de trabalho, ou `todas` para pegar qualquer coisa que estiver visivel. */
@@ -156,6 +174,10 @@ const DEPTHS = Array.from({ length: DEPTH_MAX - DEPTH_MIN + 1 }, (_, i) => DEPTH
  *     menu de contexto, sem mexer no que esta selecionado;
  *   - Ctrl+Z desfaz e Ctrl+Shift+Z (ou Ctrl+Y) refaz. Um arrasto inteiro conta
  *     como um passo so;
+ *   - Ctrl+C copia, Ctrl+V cola no meio da tela, Ctrl+D duplica ao lado;
+ *   - G agrupa a selecao, Shift+G desagrupa. Clicar numa peca agrupada pega o
+ *     grupo inteiro; Alt+clique pega so ela;
+ *   - o que o inspetor escreve vale para a SELECAO INTEIRA;
  *   - tudo o que muda vai direto para a cena, que e a mesma que o jogo desenha.
  */
 export function EditorOverlay({
@@ -204,6 +226,24 @@ export function EditorOverlay({
     );
   }, []);
 
+  /**
+   * O QUE O INSPETOR ESCREVE VALE PARA A SELECAO INTEIRA.
+   *
+   * Todo campo do inspetor chamava `updateObject(sel.id, ...)`, e `sel` e a
+   * ULTIMA peca clicada. Com dez pecas selecionadas, baixar a opacidade mexia
+   * numa - a selecao multipla existia para arrastar e apagar, e parava ali.
+   *
+   * `aplicar` e a mesma chamada valendo para todos, num passo so do desfazer.
+   * Onde a mudanca precisa ser relativa a cada peca (empurrar, virar), o
+   * `patch` vira funcao.
+   */
+  const aplicar = useCallback(
+    (patch: Partial<SceneObject> | ((o: SceneObject) => Partial<SceneObject>)) => {
+      updateObjects(selIds, patch);
+    },
+    [selIds],
+  );
+
   /** O painel de camadas recolhe para liberar o canto esquerdo da tela. */
   const [camadasAbertas, setCamadasAbertas] = useState(true);
   /** Pastas fechadas na aba CENA, por camada. */
@@ -212,7 +252,7 @@ export function EditorOverlay({
   const [laco, setLaco] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const [fxSel, setFxSel] = useState<string | null>(null);
   const [panel, setPanel] = useState<
-    'biblioteca' | 'cena' | 'animacoes' | 'mecanicas' | 'mundo' | 'flutuadores' | null
+    'biblioteca' | 'cena' | 'animacoes' | 'mecanicas' | 'mundo' | 'flutuadores' | 'telas' | null
   >('biblioteca');
   /** menu de formas geometricas aberto no topo */
   const [formas, setFormas] = useState(false);
@@ -247,8 +287,15 @@ export function EditorOverlay({
     if (camYRef) camYRef.current = camY;
   }, [camY, camYRef]);
 
-  // fechar o editor nunca deixa o jogo preso numa etapa de simulacao
-  useEffect(() => stopPreview, []);
+  // fechar o editor nunca deixa o jogo preso numa etapa de simulacao - nem com
+  // uma tela de mentira aberta por cima dele
+  useEffect(
+    () => () => {
+      stopPreview();
+      abrirTela(null);
+    },
+    [],
+  );
 
   /**
    * Ligar a simulacao leva o Juggler para o ponto de pesca e enquadra a camera
@@ -265,6 +312,8 @@ export function EditorOverlay({
   }, [preview.mechanic, playerXRef, scale]);
 
   const sel = selected ? scene.objects.find((o) => o.id === selected) ?? null : null;
+  /** os grupos que existem na cena agora, para a lista da aba CENA */
+  const grupos = useMemo(() => groupList(), [scene.objects]);
 
   /**
    * A ordem em que a lista da aba CENA aparece na tela.
@@ -458,6 +507,55 @@ export function EditorOverlay({
         return;
       }
 
+      /*
+       * COPIAR E COLAR.
+       *
+       * A copia guarda os OBJETOS, e nao os ids: colar depois de apagar o
+       * original tem de funcionar. E a colagem entra pelo canto superior
+       * esquerdo do conjunto, no meio da tela do editor - assim o arranjo
+       * relativo entre as pecas sobrevive, que e o que importa quando se copia
+       * cinco pecas de cais.
+       *
+       * Ctrl+D continua duplicando no lugar, 40 unidades ao lado. Sao gestos
+       * diferentes: duplicar e "mais uma aqui", colar e "aquilo, ali".
+       */
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyC' && selIds.length > 0) {
+        e.preventDefault();
+        copyObjects(selIds);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyV' && clipboardSize() > 0) {
+        e.preventDefault();
+        const alvoX = sceneId === 'menu' ? MENU_W / 2 : cam + window.innerWidth / scale / 2;
+        const alvoY = sceneId === 'menu' ? MENU_H / 2 : 320;
+        const novos = pasteObjects(Math.round(alvoX), Math.round(alvoY));
+        if (novos.length) {
+          setLayer('todas');
+          setSelIds(novos);
+        }
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyD' && selIds.length > 0) {
+        e.preventDefault();
+        const copias = selIds.map((id) => duplicateObject(id)).filter(Boolean) as SceneObject[];
+        if (copias.length) setSelIds(copias.map((o) => o.id));
+        return;
+      }
+
+      /*
+       * G AGRUPA, SHIFT+G DESAGRUPA.
+       *
+       * Sem Ctrl de proposito: no editor a mao esta no mouse e o G solto e o
+       * atalho que todo programa de desenho usa. `Ctrl+G` continua livre para
+       * o navegador (buscar de novo), que e onde ele ja faz alguma coisa.
+       */
+      if (e.code === 'KeyG' && !e.ctrlKey && !e.metaKey && !e.altKey && selIds.length > 0) {
+        e.preventDefault();
+        if (e.shiftKey) ungroupObjects(selIds);
+        else groupObjects(selIds);
+        return;
+      }
+
       if (selIds.length === 0) return;
       // apagar e empurrar com as setas valem para a SELECAO INTEIRA
       const alvos = scene.objects.filter((x) => selIds.includes(x.id) && !x.locked);
@@ -483,7 +581,7 @@ export function EditorOverlay({
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [selIds, scene.objects, scene.hidden, layer]);
+  }, [selIds, scene.objects, scene.hidden, layer, sceneId, cam, scale]);
 
   // --------------------------------------------------------- mouse na cena
   const onPointerDown = (e: React.PointerEvent) => {
@@ -544,14 +642,23 @@ export function EditorOverlay({
        * no primeiro clique, que e o oposto do que arrastar um grupo quer
        * dizer.
        */
+      /*
+       * PECA AGRUPADA PEGA O GRUPO INTEIRO.
+       *
+       * E para isso que grupo existe: clicar em qualquer tabua do cais pega o
+       * cais. `Alt` pega so a peca clicada, porque uma hora voce vai querer
+       * ajustar uma tabua sozinha sem desmanchar o grupo.
+       */
+      const pega = e.altKey ? [found.id] : groupMembers(found.id);
+
       let alvo = selIds;
       if (e.ctrlKey || e.metaKey) {
-        alvo = selIds.includes(found.id)
-          ? selIds.filter((x) => x !== found.id)
-          : [...selIds, found.id];
+        alvo = pega.every((id) => selIds.includes(id))
+          ? selIds.filter((x) => !pega.includes(x))
+          : [...selIds, ...pega.filter((id) => !selIds.includes(id))];
         setSelIds(alvo);
       } else if (!selIds.includes(found.id)) {
-        alvo = [found.id];
+        alvo = pega;
         setSelIds(alvo);
       }
       if (!alvo.includes(found.id)) return;
@@ -652,16 +759,26 @@ export function EditorOverlay({
       }
 
       /*
-       * Mover a moldura inteira no vertical MUDA A ANCORA DA LINHA D'AGUA.
+       * Mover a moldura inteira no vertical E LIVRE.
        *
-       * `waterAnchor` e a altura da tela em que a linha d'agua fica parada, de
-       * 0 (topo) a 1 (pe). E o que decide quanto de ceu e quanto de mar o
-       * jogador ve, e ate agora so dava para mexer nele no slider da secao
-       * MUNDO, sem ver o resultado. Aqui e a moldura que arrasta.
+       * Isto escrevia em `waterAnchor`, que e uma fracao da TELA presa entre
+       * 0,05 e 0,95 - a moldura chegava na borda e travava, e nao havia como
+       * enquadrar uma cena de pouco chao e muito ceu. O arrasto agora escreve
+       * em `frameOffsetY`, que e um deslocamento em unidades de MUNDO e nao
+       * tem limite nenhum.
+       *
+       * A ancora continua existindo e continua fazendo o que sempre fez:
+       * decidir o que fica PARADO quando a camera abre no pier. Sao coisas
+       * diferentes, e por isso viraram dois numeros - antes era um so, fazendo
+       * os dois servicos mal.
+       *
+       * O sinal e invertido de proposito: arrastar a moldura para BAIXO na
+       * tela e pedir para ver o que esta mais embaixo, e `frameOffsetY`
+       * positivo sobe o enquadramento.
        */
       if (d.mode === 'ancora') {
-        const alvo = d.base + (py - d.py) / Math.max(1, window.innerHeight);
-        updateWorld({ waterAnchor: Math.min(0.95, Math.max(0.05, Number(alvo.toFixed(4)))) });
+        const alvo = d.base - (py - d.py) / Math.max(0.05, scale);
+        updateWorld({ frameOffsetY: Math.round(alvo) });
         return;
       }
       if (d.mode === 'move') {
@@ -1117,10 +1234,10 @@ export function EditorOverlay({
               {/* as bordas de cima e de baixo esticam o enquadramento */}
               <i className="mborda n" onPointerDown={inicio('n')} title="Arraste para abrir ou fechar a câmera" />
               <i className="mborda s" onPointerDown={inicio('s')} title="Arraste para abrir ou fechar a câmera" />
-              {/* e a pega do meio sobe e desce a linha d'água na tela */}
+              {/* e a pega do meio sobe e desce a moldura inteira, sem limite */}
               <i
                 className="mancora"
-                title="Arraste para escolher em que altura da tela a linha d'água fica"
+                title="Arraste para subir ou descer o enquadramento — para cima mostra mais chão, para baixo mais céu"
                 onPointerDown={(e) => {
                   if (e.button !== 0) return;
                   e.stopPropagation();
@@ -1128,7 +1245,7 @@ export function EditorOverlay({
                   drag.current = {
                     mode: 'ancora',
                     py: e.clientY - host.getBoundingClientRect().top,
-                    base: mundo.waterAnchor,
+                    base: mundo.frameOffsetY,
                   };
                 }}
               />
@@ -1256,6 +1373,20 @@ export function EditorOverlay({
           title="Nuvens, pássaros e o que mais atravessa o céu"
         >
           FLUTUADORES
+        </button>
+        <button
+          className="ebtn"
+          onClick={() => {
+            stopPreview();
+            const indo = panel === 'telas' ? null : 'telas';
+            // fechar a secao fecha a tela que estava aberta junto: janela de
+            // mentira presa na tela sem o painel que a controla e um susto
+            if (indo === null) abrirTela(null);
+            setPanel(indo);
+          }}
+          title="Todas as janelas do jogo, agrupadas por utilidade: abrir, ver e ajustar"
+        >
+          TELAS
         </button>
         <div className="eshape-wrap">
           <button className="ebtn" onClick={() => setFormas((v) => !v)} title="Criar uma forma geométrica colorida">
@@ -1497,8 +1628,9 @@ export function EditorOverlay({
             </div>
             {selIds.length > 1 && (
               <div className="ehint">
-                Arrastar, apagar, esconder e as setas valem para as {selIds.length}. As medidas e
-                as alças abaixo são da última que você clicou.
+                Tudo o que você mexer aqui vale para as {selIds.length}, num passo só do Ctrl+Z. As
+                medidas abaixo e as alças na tela são da última que você clicou — esticar dez peças
+                de tamanhos diferentes de uma vez daria dez resultados que ninguém pediu.
               </div>
             )}
             <div className="eline">{sel.sprite || sel.zone || sel.id}</div>
@@ -1509,6 +1641,53 @@ export function EditorOverlay({
               L {Math.round(sel.w)} &middot; A {Math.round(sel.h)} &middot; {Math.round(sel.rot)}°
             </div>
 
+            {/* ------------------------------------------------- grupo */}
+            <div className="erow" style={{ marginTop: 6 }}>
+              <button
+                className="ebtn"
+                disabled={selIds.length < 2}
+                onClick={() => groupObjects(selIds)}
+                title="G · junta a seleção num grupo. Clicar em qualquer peça passa a pegar todas."
+              >
+                AGRUPAR
+              </button>
+              <button
+                className="ebtn"
+                disabled={!sel.group}
+                onClick={() => ungroupObjects(selIds)}
+                title="Shift+G · desmancha o grupo. As peças ficam onde estão."
+              >
+                DESAGRUPAR
+              </button>
+            </div>
+            {sel.group && (
+              <>
+                <div className="ehint">
+                  Grupo de {scene.objects.filter((o) => o.group === sel.group).length} peças. Alt +
+                  clique pega uma só, sem desmanchar nada.
+                </div>
+                <div className="erow">
+                  <button
+                    className="ebtn"
+                    onClick={() => {
+                      const membros = scene.objects.filter((o) => o.group === sel.group);
+                      const travar = !membros.every((m) => m.locked);
+                      updateObjects(
+                        membros.map((m) => m.id),
+                        { locked: travar },
+                      );
+                      if (travar) setSelIds([]);
+                    }}
+                    title="Grupo travado não é selecionado nem apagado pelo clique. Destrave pela lista da aba CENA."
+                  >
+                    {scene.objects.filter((o) => o.group === sel.group).every((m) => m.locked)
+                      ? 'DESTRAVAR GRUPO'
+                      : 'TRAVAR GRUPO'}
+                  </button>
+                </div>
+              </>
+            )}
+
             <div className="etitle" style={{ marginTop: 8 }}>
               PROFUNDIDADE
             </div>
@@ -1517,7 +1696,7 @@ export function EditorOverlay({
                 <button
                   key={d}
                   className={`edepth-step${sel.depth === d ? ' on' : ''}${d === PLAYER_DEPTH ? ' juggler' : ''}`}
-                  onClick={() => updateObject(sel.id, { depth: d })}
+                  onClick={() => aplicar({ depth: d })}
                   title={DEPTH_HINTS[d]}
                 >
                   {d}
@@ -1539,10 +1718,10 @@ export function EditorOverlay({
             </div>
 
             <div className="erow">
-              <button className="ebtn" onClick={() => updateObject(sel.id, { flip: !sel.flip })}>
+              <button className="ebtn" onClick={() => aplicar((o) => ({ flip: !o.flip }))}>
                 ESPELHAR
               </button>
-              <button className="ebtn" onClick={() => updateObject(sel.id, { rot: 0 })}>
+              <button className="ebtn" onClick={() => aplicar({ rot: 0 })}>
                 ZERAR GIRO
               </button>
             </div>
@@ -1552,7 +1731,7 @@ export function EditorOverlay({
             <SliderField
               label="OPACIDADE"
               value={sel.opacity ?? 1}
-              onChange={(v) => updateObject(sel.id, { opacity: v })}
+              onChange={(v) => aplicar({ opacity: v })}
             />
 
             {/* ------------------------------------------- forma geométrica */}
@@ -1565,7 +1744,7 @@ export function EditorOverlay({
                   DESENHO
                   <select
                     value={sel.shape ?? 'retangulo'}
-                    onChange={(e) => updateObject(sel.id, { shape: e.target.value as ShapeKind })}
+                    onChange={(e) => aplicar({ shape: e.target.value as ShapeKind })}
                   >
                     {SHAPES.map((f) => (
                       <option key={f.id} value={f.id}>
@@ -1577,13 +1756,13 @@ export function EditorOverlay({
                 <ColorField
                   label="COR DE DENTRO"
                   value={sel.fill ?? '#2fd6c9'}
-                  onChange={(v) => updateObject(sel.id, { fill: v })}
+                  onChange={(v) => aplicar({ fill: v })}
                 />
                 <ColorField
                   label="COR DA BORDA"
                   value={sel.stroke ?? ''}
                   allowEmpty
-                  onChange={(v) => updateObject(sel.id, { stroke: v })}
+                  onChange={(v) => aplicar({ stroke: v })}
                 />
                 {sel.stroke && (
                   <label className="efield">
@@ -1592,7 +1771,7 @@ export function EditorOverlay({
                       type="number"
                       min={1}
                       value={sel.strokeW ?? 4}
-                      onChange={(e) => updateObject(sel.id, { strokeW: Math.max(1, Number(e.target.value)) })}
+                      onChange={(e) => aplicar({ strokeW: Math.max(1, Number(e.target.value)) })}
                     />
                   </label>
                 )}
@@ -1603,7 +1782,7 @@ export function EditorOverlay({
                       type="number"
                       min={0}
                       value={sel.radius ?? 0}
-                      onChange={(e) => updateObject(sel.id, { radius: Math.max(0, Number(e.target.value)) })}
+                      onChange={(e) => aplicar({ radius: Math.max(0, Number(e.target.value)) })}
                     />
                   </label>
                 )}
@@ -1641,7 +1820,7 @@ export function EditorOverlay({
                     <NumberField
                       label="QUEDA"
                       value={sel.queda ?? 0}
-                      onChange={(v) => updateObject(sel.id, { queda: Math.round(v) })}
+                      onChange={(v) => aplicar({ queda: Math.round(v) })}
                       step={2}
                       suffix="quanto desce da esquerda para a direita; 0 é plano, negativo sobe"
                     />
@@ -1650,7 +1829,7 @@ export function EditorOverlay({
                       {Math.round(sel.y + (sel.queda ?? 0))}).
                     </div>
                     <div className="erow">
-                      <button className="ebtn" onClick={() => updateObject(sel.id, { off: !sel.off })}>
+                      <button className="ebtn" onClick={() => aplicar((o) => ({ off: !o.off }))}>
                         {sel.off ? 'LIGAR CHÃO' : 'DESLIGAR CHÃO'}
                       </button>
                       <button
@@ -1667,7 +1846,7 @@ export function EditorOverlay({
                 )}
                 {sel.zone === 'parede' && (
                   <div className="erow">
-                    <button className="ebtn" onClick={() => updateObject(sel.id, { off: !sel.off })}>
+                    <button className="ebtn" onClick={() => aplicar((o) => ({ off: !o.off }))}>
                       {sel.off ? 'LIGAR PAREDE' : 'DESLIGAR PAREDE'}
                     </button>
                     <button
@@ -1692,12 +1871,12 @@ export function EditorOverlay({
                 {(sel.zone === 'animacao' || sel.zone === 'pose') && (
                   <>
                     <ClipPicker
-                      clipe={sel.clip ?? 'side-idle-left'}
+                      clipe={sel.clip ?? 'juggler/side-idle-left'}
                       quadro={sel.zone === 'pose' ? (sel.poseFrame ?? 0) : undefined}
-                      onClipe={(nome) => updateObject(sel.id, { clip: nome })}
+                      onClipe={(nome) => aplicar({ clip: nome })}
                       onQuadro={
                         sel.zone === 'pose'
-                          ? (n) => updateObject(sel.id, { poseFrame: n })
+                          ? (n) => aplicar({ poseFrame: n })
                           : undefined
                       }
                     />
@@ -1707,7 +1886,7 @@ export function EditorOverlay({
                       <input
                         value={sel.prompt ?? ''}
                         placeholder="Sentar"
-                        onChange={(e) => updateObject(sel.id, { prompt: e.target.value })}
+                        onChange={(e) => aplicar({ prompt: e.target.value })}
                       />
                     </label>
                     <div className="ehint">
@@ -1742,7 +1921,7 @@ export function EditorOverlay({
             )}
 
             <div className="erow">
-              <button className="ebtn" onClick={() => updateObject(sel.id, { off: !sel.off })}>
+              <button className="ebtn" onClick={() => aplicar((o) => ({ off: !o.off }))}>
                 {sel.off ? 'MOSTRAR' : 'ESCONDER'}
               </button>
             </div>
@@ -1777,6 +1956,52 @@ export function EditorOverlay({
               </button>
             )}
           </div>
+
+          {/* ------------------------------------------------------- grupos
+
+              Isto aqui e a SAIDA para um grupo travado. Peca travada nao
+              responde ao clique na tela - e essa e a razao de travar - entao
+              sem uma lista de grupos, travar vinte pecas de uma vez seria uma
+              porta so de ida: destravar exigiria vinte cliques na lista de
+              objetos, um por peca. */}
+          {grupos.length > 0 && (
+            <>
+              <div className="eanim-label">GRUPOS ({grupos.length})</div>
+              <div className="elist grupos">
+                {grupos.map((g) => (
+                  <button
+                    key={g.nome}
+                    className={`eitem${sel?.group === g.nome ? ' on' : ''}${g.travado ? ' locked' : ''}`}
+                    onClick={() => {
+                      const membros = scene.objects.filter((o) => o.group === g.nome);
+                      if (g.travado) return;
+                      setLayer('todas');
+                      setSelIds(membros.map((o) => o.id));
+                    }}
+                    title={g.travado ? 'Grupo travado · destrave para poder pegar' : 'Seleciona o grupo inteiro'}
+                  >
+                    <span className="grow">
+                      {g.nome} <small>({g.pecas})</small>
+                    </span>
+                    <span
+                      className="mini"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const membros = scene.objects.filter((o) => o.group === g.nome);
+                        updateObjects(
+                          membros.map((m) => m.id),
+                          { locked: !g.travado },
+                        );
+                        if (!g.travado) setSelIds([]);
+                      }}
+                    >
+                      {g.travado ? 'DESTRAVAR' : 'TRAVAR'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           <div className="elist">
             {LAYERS.map((l) => {
@@ -1873,6 +2098,7 @@ export function EditorOverlay({
       {panel === 'animacoes' && <AnimationsPanel />}
 
       {panel === 'mundo' && <WorldPanel />}
+      {panel === 'telas' && <TelasPanel />}
 
       {panel === 'flutuadores' && <FloatersPanel />}
 

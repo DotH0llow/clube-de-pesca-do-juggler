@@ -2,6 +2,26 @@
 
 Como a arte do personagem entra no jogo e por que o importador é do jeito que é.
 
+## Um personagem, uma pasta
+
+A arte mora em `src/assets/game/char/<personagem>/<clipe>/00.webp`. O nível do
+meio é novo e existe por um motivo simples: sem ele só cabe **um** elenco no
+jogo inteiro, porque dois personagens com uma pose `sit-left` cada disputariam o
+mesmo caminho de arquivo.
+
+Hoje há um: `juggler`. Para trazer outro, rode o importador com o nome dele —
+
+```bash
+PERSONAGEM=sazon ANIM_DIR=~/sazon_anim FISH_DIR=~/sazon-fishing \
+  python3 scripts/import-character.py
+```
+
+— e o seletor de pose do editor mostra a barra de escolha de personagem
+sozinho. Nada de cadastro em código.
+
+O jogador é sempre o Juggler (`PERSONAGEM_JOGADOR` em `world/usePlayer.ts`). Os
+outros entram como cenário animado, pelas caixas de AÇÃO do editor, uma a uma.
+
 ## De onde vem a arte
 
 Dois pacotes, ambos desenhados olhando para a **esquerda** (o mar aberto fica à

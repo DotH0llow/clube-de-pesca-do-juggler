@@ -12,6 +12,7 @@ import { CatchPopup } from './components/CatchPopup';
 import { HuntHud } from './components/HookHunt';
 import { DevPanel } from './components/DevPanel';
 import { EditorOverlay } from './editor/EditorOverlay';
+import { TelaPreview } from './editor/TelaPreview';
 import { getFx, type StepId } from './editor/fx';
 import { currentStep, usePreview } from './editor/preview';
 import { MarketApp } from './components/MarketPanel';
@@ -730,6 +731,12 @@ export default function App() {
           onExit={() => setEditor(false)}
         />
       )}
+
+      {/* A tela escolhida na secao TELAS do editor, desenhada de verdade por
+          cima dele. Fica aqui, e nao dentro do editor, porque o `App` e quem
+          ja tem todas as janelas importadas - o editor teria de importar as
+          quinze de novo. */}
+      {editor && <TelaPreview />}
 
       {showDebug && (
         <DebugPanel

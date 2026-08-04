@@ -94,15 +94,23 @@ export function WorldPanel() {
           label="ALTURA DA MOLDURA"
           value={w.frameH}
           step={10}
-          onChange={(v) => updateWorld({ frameH: Math.max(200, v) })}
+          onChange={(v) => updateWorld({ frameH: Math.max(120, v) })}
           suffix="unidades que cabem na tela"
+        />
+        <NumberField
+          label="SUBIR / DESCER A MOLDURA"
+          value={w.frameOffsetY}
+          step={10}
+          onChange={(v) => updateWorld({ frameOffsetY: Math.round(v) })}
+          suffix="+ mostra mais céu · − mostra mais chão"
         />
         <SliderField
           label="ALTURA DA LINHA D'ÁGUA NA TELA"
           value={w.waterAnchor}
-          min={0.1}
-          max={0.9}
+          min={0}
+          max={1}
           onChange={(v) => updateWorld({ waterAnchor: v })}
+          suffix="0 = topo da tela · 1 = pé"
         />
         <SliderField
           label="NO LADO DA PRAIA"
@@ -132,6 +140,45 @@ export function WorldPanel() {
         Menor no lado do mar = câmera mais aberta = mais água na tela. A virada acontece no objeto
         LIMIAR DO PÍER, na camada INTERAGÍVEIS - arraste a caixa dele para escolher onde exatamente
         a tela abre e fecha.
+      </div>
+      <div className="ehint">
+        <b>ALTURA DA LINHA D'ÁGUA NA TELA</b> responde a uma pergunta só: quando a câmera abre no
+        píer e passa a mostrar mais mundo, o que fica <i>parado</i>? A linha d'água — e este número
+        diz em que altura da tela ela para. Sem isso o horizonte subiria e desceria a cada vez que
+        o Juggler cruza o limiar.
+        <br />
+        <b>SUBIR / DESCER A MOLDURA</b> é outra coisa: a âncora é uma fração da tela e trava nas
+        bordas, este é um deslocamento em unidades de mundo e não trava em nada. É ele que faz uma
+        cena de pouco chão e muito céu. Os dois valem no jogo na hora, e a moldura amarela aqui na
+        tela arrasta pela pega do meio.
+      </div>
+
+      <div className="eanim-label">PARALLAX DO FUNDO</div>
+      <div className="efields">
+        <SliderField
+          label="HORIZONTE (MONTANHA, NEBLINA)"
+          value={w.parallaxFar}
+          min={0}
+          max={1}
+          onChange={(v) => updateWorld({ parallaxFar: v })}
+          suffix="× a velocidade da câmera"
+        />
+        <SliderField
+          label="ILHAS"
+          value={w.parallaxMid}
+          min={0}
+          max={1}
+          onChange={(v) => updateWorld({ parallaxMid: v })}
+          suffix="× a velocidade da câmera"
+        />
+      </div>
+      <div className="ehint">
+        1 é andar junto com o mundo; 0 é ficar parado, colado na tela. Quanto menor, mais longe a
+        faixa parece estar. A terceira distância (o próprio mundo) é sempre 1 e não aparece aqui:
+        cenário que anda em velocidade diferente da câmera não é profundidade, é defeito.
+        <br />
+        Em que faixa cada objeto cai é o campo <b>PARALLAX</b> dele no inspetor: abaixo de 0,35 vai
+        para o horizonte, até 0,8 para as ilhas, daí para cima anda com o mundo.
       </div>
 
       <div className="eanim-label">ONDAS</div>

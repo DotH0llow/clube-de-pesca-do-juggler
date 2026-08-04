@@ -43,14 +43,59 @@ export interface WorldConfig {
   // ----------------------------------------------------------- enquadramento
   /** quantas unidades de altura cabem na tela com zoom 1 */
   frameH: number;
-  /** onde a linha d'agua fica na tela, de 0 (topo) a 1 (pe) */
+  /**
+   * ONDE A LINHA D'AGUA FICA NA TELA, de 0 (topo) a 1 (pe).
+   *
+   * Este numero responde a uma pergunta so: quando a camera abre no pier e
+   * passa a mostrar mais mundo, O QUE FICA PARADO? A resposta e a linha
+   * d'agua, e este e o ponto da TELA em que ela fica.
+   *
+   * 0,5 poe o mar no meio: metade ceu, metade agua. Baixando para 0,3, a linha
+   * d'agua sobe na tela e sobra mais agua embaixo. Subindo para 0,8, ela desce
+   * e sobra mais ceu em cima.
+   *
+   * Sem uma ancora a cena inteira escorregaria quando o enquadramento mudasse:
+   * o horizonte subiria e desceria a cada vez que o Juggler cruza o limiar, e
+   * e isso que da enjoo em jogo lateral.
+   */
   waterAnchor: number;
+  /**
+   * DESLOCAMENTO DA MOLDURA, em unidades de mundo.
+   *
+   * A ancora acima e uma fracao da TELA e esta presa a linha d'agua. Para uma
+   * cena que e quase toda ceu - pouco chao embaixo, muito ar em cima - a
+   * ancora sozinha nao chega la: ela vai ate a borda e para.
+   *
+   * Este numero e o resto do caminho, e ele e solto: POSITIVO sobe a moldura
+   * (mostra mais ceu), NEGATIVO desce (mostra mais chao e mais agua). Nao tem
+   * limite, e por isso a moldura do editor arrasta no vertical sem esbarrar em
+   * nada.
+   */
+  frameOffsetY: number;
   /** enquadramento do lado da praia (1 = o normal) */
   frameLand: number;
   /** enquadramento do lado do mar: menor = camera mais aberta, mais mar */
   frameSea: number;
   /** quanto tempo a troca de enquadramento leva, em segundos */
   frameEase: number;
+
+  // --------------------------------------------------------------- parallax
+  /**
+   * O QUANTO CADA FAIXA DE FUNDO ANDA COM A CAMERA.
+   *
+   * 1 e andar junto com o mundo; 0 e ficar parado, colado na tela. A faixa
+   * LONGE leva montanha e neblina de horizonte, a MEIO leva as ilhas.
+   *
+   * Estes dois numeros estavam escritos em pedra no `editor/types.ts`. Sao
+   * decisao de olho - o quanto o horizonte "desliza" quando se anda so se
+   * acerta mexendo e olhando - e por isso viraram slider.
+   *
+   * A terceira faixa (PERTO) e sempre 1 e nao aparece no editor: ela e o
+   * proprio mundo, e mundo que anda em velocidade diferente da camera nao e
+   * parallax, e bug.
+   */
+  parallaxFar: number;
+  parallaxMid: number;
 
   // ------------------------------------------------------------------ ondas
   /** altura da faixa de espuma e ondas, em unidades */
@@ -89,9 +134,13 @@ export function seedWorld(): WorldConfig {
 
     frameH: 720,
     waterAnchor: 0.517,
+    frameOffsetY: 0,
     frameLand: 1,
     frameSea: 0.42,
     frameEase: 0.9,
+
+    parallaxFar: 0.22,
+    parallaxMid: 0.52,
 
     waveH: 44,
     waveLift: 20,
