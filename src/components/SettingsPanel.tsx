@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { initAudio, playCatch, playSfx, startAmbience, stopAmbience } from '../engine/audio';
-import { resetGame, useGame } from '../state/store';
+import { resetDays, resetGame, useGame } from '../state/store';
 import { buzz, resetSettings, updateSettings, useSettings, type Settings } from '../state/settings';
 
 function Toggle({
@@ -76,6 +76,20 @@ export function SettingsApp() {
 
   return (
     <>
+      <div className="section-title">O clube</div>
+      <div className="row">
+        <div className="grow">
+          <div className="title">Dia {game.dia}</div>
+          <div className="desc">
+            O contador sobe quando você encerra o dia no cais. Resetar volta para o dia 1 e não
+            mexe em mais nada — peixe, moeda e álbum ficam como estão.
+          </div>
+        </div>
+        <button className="btn ghost small" onClick={() => resetDays()} disabled={game.dia === 1}>
+          RESETAR
+        </button>
+      </div>
+
       <div className="section-title">Áudio</div>
       <Toggle
         label="Silenciar tudo"

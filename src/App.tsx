@@ -40,7 +40,7 @@ import {
 import { debugEnabled } from './game/balance';
 import { setFreeCam, useDevFlags } from './state/dev';
 import { useSettings } from './state/settings';
-import { claimDaily, dailyAvailable, dailyPreview, syncRegion, useGame } from './state/store';
+import { claimDaily, dailyAvailable, dailyPreview, endDay, syncRegion, useGame } from './state/store';
 import { usePlayer, type FishPose } from './world/usePlayer';
 import { clockLabel, useDayPhase, useGameClock, useSkyPhase } from './world/dayCycle';
 
@@ -72,6 +72,8 @@ export default function App() {
   const [fishing, setFishing] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [showDaily, setShowDaily] = useState(false);
+  /** confirmacao de encerrar o dia */
+  const [showEndDay, setShowEndDay] = useState(false);
   const [showCashOut, setShowCashOut] = useState(false);
   const [ladderBase, setLadderBase] = useState<number | null>(null);
   const [schoolSummary, setSchoolSummary] = useState<
@@ -147,6 +149,7 @@ export default function App() {
     editor ||
     phoneOpen ||
     showDaily ||
+    showEndDay ||
     showCashOut ||
     showMarket ||
     ladderBase !== null ||
@@ -468,6 +471,20 @@ export default function App() {
           <button className="dev-chip" onClick={() => setShowDev(true)} title="Painel de dev (F8)">
             DEV
           </button>
+          {/* O DIA.
+
+              Ele não segue relógio nenhum: sobe quando o jogador encerra o
+              dia, e só. Um contador que virasse sozinho à meia-noite
+              transformaria "quanto tempo eu quero ficar no cais" numa
+              contagem regressiva, que é o oposto do que um jogo de pesca
+              quer ser. */}
+          <button
+            className="dia-chip"
+            onClick={() => setShowEndDay(true)}
+            title="Encerrar o dia e começar o próximo"
+          >
+            DIA {s.dia}
+          </button>
           <div className="region-tag">
             {region.name}
             <small>
@@ -648,6 +665,41 @@ export default function App() {
       {schoolSummary && (
         <BonusSchoolSummary summary={schoolSummary} onClose={() => setSchoolSummary(null)} />
       )}
+      {/* ENCERRAR O DIA.
+
+          Uma confirmacao, e nao um clique seco: o contador e a unica coisa no
+          jogo que so anda para frente, entao passar de dia sem querer nao teria
+          desfazer. */}
+      {showEndDay && (
+        <Sheet title={`ENCERRAR O DIA ${s.dia}`} onClose={() => setShowEndDay(false)}>
+          <div className="daily-body">
+            <div className="flavor">
+              A vara fica guardada e o cais amanhece de novo. O que você pescou continua no álbum.
+            </div>
+            <div className="reward-line">
+              <span style={{ color: 'var(--coin)' }}>
+                {s.stats.casts.toLocaleString('pt-BR')} lançamentos até aqui
+              </span>
+            </div>
+            <button
+              className="btn primary"
+              onClick={() => {
+                abort();
+                setFishing(false);
+                endDay();
+                playSfx('ui');
+                setShowEndDay(false);
+              }}
+            >
+              DORMIR · COMEÇAR O DIA {s.dia + 1}
+            </button>
+            <button className="btn ghost" onClick={() => setShowEndDay(false)}>
+              AINDA NÃO
+            </button>
+          </div>
+        </Sheet>
+      )}
+
       {showDev && <DevPanel onClose={() => setShowDev(false)} />}
 
       {editor && (

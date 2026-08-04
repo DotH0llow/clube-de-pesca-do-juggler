@@ -193,6 +193,15 @@ export interface GameState {
   /** data ISO (YYYY-MM-DD) do ultimo bonus diario resgatado */
   lastDailyClaim: string | null;
   dayStreak: number;
+  /**
+   * Em que dia do clube o jogador esta.
+   *
+   * E o contador que aparece na tela, e ele NAO segue o relogio - nem o do
+   * jogo, nem o do computador. Sobe quando o jogador encerra o dia, e so.
+   * Encerrar e uma escolha: enquanto ele quiser continuar pescando, continua
+   * sendo o mesmo dia por mais tempo que leve.
+   */
+  dia: number;
   createdAt: number;
   /** total ja ganho na vida do save, usado por ranking futuro */
   lifetimeValue: number;

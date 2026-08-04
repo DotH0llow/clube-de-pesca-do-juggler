@@ -4318,3 +4318,20 @@ button {
 .no-anim .rain-splash img:not(:first-child) {
   display: none;
 }
+
+/* o contador de dias no topo: mesma familia dos chips de moeda */
+.dia-chip {
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 2px;
+  padding: 6px 12px;
+  color: #f3e2b0;
+  background: linear-gradient(180deg, #2a4a63, #16304a);
+  border: 2px solid #4d84ab;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dia-chip:hover {
+  background: linear-gradient(180deg, #35617f, #1d3f5f);
+}

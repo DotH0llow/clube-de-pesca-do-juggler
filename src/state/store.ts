@@ -464,6 +464,28 @@ export function claimDaily(): DailyReward | null {
   return reward;
 }
 
+// ------------------------------------------------------------------ os dias
+
+/**
+ * Encerra o dia e comeca o proximo.
+ *
+ * O contador nao segue relogio nenhum - nem o do jogo, nem o do computador -
+ * e essa e a escolha de design. Um cais de pesca e um lugar onde se fica o
+ * tempo que der vontade; um contador que virasse sozinho a meia-noite
+ * transformaria "quanto tempo eu quero ficar aqui" numa contagem regressiva.
+ * Aqui o dia acaba quando o jogador diz que acabou.
+ */
+export function endDay(): number {
+  const s = state;
+  set({ ...s, dia: s.dia + 1 });
+  return state.dia;
+}
+
+/** Volta o contador para o dia 1, sem tocar em mais nada do save. */
+export function resetDays(): void {
+  set({ ...state, dia: 1 });
+}
+
 /**
  * Cheat de desenvolvimento: entra dinheiro do nada.
  * Fica atras do painel de dev, nao existe caminho normal ate aqui.

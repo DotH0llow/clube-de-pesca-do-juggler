@@ -78,6 +78,7 @@ export const createInitialState = (): GameState => ({
   pity: emptyPity(),
   lastDailyClaim: null,
   dayStreak: 0,
+  dia: 1,
   createdAt: Date.now(),
   lifetimeValue: 0,
   casino: emptyCasino(),
