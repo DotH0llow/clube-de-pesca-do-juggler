@@ -91,7 +91,7 @@ function clampFrame(v: number): number {
 
 type Handle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w';
 type Drag =
-  | { mode: 'move'; id: string; ox: number; oy: number; px: number; py: number }
+  | { mode: 'move'; id: string; ox: number; oy: number; px: number; py: number; grupo: { id: string; ox: number; oy: number }[] }
   | { mode: 'scale'; id: string; handle: Handle; start: SceneObject; px: number; py: number }
   | { mode: 'rot'; id: string; cx: number; cy: number; start: number; base: number }
   | { mode: 'fx-move'; id: string; ox: number; oy: number; px: number; py: number }
@@ -100,6 +100,7 @@ type Drag =
   | { mode: 'guia'; px: number; base: number }
   | { mode: 'moldura'; qual: 'praia' | 'mar'; borda: 'n' | 's'; py: number; frame: number }
   | { mode: 'ancora'; py: number; base: number }
+  | { mode: 'laco'; px: number; py: number; base: string[] }
   | null;
 
 interface Props {
@@ -188,7 +189,37 @@ export function EditorOverlay({
   const hasMechanics = sceneId === 'mundo' && Boolean(playerXRef);
 
   const [layer, setLayer] = useState<WorkLayer>('todas');
-  const [selected, setSelected] = useState<string | null>(null);
+  /**
+   * A SELECAO, agora no plural.
+   *
+   * Era um id so. Virou lista, e o ULTIMO da lista e o principal: e dele que o
+   * inspetor mostra as medidas, e e em volta dele que a caixa com alcas e
+   * desenhada. Redimensionar e girar continuam valendo para um objeto de cada
+   * vez - esticar dez pecas de tamanhos diferentes ao mesmo tempo daria dez
+   * resultados que ninguem pediu. Arrastar, apagar, esconder e mover com as
+   * setas valem para a lista inteira.
+   *
+   * `setSelected` continua existindo com a assinatura antiga (um id ou nulo)
+   * de proposito: as duas dezenas de lugares que ja chamavam essa funcao
+   * querem exatamente isso - trocar a selecao por uma peca so.
+   */
+  const [selIds, setSelIds] = useState<string[]>([]);
+  const selected = selIds.length ? selIds[selIds.length - 1] : null;
+  const setSelected = useCallback((id: string | null) => setSelIds(id ? [id] : []), []);
+
+  /** Soma ou tira uma peca da selecao, sem mexer no resto (Ctrl+clique). */
+  const alternarSel = useCallback((id: string) => {
+    setSelIds((atual) =>
+      atual.includes(id) ? atual.filter((x) => x !== id) : [...atual, id],
+    );
+  }, []);
+
+  /** O painel de camadas recolhe para liberar o canto esquerdo da tela. */
+  const [camadasAbertas, setCamadasAbertas] = useState(true);
+  /** Pastas fechadas na aba CENA, por camada. */
+  const [pastasFechadas, setPastasFechadas] = useState<LayerId[]>([]);
+  /** Retangulo do laco de selecao, em coordenada de tela. */
+  const [laco, setLaco] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const [fxSel, setFxSel] = useState<string | null>(null);
   const [panel, setPanel] = useState<
     'biblioteca' | 'cena' | 'animacoes' | 'mecanicas' | 'mundo' | 'flutuadores' | null
@@ -244,6 +275,31 @@ export function EditorOverlay({
   }, [preview.mechanic, playerXRef, scale]);
 
   const sel = selected ? scene.objects.find((o) => o.id === selected) ?? null : null;
+
+  /**
+   * A ordem em que a lista da aba CENA aparece na tela.
+   *
+   * O intervalo do Shift precisa seguir a ORDEM VISIVEL, e nao a ordem da cena:
+   * a lista e agrupada por camada, e dentro de pasta fechada nao ha item para
+   * pegar. Sem isto, Shift entre duas pecas de camadas diferentes arrastaria
+   * junto tudo que estivesse entre elas na lista interna - inclusive coisa que
+   * voce nao esta vendo.
+   */
+  const ordemVisivel = useCallback((): string[] => {
+    const termo = busca.trim().toLowerCase();
+    const out: string[] = [];
+    for (const l of LAYERS) {
+      if (!termo && pastasFechadas.includes(l.id)) continue;
+      for (const o of scene.objects) {
+        if (o.layer !== l.id) continue;
+        if (termo && !`${o.sprite ?? ''} ${o.zone ?? ''} ${o.id}`.toLowerCase().includes(termo)) {
+          continue;
+        }
+        out.push(o.id);
+      }
+    }
+    return out;
+  }, [scene.objects, busca, pastasFechadas]);
 
   /**
    * Leva a tela ate o objeto e o deixa selecionado.
@@ -400,31 +456,44 @@ export function EditorOverlay({
         setSelected(null);
         return;
       }
-      if (!selected) return;
-      const o = scene.objects.find((x) => x.id === selected);
-      if (!o || o.locked) return;
+      /* Ctrl+A pega a camada de trabalho inteira. */
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyA') {
+        e.preventDefault();
+        setSelIds(
+          scene.objects
+            .filter((o) => layer === 'todas' || o.layer === layer)
+            .filter((o) => !o.locked && !scene.hidden.includes(o.layer))
+            .map((o) => o.id),
+        );
+        return;
+      }
+
+      if (selIds.length === 0) return;
+      // apagar e empurrar com as setas valem para a SELECAO INTEIRA
+      const alvos = scene.objects.filter((x) => selIds.includes(x.id) && !x.locked);
+      if (alvos.length === 0) return;
       const step = e.shiftKey ? 10 : 1;
       if (e.code === 'Delete' || e.code === 'Backspace') {
         e.preventDefault();
-        removeObject(selected);
-        setSelected(null);
+        for (const a of alvos) removeObject(a.id);
+        setSelIds([]);
       } else if (e.code === 'ArrowLeft') {
         e.preventDefault();
-        updateObject(o.id, { x: o.x - step });
+        for (const a of alvos) updateObject(a.id, { x: a.x - step });
       } else if (e.code === 'ArrowRight') {
         e.preventDefault();
-        updateObject(o.id, { x: o.x + step });
+        for (const a of alvos) updateObject(a.id, { x: a.x + step });
       } else if (e.code === 'ArrowUp') {
         e.preventDefault();
-        updateObject(o.id, { y: o.y - step });
+        for (const a of alvos) updateObject(a.id, { y: a.y - step });
       } else if (e.code === 'ArrowDown') {
         e.preventDefault();
-        updateObject(o.id, { y: o.y + step });
+        for (const a of alvos) updateObject(a.id, { y: a.y + step });
       }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [selected, scene.objects]);
+  }, [selIds, scene.objects, scene.hidden, layer]);
 
   // --------------------------------------------------------- mouse na cena
   const onPointerDown = (e: React.PointerEvent) => {
@@ -477,13 +546,49 @@ export function EditorOverlay({
 
     const found = hit(px, py);
     if (found) {
-      setSelected(found.id);
+      /*
+       * Ctrl SOMA a peca a selecao; sem Ctrl, ela vira a selecao.
+       *
+       * Clicar numa peca que JA esta selecionada nao refaz a selecao - senao
+       * arrastar um grupo pelo meio de uma das pecas jogaria as outras fora
+       * no primeiro clique, que e o oposto do que arrastar um grupo quer
+       * dizer.
+       */
+      let alvo = selIds;
+      if (e.ctrlKey || e.metaKey) {
+        alvo = selIds.includes(found.id)
+          ? selIds.filter((x) => x !== found.id)
+          : [...selIds, found.id];
+        setSelIds(alvo);
+      } else if (!selIds.includes(found.id)) {
+        alvo = [found.id];
+        setSelIds(alvo);
+      }
+      if (!alvo.includes(found.id)) return;
       beginBatch();
-      drag.current = { mode: 'move', id: found.id, ox: found.x, oy: found.y, px, py };
-    } else {
-      setSelected(null);
-      drag.current = { mode: 'pan', px, py, cam, camY };
+      const grupo = scene.objects
+        .filter((o) => alvo.includes(o.id) && !o.locked)
+        .map((o) => ({ id: o.id, ox: o.x, oy: o.y }));
+      drag.current = { mode: 'move', id: found.id, ox: found.x, oy: found.y, px, py, grupo };
+      return;
     }
+
+    /*
+     * No vazio: LACO DE SELECAO, e nao mais arrastar a tela.
+     *
+     * Arrastar a tela mudou para o botao do MEIO e para Alt+esquerdo. A troca e
+     * proposital: o laco e o gesto que se usa o tempo todo montando cena, e o
+     * botao esquerdo no vazio e onde a mao vai primeiro. Com Ctrl o laco SOMA a
+     * quem ja estava selecionado.
+     */
+    if (e.altKey) {
+      drag.current = { mode: 'pan', px, py, cam, camY };
+      return;
+    }
+    const base = e.ctrlKey || e.metaKey ? selIds : [];
+    if (!e.ctrlKey && !e.metaKey) setSelIds([]);
+    setLaco({ x0: px, y0: py, x1: px, y1: py });
+    drag.current = { mode: 'laco', px, py, base };
   };
 
   /**
@@ -570,10 +675,18 @@ export function EditorOverlay({
         return;
       }
       if (d.mode === 'move') {
-        updateObject(d.id, {
-          x: Math.round(d.ox + (px - d.px) / scale),
-          y: Math.round(d.oy + (py - d.py) / scale),
-        });
+        // o grupo inteiro anda o MESMO tanto: cada peca sai da posicao em que
+        // ela estava quando o arrasto comecou, e nao da posicao da peca clicada
+        const dx = (px - d.px) / scale;
+        const dy = (py - d.py) / scale;
+        for (const g of d.grupo) {
+          updateObject(g.id, { x: Math.round(g.ox + dx), y: Math.round(g.oy + dy) });
+        }
+        return;
+      }
+
+      if (d.mode === 'laco') {
+        setLaco({ x0: d.px, y0: d.py, x1: px, y1: py });
         return;
       }
       if (d.mode === 'fx-move') {
@@ -649,9 +762,45 @@ export function EditorOverlay({
     };
 
     const onUp = (ev: PointerEvent) => {
+      const d = drag.current;
       drag.current = null;
       endBatch();
       endFxBatch();
+
+      /*
+       * Fecha o laco: entra tudo que ENCOSTA no retangulo.
+       *
+       * Intersecao, e nao contencao total. Exigir a peca inteira dentro do
+       * laco obrigaria a laçar o coqueiro de 300 unidades por completo so para
+       * pega-lo junto com a tralha do deck; encostar e o que a mao espera.
+       */
+      if (d && d.mode === 'laco') {
+        const el0 = host();
+        const r0 = el0?.getBoundingClientRect();
+        const px = r0 ? ev.clientX - r0.left : d.px;
+        const py = r0 ? ev.clientY - r0.top : d.py;
+        const x0 = Math.min(d.px, px);
+        const x1 = Math.max(d.px, px);
+        const y0 = Math.min(d.py, py);
+        const y1 = Math.max(d.py, py);
+        setLaco(null);
+        // um arrasto de menos de 4 px e um clique que tremeu, nao um laco
+        if (x1 - x0 < 4 && y1 - y0 < 4) {
+          setSelIds(d.base);
+          return;
+        }
+        const pegos = scene.objects
+          .filter((o) => layer === 'todas' || o.layer === layer)
+          .filter((o) => !o.locked && !scene.hidden.includes(o.layer))
+          .filter((o) => {
+            const c = caixaNaTela(o);
+            return c.x < x1 && c.x + c.w > x0 && c.y < y1 && c.y + c.h > y0;
+          })
+          .map((o) => o.id);
+        setSelIds([...new Set([...d.base, ...pegos])]);
+        return;
+      }
+
       if (!dragAsset) return;
       const el = host();
       const rect = el?.getBoundingClientRect();
@@ -679,7 +828,7 @@ export function EditorOverlay({
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, [dragAsset, scale, cam, camY, layer, sceneId, travado, toWorld, mundo]);
+  }, [dragAsset, scale, cam, camY, layer, sceneId, travado, toWorld, mundo, scene.objects, scene.hidden, caixaNaTela]);
 
   const startHandle = (e: React.PointerEvent, handle: Handle) => {
     if (!sel || e.button !== 0) return;
@@ -902,6 +1051,10 @@ export function EditorOverlay({
                   id: sel.id,
                   ox: sel.x,
                   oy: sel.y,
+                  // a alça arrasta a SELEÇÃO INTEIRA, não só a peça principal
+                  grupo: scene.objects
+                    .filter((o) => selIds.includes(o.id) && !o.locked)
+                    .map((o) => ({ id: o.id, ox: o.x, oy: o.y })),
                   px: e.clientX - r.left,
                   py: e.clientY - r.top,
                 };
@@ -1008,6 +1161,37 @@ export function EditorOverlay({
           >
             <i />
           </div>
+        )}
+
+        {/* as OUTRAS pecas da selecao: contorno simples, sem alcas.
+
+            So o principal ganha alcas - esticar dez pecas de tamanhos
+            diferentes de uma vez daria dez resultados que ninguem pediu. */}
+        {selIds.length > 1 &&
+          scene.objects
+            .filter((o) => selIds.includes(o.id) && o.id !== selected)
+            .map((o) => {
+              const r = caixaNaTela(o);
+              return (
+                <div
+                  key={o.id}
+                  className="editor-sel-extra"
+                  style={{ left: r.x, top: r.y, width: r.w, height: r.h }}
+                />
+              );
+            })}
+
+        {/* o laco */}
+        {laco && (
+          <div
+            className="editor-laco"
+            style={{
+              left: Math.min(laco.x0, laco.x1),
+              top: Math.min(laco.y0, laco.y1),
+              width: Math.abs(laco.x1 - laco.x0),
+              height: Math.abs(laco.y1 - laco.y0),
+            }}
+          />
         )}
 
         {ghost && dragAsset && (
@@ -1227,9 +1411,9 @@ export function EditorOverlay({
         </button>
         <div className="grow" />
         <span className="editor-tip">
-          ARRASTAR NO VAZIO MOVE A TELA (PRA CIMA E PRA BAIXO TAMBÉM) &middot; RODA DÁ ZOOM
-          &middot; ALÇAS REDIMENSIONAM &middot; BOTÃO DIREITO ABRE O MENU &middot; CTRL+Z DESFAZ
-          &middot; DEL APAGA
+          ARRASTAR NO VAZIO LAÇA &middot; ALT+ARRASTAR (OU BOTÃO DO MEIO) MOVE A TELA
+          &middot; CTRL SOMA À SELEÇÃO &middot; SHIFT PEGA O INTERVALO NA LISTA &middot; CTRL+A
+          PEGA TUDO &middot; RODA DÁ ZOOM &middot; CTRL+Z DESFAZ &middot; DEL APAGA
         </span>
         <button
           className="ebtn primary"
@@ -1243,8 +1427,23 @@ export function EditorOverlay({
       </div>
 
       {/* --------------------------------------------------------- camadas */}
-      <div className="editor-layers">
-        <div className="etitle">TRABALHANDO EM</div>
+      {/* O painel recolhe.
+
+          Ele ocupa o canto esquerdo inteiro e fica ali o tempo todo, mesmo
+          quando o que voce quer e olhar o cenario que esta EMBAIXO dele.
+          Recolhido, sobra so o cabecalho - e o cabecalho continua sendo o
+          botao, entao voltar e um clique no mesmo lugar. */}
+      <div className={`editor-layers${camadasAbertas ? '' : ' recolhido'}`}>
+        <button
+          className="etitle etoggle"
+          onClick={() => setCamadasAbertas((v) => !v)}
+          title={camadasAbertas ? 'Recolher o painel' : 'Abrir o painel'}
+        >
+          <span>TRABALHANDO EM</span>
+          <i>{camadasAbertas ? '−' : '+'}</i>
+        </button>
+        {camadasAbertas && (
+        <>
         <div className="elayer-pick">
           <button
             className={`ebtn${layer === 'todas' ? ' primary' : ''}`}
@@ -1286,10 +1485,20 @@ export function EditorOverlay({
             ? 'Clique pega qualquer objeto visível. Escolha uma camada para travar o clique nela.'
             : LAYERS.find((l) => l.id === layer)?.hint}
         </div>
+        </>
+        )}
 
-        {sel && (
+        {camadasAbertas && sel && (
           <div className="einspect">
-            <div className="etitle">SELECIONADO</div>
+            <div className="etitle">
+              {selIds.length > 1 ? `SELECIONADOS (${selIds.length})` : 'SELECIONADO'}
+            </div>
+            {selIds.length > 1 && (
+              <div className="ehint">
+                Arrastar, apagar, esconder e as setas valem para as {selIds.length}. As medidas e
+                as alças abaixo são da última que você clicou.
+              </div>
+            )}
             <div className="eline">{sel.sprite || sel.zone || sel.id}</div>
             <div className="eline">
               X {Math.round(sel.x)} &middot; Y {Math.round(sel.y)}
@@ -1555,21 +1764,56 @@ export function EditorOverlay({
                 return `${o.sprite ?? ''} ${o.zone ?? ''} ${o.id}`.toLowerCase().includes(termo);
               });
               if (termo && list.length === 0) return null;
+              /* Buscando, a pasta abre sozinha: esconder resultado de busca
+                 dentro de pasta fechada faz a busca parecer quebrada. */
+              const aberta = Boolean(termo) || !pastasFechadas.includes(l.id);
               return (
                 <div key={l.id}>
-                  <div className="elib-cat">
+                  <button
+                    className={`elib-cat epasta${aberta ? ' aberta' : ''}`}
+                    onClick={() =>
+                      setPastasFechadas((f) =>
+                        f.includes(l.id) ? f.filter((x) => x !== l.id) : [...f, l.id],
+                      )
+                    }
+                    title={aberta ? 'Fechar a pasta' : 'Abrir a pasta'}
+                  >
+                    <i className="epasta-seta">{aberta ? '▾' : '▸'}</i>
                     <span className="grow">{l.label}</span>
                     <small>{list.length}</small>
                     {scene.hidden.includes(l.id) && <span className="off">ESCONDIDA</span>}
-                  </div>
-                  {list.map((o) => (
+                  </button>
+                  {aberta && list.map((o) => (
                     <button
                       key={o.id}
-                      className={`eitem eitem-thumb${selected === o.id ? ' on' : ''}${o.locked ? ' locked' : ''}`}
-                      title={`${o.sprite || o.zone || o.id}\nClique seleciona · duplo clique leva a tela até ele`}
-                      onClick={() => {
+                      className={`eitem eitem-thumb${selIds.includes(o.id) ? ' on' : ''}${o.locked ? ' locked' : ''}`}
+                      title={`${o.sprite || o.zone || o.id}\nClique seleciona · Ctrl soma · Shift pega o intervalo · duplo clique leva a tela até ele`}
+                      onClick={(e) => {
+                        if (o.locked) return;
                         setLayer('todas');
-                        setSelected(o.locked ? null : o.id);
+                        if (e.ctrlKey || e.metaKey) {
+                          alternarSel(o.id);
+                          return;
+                        }
+                        /*
+                         * Shift pega o INTERVALO, nos dois sentidos.
+                         *
+                         * A ancora e a ultima peca que voce selecionou. De A
+                         * para E pega B, C e D; de E para A pega os mesmos
+                         * quatro - o intervalo e entre as duas pontas, e nao
+                         * na ordem em que voce clicou.
+                         */
+                        if (e.shiftKey && selected) {
+                          const visiveis = ordemVisivel();
+                          const i0 = visiveis.indexOf(selected);
+                          const i1 = visiveis.indexOf(o.id);
+                          if (i0 >= 0 && i1 >= 0) {
+                            const [a, b] = i0 < i1 ? [i0, i1] : [i1, i0];
+                            setSelIds([...new Set([...selIds, ...visiveis.slice(a, b + 1)])]);
+                            return;
+                          }
+                        }
+                        setSelected(o.id);
                       }}
                       onDoubleClick={() => goTo(o)}
                     >

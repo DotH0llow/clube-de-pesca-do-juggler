@@ -4105,3 +4105,89 @@ button {
 .moldura-tag {
   letter-spacing: 0.6px;
 }
+
+/* ==========================================================================
+   SELECAO MULTIPLA, PASTAS E PAINEL RECOLHIVEL
+   ========================================================================== */
+
+/* O LACO. Arrastar no vazio deixou de mover a tela e passou a laçar - mover a
+   tela virou Alt+arrastar ou botao do meio. A troca e proposital: laçar e o
+   gesto que se usa o tempo todo montando cena. */
+.editor-laco {
+  position: absolute;
+  pointer-events: none;
+  border: 2px dashed #ffd166;
+  background: rgba(255, 209, 102, 0.12);
+  z-index: 3;
+}
+
+/* as pecas secundarias da selecao: contorno, sem alcas */
+.editor-sel-extra {
+  position: absolute;
+  pointer-events: none;
+  border: 2px solid rgba(255, 209, 102, 0.75);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+/* --------------------------------------------------- pastas da aba CENA */
+
+.epasta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.epasta:hover {
+  background: rgba(120, 200, 255, 0.1);
+}
+
+.epasta-seta {
+  width: 12px;
+  font-style: normal;
+  opacity: 0.8;
+}
+
+/* ------------------------------------------ painel TRABALHANDO EM recolhido */
+
+/* O cabecalho E o botao: recolher e voltar acontecem no mesmo lugar, entao a
+   mao nao precisa procurar um X em outro canto. */
+.etoggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.etoggle i {
+  font-style: normal;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 4px;
+  opacity: 0.85;
+}
+
+.etoggle:hover i {
+  opacity: 1;
+}
+
+/* recolhido o painel encolhe para o tamanho do cabecalho e para de reservar
+   a coluna da esquerda inteira */
+.editor-layers.recolhido {
+  width: auto;
+  min-width: 0;
+  padding-bottom: 6px;
+}
