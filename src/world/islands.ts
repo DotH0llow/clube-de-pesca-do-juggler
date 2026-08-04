@@ -35,31 +35,72 @@ interface Ilha {
   flip?: boolean;
 }
 
-/** As pequenas, bem ao longe: quase so silhueta. */
+/*
+ * ---------------------------------------------------------- A ESCALA
+ *
+ * As ilhas eram todas do tamanho de um morro no horizonte: 100 a 200 unidades,
+ * enfileiradas na linha d'agua. Lidas juntas, elas diziam "ha uma costa ali
+ * longe" - e nada alem disso. O que as referencias tem e outra coisa: torres
+ * de karst GRANDES e PERTO, que sobem alem do topo da tela e emolduram a cena
+ * pelos dois lados, com a costa distante bem apagada atras delas.
+ *
+ * O que da o senso de escala nao e o tamanho de uma ilha sozinha - e a RAZAO
+ * entre a mais perto e a mais longe. Aqui essa razao passa de 20 para 1.
+ *
+ * Sao tres distancias, e cada uma tem um trabalho:
+ *
+ *   FUNDO  (0,22)  a costa longe: silhueta apagada, quase da cor do ceu
+ *   MEIO   (0,52)  as ilhas de sempre, agora maiores
+ *   PERTO  (1,00)  as torres que emolduram, cortadas pelo topo da tela
+ *
+ * A camada PERTO anda junto com a camera de proposito. Uma parede de pedra a
+ * poucas centenas de unidades que se movesse mais devagar que o cais entregaria
+ * na hora que ela e um pano de fundo.
+ */
+
+/** A costa distante: silhueta apagada, quase da cor do ceu. */
 const FUNDO: Ilha[] = [
-  { sprite: 'fundo-recife-arbustivo', x: -2980, h: 34, opacity: 0.5 },
-  { sprite: 'fundo-crista-verde', x: -2210, h: 46, opacity: 0.55 },
-  { sprite: 'fundo-ilha-baixa-arborizada', x: -1490, h: 38, opacity: 0.5, flip: true },
-  { sprite: 'fundo-duas-colinas-verdes', x: -760, h: 52, opacity: 0.58 },
-  { sprite: 'fundo-ilhota-jungla', x: 60, h: 58, opacity: 0.55 },
-  { sprite: 'fundo-ilhota-com-arvore', x: 840, h: 62, opacity: 0.6, flip: true },
-  // uma repetida bem no fim, para o horizonte nao terminar vazio a leste
-  { sprite: 'fundo-crista-verde', x: 1320, h: 40, opacity: 0.45, flip: true },
+  { sprite: 'fundo-recife-arbustivo', x: -3400, h: 54, opacity: 0.32 },
+  { sprite: 'karst-tres-cumes-conectados', x: -2860, h: 132, opacity: 0.26 },
+  { sprite: 'fundo-crista-verde', x: -2210, h: 62, opacity: 0.3 },
+  { sprite: 'torre-karst-filipina', x: -1780, h: 168, opacity: 0.24, flip: true },
+  { sprite: 'fundo-ilha-baixa-arborizada', x: -1180, h: 52, opacity: 0.3, flip: true },
+  { sprite: 'fundo-duas-colinas-verdes', x: -640, h: 70, opacity: 0.34 },
+  { sprite: 'calcario-assimetrico-alto', x: -120, h: 150, opacity: 0.24 },
+  { sprite: 'fundo-ilhota-jungla', x: 420, h: 66, opacity: 0.32 },
+  { sprite: 'fundo-ilhota-com-arvore', x: 980, h: 74, opacity: 0.34, flip: true },
+  { sprite: 'fundo-crista-verde', x: 1420, h: 56, opacity: 0.28, flip: true },
 ];
 
-/** As grandes, no meio da distancia: sao elas que dao o desenho do horizonte. */
+/** O meio da distancia: e aqui que o horizonte ganha desenho. */
 const MEIO: Ilha[] = [
-  { sprite: 'torre-karst-filipina', x: -3160, h: 210, opacity: 0.82 },
-  { sprite: 'ilha-sedimentar-em-terracos', x: -2640, h: 96, opacity: 0.78 },
-  { sprite: 'karst-tres-cumes-conectados', x: -2090, h: 148, opacity: 0.85 },
-  { sprite: 'mesa-calcaria-florestada', x: -1580, h: 104, opacity: 0.8, flip: true },
-  { sprite: 'ilha-vulcanica-envelhecida', x: -1080, h: 152, opacity: 0.86 },
-  { sprite: 'ilha-de-blocos-graniticos', x: -560, h: 118, opacity: 0.82 },
-  { sprite: 'calcario-assimetrico-alto', x: -140, h: 196, opacity: 0.88 },
-  { sprite: 'ilha-florestada-arredondada', x: 330, h: 126, opacity: 0.84, flip: true },
-  { sprite: 'karst-monolito-arredondado', x: 690, h: 172, opacity: 0.9 },
-  { sprite: 'ilha-dupla-vulcanica', x: 1080, h: 138, opacity: 0.86 },
-  { sprite: 'terraco-calcario-tropical', x: 1360, h: 112, opacity: 0.8, flip: true },
+  { sprite: 'ilha-sedimentar-em-terracos', x: -3050, h: 168, opacity: 0.62 },
+  { sprite: 'karst-monolito-arredondado', x: -2480, h: 320, opacity: 0.68 },
+  { sprite: 'mesa-calcaria-florestada', x: -1900, h: 182, opacity: 0.6, flip: true },
+  { sprite: 'ilha-vulcanica-envelhecida', x: -1340, h: 268, opacity: 0.66 },
+  { sprite: 'ilha-de-blocos-graniticos', x: -820, h: 206, opacity: 0.62 },
+  { sprite: 'karst-tres-cumes-conectados', x: -300, h: 258, opacity: 0.66, flip: true },
+  { sprite: 'ilha-florestada-arredondada', x: 240, h: 220, opacity: 0.6, flip: true },
+  { sprite: 'ilha-dupla-vulcanica', x: 780, h: 242, opacity: 0.64 },
+  { sprite: 'terraco-calcario-tropical', x: 1300, h: 196, opacity: 0.6, flip: true },
+];
+
+/**
+ * As torres que emolduram.
+ *
+ * Poucas, enormes, e propositalmente CORTADAS pelo topo da tela: a razao de
+ * elas darem escala e justamente nao caberem. Uma torre que cabe inteira no
+ * enquadramento vira um objeto que se mede com o olho; uma que sai da moldura
+ * vira uma parede.
+ *
+ * Elas ficam longe do cais - a mais proxima a 1600 unidades a oeste - para
+ * emoldurar o mar aberto sem tampar a pescaria.
+ */
+const PERTO: Ilha[] = [
+  { sprite: 'torre-karst-filipina', x: -4300, h: 900, opacity: 1, afunda: 30 },
+  { sprite: 'karst-monolito-arredondado', x: -3560, h: 620, opacity: 1, afunda: 26, flip: true },
+  { sprite: 'calcario-assimetrico-alto', x: -2650, h: 700, opacity: 1, afunda: 28 },
+  { sprite: 'torre-karst-filipina', x: -1620, h: 560, opacity: 1, afunda: 24, flip: true },
 ];
 
 function ilha(it: Ilha, parallax: number, base: number, id: string): SceneObject {
@@ -80,6 +121,15 @@ function ilha(it: Ilha, parallax: number, base: number, id: string): SceneObject
     opacity: it.opacity,
     flip: it.flip,
     parallax,
+    /*
+     * A PERSPECTIVA ATMOSFERICA.
+     *
+     * Longe nao e so menor e mais transparente - e mais AZUL e menos
+     * contrastado, porque o ar entre voce e a montanha tem cor. Sem isso, a
+     * ilha de tras fica com o mesmo verde vivo da da frente e as duas parecem
+     * estar na mesma distancia, por menor que uma seja.
+     */
+    anim: parallax < 0.35 ? 'ilha-longe' : parallax < 0.8 ? 'ilha-meio' : undefined,
   };
 }
 
@@ -89,6 +139,7 @@ export function islandObjects(): SceneObject[] {
   return [
     ...FUNDO.map((it, i) => ilha(it, 0.22, base, `ilha-fundo-${i}`)),
     ...MEIO.map((it, i) => ilha(it, 0.52, base, `ilha-${i}`)),
+    ...PERTO.map((it, i) => ilha(it, 1, base, `ilha-perto-${i}`)),
   ];
 }
 

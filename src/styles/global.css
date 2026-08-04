@@ -4335,3 +4335,20 @@ button {
 .dia-chip:hover {
   background: linear-gradient(180deg, #35617f, #1d3f5f);
 }
+
+/* ==========================================================================
+   PERSPECTIVA ATMOSFERICA DAS ILHAS
+
+   Longe nao e so menor - e mais azul e menos contrastado, porque o ar entre
+   voce e a montanha tem cor. Sem isto, a ilha do fundo fica com o mesmo verde
+   vivo da da frente e as duas parecem estar na mesma distancia, por menor que
+   uma seja. E o que separa "ilha pequena" de "ilha longe".
+   ========================================================================== */
+
+.ilha-longe {
+  filter: saturate(0.28) brightness(1.25) contrast(0.62) blur(0.4px);
+}
+
+.ilha-meio {
+  filter: saturate(0.62) brightness(1.08) contrast(0.85);
+}
