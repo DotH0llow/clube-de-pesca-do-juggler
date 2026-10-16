@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { asset } from '../assets';
 import { skyPhase, type SkyPhaseId } from '../data/skies';
 import type { CastResult } from '../state/types';
@@ -127,6 +127,7 @@ export function World({
   /** posicao do anzol na cacada, escrita por quadro pelo `HookHunt` */
   const anzolRef = useRef({ x: 0, y: 0 });
   const linhaRef = useRef<SVGSVGElement | null>(null);
+  const [marketVista, setMarketVista] = useState(() => playerXRef.current >= 1800);
   // mesma regra do céu: o interruptor de teste manda; sem ele, a hora do dia
   const chovendo = dev.rain === null ? skyPhase(hour).storm : dev.rain;
   const sky = skyPhase(hour);
@@ -193,8 +194,24 @@ export function World({
     return () => cancelAnimationFrame(raf);
   }, [hunt, tipX, tipY, sag]);
 
+  /* A pintura de fundo troca só ao entrar na área do mercado. O marcador vem
+     da posição viva do jogador, não de clique ou de uma tela encenada. */
+  useEffect(() => {
+    const syncVista = () => {
+      const next = playerXRef.current >= 1800;
+      setMarketVista((current) => (current === next ? current : next));
+    };
+    syncVista();
+    const id = window.setInterval(syncVista, 160);
+    return () => window.clearInterval(id);
+  }, [playerXRef]);
+
   return (
-    <div className="stage">
+    <div className={`stage prototype-art${marketVista ? ' prototype-market-vista' : ''}`}>
+      {/* Fundo de apresentação em alta definição. A arte é uma única paisagem
+          contínua, não uma folha de sprites: o personagem, anzol, peixes e
+          todas as zonas continuam sendo elementos vivos do mundo. */}
+      <div className="prototype-world-backdrop" aria-hidden />
       <Sky hour={hour} />
 
       {/* O mundo é escalado pelo ENQUADRAMENTO, não pela altura total: a cena

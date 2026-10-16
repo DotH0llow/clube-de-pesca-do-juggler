@@ -116,6 +116,127 @@ button {
   overflow: hidden;
 }
 
+/* ===========================================================================
+   DIREÇÃO DE ARTE DO PROTÓTIPO
+
+   A paisagem é uma arte única, em 16:9, deliberadamente separada das peças
+   jogáveis. Assim não há o erro de juntar vários recortes numa mesma folha
+   nem o risco de um deslocamento cortar um sprite. O mundo lógico continua
+   abaixo dela: colisão, câmera, pesca, personagem, anzol e minijogos são os
+   mesmos componentes interativos de antes.
+   =========================================================================== */
+.prototype-world-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(rgba(3, 26, 55, 0.04), rgba(3, 26, 55, 0.12)),
+    url('../assets/game/prototype/tropical-coast-pier.png') center / cover no-repeat;
+}
+
+.prototype-market-vista .prototype-world-backdrop {
+  background-image:
+    linear-gradient(rgba(3, 26, 55, 0.04), rgba(3, 26, 55, 0.12)),
+    url('../assets/game/prototype/tropical-market-beach.png');
+}
+
+/* O cenário antigo fica somente como mapa lógico. Personagem, linha, anzol,
+   peixe e efeitos mantêm a própria camada e seguem vivos sobre a paisagem. */
+.prototype-art > .sky,
+.prototype-art .sea,
+.prototype-art .sand,
+.prototype-art .sand-top,
+.prototype-art .seabed,
+.prototype-art .world-spill,
+.prototype-art .mar-raso,
+.prototype-art .areia-molhada,
+.prototype-art .espuma,
+.prototype-art .water-surface,
+.prototype-art .world-scale .wobj {
+  opacity: 0;
+}
+
+/* Marcos de área continuam visíveis. Eles informam para onde o jogador chegou
+   e continuam sendo as âncoras físicas das zonas Mercado, Cabana e Arcade. */
+.prototype-art .world-scale .wobj[data-obj^='fish-market'],
+.prototype-art .world-scale .wobj[data-obj^='beach-cabana'],
+.prototype-art .world-scale .wobj[data-obj^='hydrinho-arcade'] {
+  opacity: 1;
+  filter: saturate(1.22) contrast(1.08) drop-shadow(0 5px 3px rgba(1, 18, 29, 0.34));
+}
+
+.prototype-market-vista .world-scale .wobj[data-obj^='fish-market'],
+.prototype-market-vista .world-scale .wobj[data-obj^='beach-cabana'],
+.prototype-market-vista .world-scale .wobj[data-obj^='hydrinho-arcade'] {
+  opacity: 0;
+}
+
+.prototype-art .player-sprite {
+  filter: drop-shadow(0 4px 1px rgba(0, 0, 0, 0.52)) saturate(1.12) contrast(1.06);
+}
+
+/* Molduras, botões e medidores recebem a mesma leitura de madeira, metal e
+   azul-marinho das referências. São regras de pele: não mudam eventos nem
+   estado dos componentes que elas estilizam. */
+.prototype-art ~ .ui-layer .chip,
+.prototype-art ~ .ui-layer .region-tag,
+.prototype-art ~ .ui-layer .dia-chip,
+.prototype-art ~ .ui-layer .dev-chip,
+.prototype-art ~ .ui-layer .hint-strip,
+.prototype-art ~ .ui-layer .casino-hud > div {
+  border-color: #b87c2d;
+  background: linear-gradient(180deg, rgba(8, 30, 51, 0.94), rgba(3, 17, 31, 0.94));
+  box-shadow: inset 0 0 0 1px rgba(255, 216, 126, 0.18), 0 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+.pixel-box {
+  border-color: #b87c2d;
+  background:
+    linear-gradient(180deg, rgba(12, 45, 71, 0.97), rgba(3, 21, 37, 0.98)),
+    #06182a;
+  box-shadow:
+    inset 0 0 0 2px #07111d,
+    inset 0 0 0 4px rgba(245, 183, 76, 0.22),
+    0 7px 0 rgba(0, 0, 0, 0.38);
+}
+
+.phone {
+  width: min(520px, 96vw);
+  height: min(748px, 96vh);
+}
+
+.phone-body {
+  padding: 20px 17px 48px;
+  border: 8px solid #5c3214;
+  border-radius: 34px;
+  background:
+    linear-gradient(90deg, rgba(255, 216, 115, 0.18), transparent 16%, transparent 84%, rgba(25, 8, 2, 0.4)),
+    repeating-linear-gradient(0deg, #a85c20 0 4px, #874117 4px 8px, #c17931 8px 11px);
+  box-shadow:
+    inset 0 0 0 3px #e0a34e,
+    inset 0 0 0 7px #2b1608,
+    0 14px 0 rgba(0, 0, 0, 0.5);
+}
+
+.phone-screen {
+  border-color: #d79b44;
+  box-shadow: inset 0 0 0 2px #071523, 0 0 0 2px rgba(0, 0, 0, 0.45);
+}
+
+.phone-home {
+  bottom: 10px;
+  border-color: #dd9d47;
+  background: #06111d;
+}
+
+.sheet,
+.catch-card {
+  background:
+    radial-gradient(100% 70% at 50% 100%, rgba(14, 78, 106, 0.35), transparent 70%),
+    linear-gradient(180deg, #08243b, #041729);
+  box-shadow: 0 16px 0 rgba(0, 0, 0, 0.42), 0 0 0 2px rgba(244, 184, 78, 0.42);
+}
+
 .ui-layer {
   position: relative;
   z-index: 2;
@@ -4813,4 +4934,16 @@ button {
 
 .menu-slot > .title-palavra.destaque {
   color: var(--coin);
+}
+
+/* A tela de abertura usa a mesma costa ensolarada do protótipo. O cenário
+   editável anterior continua guardado para o editor; aqui ele só deixa de ser
+   a pintura visível, sem afetar os botões e suas ações. */
+.title-screen .title-scene .sky {
+  background-image: url('../assets/game/prototype/tropical-coast-pier.png') !important;
+  background-position: center;
+}
+
+.title-screen .title-scene .menu-world {
+  opacity: 0;
 }
