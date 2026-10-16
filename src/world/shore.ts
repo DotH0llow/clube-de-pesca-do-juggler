@@ -23,8 +23,8 @@ import type { WorldConfig } from './worldConfig';
  *
  * ----------------------------------------------------------- o que entra
  *
- * Um caminho so, `perfil`, descendo a tela em degraus de 4 unidades, com a
- * costa andando de 4 a 12 unidades para os lados. Dele saem, na mesma
+ * Um caminho so, `perfil`, descendo a tela em degraus curtos, com a costa
+ * inclinada e variacoes largas para os lados. Dele saem, na mesma
  * chamada e com as mesmas coordenadas:
  *
  *   `marClip`     - recorte do MAR: tudo o que fica a esquerda do caminho;
@@ -187,22 +187,30 @@ export function calcularCosta(w: WorldConfig): Costa {
    * descarta; um seno daria ondulacao regular, que le como enfeite. Passeio
    * limitado da poucas reentrancias grandes, que e o que praia tem.
    *
-   * A ALTURA DE CADA DEGRAU tambem varia (de 1 a 3 passos). Com altura fixa a
-   * costa vira escada de tamanho unico, e escada de tamanho unico o olho
-   * reconhece como padrao na primeira olhada.
+   * Os pontos sao amostrados a cada oito unidades para a inclinacao continuar
+   * fluida. A ondulacao muda em intervalos maiores, evitando o serrilhado
+   * aleatorio que faria a praia parecer uma escada quebrada.
    */
   const perfil: CostaPonto[] = [];
   let x = w.shoreX;
-  for (let y = topo; y < fundo; ) {
-    perfil.push({ x: naGrade(x), y: naGrade(y) });
-    const anda = [-8, -4, -4, 0, 0, 4, 4, 8][Math.floor(r() * 8)];
-    x = Math.max(w.shoreX - amp, Math.min(w.shoreX + amp, x + anda));
-    y += passo * (1 + Math.floor(r() * 3));
+  let proximaOndulacao = topo;
+  for (let y = topo; y < fundo; y += GRADE * 2) {
+    // A costa do prototipo se curva para dentro do mar em primeiro plano.
+    // Limitar a rampa depois da moldura evita que o mar desapareca em
+    // profundidades que o jogador so ve com a camera livre.
+    const recuo = Math.min(Math.max(0, y - topo), 760) * w.shoreLean;
+    perfil.push({ x: naGrade(x - recuo), y: naGrade(y) });
+    if (y >= proximaOndulacao) {
+      const anda = [-8, -4, -4, 0, 0, 4, 4, 8][Math.floor(r() * 8)];
+      x = Math.max(w.shoreX - amp, Math.min(w.shoreX + amp, x + anda));
+      proximaOndulacao = y + passo * (1 + Math.floor(r() * 3));
+    }
   }
-  perfil.push({ x: naGrade(x), y: fundo });
+  perfil.push({ x: naGrade(x - 760 * w.shoreLean), y: fundo });
 
   const costaX = naGrade(w.shoreX);
-  const caixa = { x: w.shoreX - 240, y: topo, w: 480, h: fundo - topo };
+  const faixaAlcance = Math.ceil(760 * w.shoreLean) + 240;
+  const caixa = { x: w.shoreX - faixaAlcance, y: topo, w: faixaAlcance + 240, h: fundo - topo };
 
   // ----------------------------------------------------------- os recortes
   //
@@ -236,9 +244,9 @@ export function calcularCosta(w: WorldConfig): Costa {
   );
 
   const areia: Caixa = {
-    x: w.shoreX - 240,
+    x: w.shoreX - faixaAlcance,
     y: w.sandY,
-    w: WORLD_W - w.shoreX + 400,
+    w: WORLD_W - w.shoreX + faixaAlcance + 160,
     h: fundo + 420 - w.sandY,
   };
   const areiaClip = poligono(

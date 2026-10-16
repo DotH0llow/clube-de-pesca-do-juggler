@@ -28,7 +28,6 @@ const SAND_TILE = 32;
 
 /** As duas peças do autotile que a praia usa. */
 const SAND_BORDA = 'sand/sand_12_01110110';
-const SAND_CHEIA = 'sand/sand_46_11111111';
 
 /**
  * A GRADE ÚNICA DA AREIA.
@@ -242,6 +241,13 @@ export function World({
               clipPath: costa.marClip,
             }}
           >
+            {/* Material separado da onda, dos recifes soltos e da costa. A
+                textura acompanha o mar recortado; a superficie e os reflexos
+                continuam animados por seus proprios componentes. */}
+            <div
+              className="sea-art-texture"
+              style={{ backgroundImage: `linear-gradient(180deg, rgba(0, 76, 161, .9), rgba(0, 122, 176, .45) 18%, transparent 47%), url(${asset('prototype/v3/reef-water')})` }}
+            />
             {/* OS RAIOS DE LUZ SAIRAM.
 
                 Eram tres copias de `props/light-ray-strip` penduradas na
@@ -330,7 +336,7 @@ export function World({
               width: costa.areia.w,
               top: costa.areia.y,
               height: Math.max(0, chao + 420 - w.sandY),
-              backgroundImage: `url(${asset(SAND_CHEIA)})`,
+              backgroundImage: `url(${asset('prototype/v3/golden-sand')})`,
               backgroundPosition: grade(costa.areia.x, costa.areia.y),
               clipPath: costa.areiaClip,
             }}

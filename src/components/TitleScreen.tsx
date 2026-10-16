@@ -117,7 +117,13 @@ function TitleScene({ view }: { view: { scale: number; x: number; y: number } })
         <SceneLayer scene="menu" band="meio" />
 
         {/* o mar, com a paleta da hora escolhida */}
-        <div className="title-sea" style={{ top: MENU_SEA_Y }} />
+        <div
+          className="title-sea"
+          style={{
+            top: MENU_SEA_Y,
+            backgroundImage: `linear-gradient(180deg, rgba(20, 169, 221, .3), rgba(1, 77, 132, .72)), url(${asset('prototype/v3/reef-water')})`,
+          }}
+        />
 
         {/* A mesma superficie do jogo: linha desenhada por quadro, e nao
             faixa deslizando. O menu tinha exatamente o mesmo problema. */}

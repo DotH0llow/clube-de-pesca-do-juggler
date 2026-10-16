@@ -116,6 +116,8 @@ export interface WorldConfig {
   shoreIrregular: number;
   /** altura de cada degrau da costa, em unidades (a de verdade varia de 1 a 3x) */
   shorePasso: number;
+  /** recuo da costa para a esquerda ao descer a tela; editavel no mundo */
+  shoreLean: number;
 
   /** espessura da faixa de agua rasa, do lado da agua */
   shoreRaso: number;
@@ -172,7 +174,7 @@ export function seedWorld(): WorldConfig {
     waterAnchor: 0.517,
     frameOffsetY: 0,
     frameLand: 1,
-    frameSea: 0.42,
+    frameSea: 0.6,
     frameEase: 0.9,
 
     parallaxFar: 0.22,
@@ -188,6 +190,7 @@ export function seedWorld(): WorldConfig {
      */
     shoreIrregular: 10,
     shorePasso: 28,
+    shoreLean: 0.48,
 
     shoreRaso: 42,
     shoreRasoAvanco: 28,
@@ -209,7 +212,7 @@ export function seedWorld(): WorldConfig {
     foamSeconds: 6,
     waveBob: 5,
 
-    menuHour: 'por-do-sol',
+    menuHour: 'manha-clara',
   };
 }
 

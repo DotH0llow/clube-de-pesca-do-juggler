@@ -420,6 +420,16 @@ button {
   overflow: hidden;
 }
 
+.sea-art-texture {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 900px;
+  background-repeat: repeat-x;
+  background-size: 1400px 787px;
+  background-position: 0 0;
+  pointer-events: none;
+}
+
 /* `.ray` e `.ray-b` sairam daqui junto com os raios de luz da agua.
 
    Eram tres faixas de listras claras esticadas na coluna do mar, balancando em
@@ -476,7 +486,7 @@ button {
   z-index: 15;
   position: absolute;
   background-repeat: repeat;
-  background-size: 32px 32px;
+  background-size: 1080px 607px;
 }
 
 /* a faixa de cima da areia: a peca de BORDA do autotile, uma so linha */
@@ -1923,6 +1933,9 @@ button {
     var(--sea-bottom, #06405f) 72%,
     #02131f 100%
   );
+  background-repeat: repeat-x;
+  background-size: 1280px 720px;
+  background-position: center top;
 }
 
 /* A espuma do menu media em `vh`.
@@ -1951,8 +1964,12 @@ button {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(3, 12, 20, 0.92) 0%, rgba(3, 12, 20, 0.6) 40%, rgba(3, 12, 20, 0) 66%),
-    linear-gradient(0deg, rgba(3, 12, 20, 0.82) 0%, rgba(3, 12, 20, 0) 45%);
+    linear-gradient(90deg, rgba(3, 12, 20, 0.22) 0%, rgba(3, 12, 20, 0.08) 40%, rgba(3, 12, 20, 0) 66%),
+    linear-gradient(0deg, rgba(3, 12, 20, 0.18) 0%, rgba(3, 12, 20, 0) 45%);
+}
+
+.wobj[data-obj='menu-prototype-sun'] {
+  box-shadow: 0 0 20px 12px rgba(255, 247, 184, 0.72), 0 0 58px 28px rgba(255, 215, 92, 0.32);
 }
 
 .title-content {
@@ -2668,6 +2685,15 @@ button {
   transform-origin: 50% 0;
 }
 
+.wobj .reef-fish-swim {
+  animation: reef-fish-swim 4.9s ease-in-out infinite alternate;
+}
+
+@keyframes reef-fish-swim {
+  from { transform: translate3d(-8px, 2px, 0) rotate(-2deg); }
+  to { transform: translate3d(13px, -3px, 0) rotate(2deg); }
+}
+
 @keyframes env-boat-rock {
   from { transform: rotate(-1.1deg) translateY(1px); }
   to { transform: rotate(1.25deg) translateY(-3px); }
@@ -2699,6 +2725,7 @@ button {
 .no-anim .wobj .env-boat,
 .no-anim .wobj .env-foliage,
 .no-anim .wobj .env-hanging,
+.no-anim .wobj .reef-fish-swim,
 .no-anim .drifter-sprite,
 .no-anim .drifter-turn {
   animation: none;

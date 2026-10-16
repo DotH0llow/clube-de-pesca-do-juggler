@@ -19,7 +19,7 @@ export { bandOf };
  * para containers proprios, movidos pelo laco do jogo.
  */
 function ObjectView({ o }: { o: SceneObject }) {
-  const prototype = o.sprite?.startsWith('prototype/v2/') ?? false;
+  const prototype = /^prototype\/v[23]\//.test(o.sprite ?? '');
   const environmentalMotion = o.sprite?.startsWith('nature/')
     ? ' env-foliage'
     : o.sprite?.includes('boat') || o.sprite?.includes('prototype/v2/boat')

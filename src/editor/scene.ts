@@ -109,6 +109,9 @@ export const SPRITE_HOME: { match: RegExp; layer: LayerId; depth: number }[] = [
   { match: /^prototype\/v2\/pier/, layer: 'cenario', depth: 5 },
   { match: /^prototype\/v2\/boat/, layer: 'cenario', depth: 3 },
   { match: /^prototype\/v2\/market/, layer: 'cenario', depth: 4 },
+  { match: /^prototype\/v3\/blue-market/, layer: 'cenario', depth: 4 },
+  { match: /^prototype\/v3\/fisher-hut/, layer: 'cenario', depth: 5 },
+  { match: /^prototype\/v3\/coral-reef/, layer: 'objetos', depth: 1 },
   // horizonte: e isso que o BACKGROUND deve conter
   { match: /^sky\/(distant-mountain|horizon-haze|sunset-cloud|night-cloud)/, layer: 'fundo', depth: 0 },
   // as ilhas do pacote novo: horizonte, sempre
@@ -197,7 +200,7 @@ function strip(
   };
 }
 
-const PROTOTYPE_VERSAO = 1;
+const PROTOTYPE_VERSAO = 3;
 
 /**
  * Landmarks independentes que formam a nova leitura visual do mundo.
@@ -214,13 +217,13 @@ function prototypeLandmarks(): SceneObject[] {
       layer: 'fundo',
       kind: 'sprite',
       sprite: 'prototype/v2/karst-horizon',
-      x: -620,
-      y: 92,
-      w: 1460,
-      h: 488,
+      x: -300,
+      y: -210,
+      w: 2100,
+      h: 700,
       rot: 0,
       depth: 0,
-      opacity: 0.86,
+      opacity: 0.96,
       parallax: 0.18,
     }),
     landmark({
@@ -228,14 +231,14 @@ function prototypeLandmarks(): SceneObject[] {
       layer: 'fundo',
       kind: 'sprite',
       sprite: 'prototype/v2/karst-horizon',
-      x: 740,
-      y: 124,
-      w: 1320,
-      h: 442,
+      x: 1480,
+      y: -180,
+      w: 1980,
+      h: 660,
       rot: 0,
       depth: 0,
       flip: true,
-      opacity: 0.72,
+      opacity: 0.88,
       parallax: 0.26,
     }),
     landmark({
@@ -243,14 +246,14 @@ function prototypeLandmarks(): SceneObject[] {
       layer: 'fundo',
       kind: 'sprite',
       sprite: 'prototype/v2/karst-horizon',
-      x: 1980,
-      y: 106,
-      w: 1470,
-      h: 492,
+      x: 2940,
+      y: -190,
+      w: 2040,
+      h: 680,
       rot: 0,
       depth: 0,
       flip: true,
-      opacity: 0.82,
+      opacity: 0.84,
       parallax: 0.2,
     }),
     landmark({
@@ -270,10 +273,10 @@ function prototypeLandmarks(): SceneObject[] {
       layer: 'cenario',
       kind: 'sprite',
       sprite: 'prototype/v2/boat',
-      x: 84,
-      y: 120,
-      w: 500,
-      h: 252,
+      x: 280,
+      y: 228,
+      w: 330,
+      h: 168,
       rot: 0,
       depth: 3,
       anim: 'balanco',
@@ -282,15 +285,34 @@ function prototypeLandmarks(): SceneObject[] {
       id: 'prototype-market',
       layer: 'cenario',
       kind: 'sprite',
-      sprite: 'prototype/v2/market',
-      x: MARKET_X - 252,
-      y: 28,
-      w: 510,
-      h: 340,
+      sprite: 'prototype/v3/blue-market',
+      x: MARKET_X - 205,
+      y: 158,
+      w: 410,
+      h: 274,
       rot: 0,
       depth: 4,
       anim: 'market-hanging',
     }),
+    landmark({ id: 'prototype-palm-pier', layer: 'cenario', kind: 'sprite', sprite: 'nature/coconut-palm', x: 1430, y: 120, w: 170, h: 250, rot: 0, depth: 4 }),
+    landmark({ id: 'prototype-palm-market', layer: 'cenario', kind: 'sprite', sprite: 'nature/coconut-palm', x: 1880, y: 88, w: 190, h: 282, rot: 0, depth: 4 }),
+    landmark({ id: 'prototype-palm-arcade', layer: 'cenario', kind: 'sprite', sprite: 'nature/coconut-palm', x: 2790, y: 82, w: 205, h: 300, rot: 0, depth: 4 }),
+    landmark({ id: 'prototype-fisher-hut', layer: 'cenario', kind: 'sprite', sprite: 'prototype/v3/fisher-hut', x: 2790, y: 160, w: 430, h: 287, rot: 0, depth: 5 }),
+    landmark({ id: 'prototype-hydrinho-arcade', layer: 'cenario', kind: 'sprite', sprite: 'props/hydrinho-arcade', x: 2670, y: 126, w: 125, h: 240, rot: 0, depth: 6 }),
+    landmark({ id: 'prototype-bench', layer: 'objetos', kind: 'sprite', sprite: 'props/pier-bench-side', x: 1740, y: 306, w: 175, h: 86, rot: 0, depth: 6 }),
+    landmark({ id: 'prototype-basket', layer: 'objetos', kind: 'sprite', sprite: 'props/fish-basket', x: 1550, y: 328, w: 63, h: 54, rot: 0, depth: 6 }),
+    landmark({ id: 'prototype-rock-shore', layer: 'objetos', kind: 'sprite', sprite: 'props/coastal-rocks', x: 1370, y: 324, w: 100, h: 70, rot: 0, depth: 4 }),
+    landmark({ id: 'prototype-reef-west', layer: 'objetos', kind: 'sprite', sprite: 'prototype/v3/coral-reef', x: -180, y: 600, w: 620, h: 225, rot: 0, depth: 1 }),
+    landmark({ id: 'prototype-reef-center', layer: 'objetos', kind: 'sprite', sprite: 'prototype/v3/coral-reef', x: 520, y: 675, w: 420, h: 153, rot: 0, depth: 1, flip: true }),
+    landmark({ id: 'prototype-reef-shore', layer: 'objetos', kind: 'sprite', sprite: 'prototype/v3/coral-reef', x: 1030, y: 692, w: 330, h: 120, rot: 0, depth: 1 }),
+    landmark({ id: 'prototype-starfish-pier', layer: 'objetos', kind: 'sprite', sprite: 'props/starfish', x: 1490, y: 500, w: 33, h: 30, rot: 0, depth: 6 }),
+    landmark({ id: 'prototype-shell-pier', layer: 'objetos', kind: 'sprite', sprite: 'props/seashell', x: 1630, y: 635, w: 37, h: 29, rot: 0, depth: 6 }),
+    landmark({ id: 'prototype-crab-beach', layer: 'objetos', kind: 'sprite', sprite: 'marine/blue-crab', x: 1950, y: 510, w: 49, h: 38, rot: 0, depth: 6 }),
+    landmark({ id: 'prototype-driftwood-beach', layer: 'objetos', kind: 'sprite', sprite: 'props/sunken-driftwood', x: 1735, y: 595, w: 115, h: 51, rot: 0, depth: 6 }),
+    landmark({ id: 'prototype-shell-market', layer: 'objetos', kind: 'sprite', sprite: 'props/seashell', x: 2320, y: 540, w: 35, h: 28, rot: 0, depth: 6 }),
+    landmark({ id: 'prototype-crab-market', layer: 'objetos', kind: 'sprite', sprite: 'marine/crab', x: 2510, y: 560, w: 45, h: 35, rot: 0, depth: 6 }),
+    landmark({ id: 'prototype-fish-school-a', layer: 'objetos', kind: 'sprite', sprite: 'fish/mullet', x: 300, y: 665, w: 55, h: 27, rot: 0, depth: 1, anim: 'reef-fish-swim' }),
+    landmark({ id: 'prototype-fish-school-b', layer: 'objetos', kind: 'sprite', sprite: 'fish/mullet', x: 375, y: 705, w: 46, h: 22, rot: 0, depth: 1, anim: 'reef-fish-swim' }),
   ];
 }
 
@@ -598,6 +620,37 @@ function seedMenu(): SceneObject[] {
 
   // as ilhas do pacote novo, no lugar da faixa costurada
   out.push(...menuIslandObjects(MENU_SEA_Y, MENU_W));
+  out.push({
+    id: 'menu-prototype-karst',
+    layer: 'fundo',
+    kind: 'sprite',
+    sprite: 'prototype/v2/karst-horizon',
+    x: 250,
+    y: 172,
+    w: 1040,
+    h: 348,
+    rot: 0,
+    depth: 0,
+    opacity: 0.96,
+    parallax: 0.22,
+    prototypeAsset: true,
+  });
+  out.push({
+    id: 'menu-prototype-sun',
+    layer: 'fundo',
+    kind: 'forma',
+    shape: 'elipse',
+    x: 1160,
+    y: 28,
+    w: 76,
+    h: 76,
+    rot: 0,
+    depth: 0,
+    fill: '#fff9ce',
+    opacity: 0.98,
+    parallax: 0.22,
+    prototypeAsset: true,
+  });
 
   out.push(menuSprite('menu-barco', 'props/fishing-boat-idle-side', 120, MENU_SEA_Y + 58, 96, 3, { anim: 'balanco' }));
 
@@ -873,10 +926,26 @@ function migrarComposicaoPrototipo(st: SceneState): SceneState {
   const legacyIds = new Set(seed.filter((o) => o.legacyBase).map((o) => o.id));
   const existentes = new Set(st.objects.map((o) => o.id));
   const landmarks = seed.filter((o) => o.prototypeAsset && !existentes.has(o.id));
+  // So reposicionar as pecas que ainda estao exatamente na semente anterior.
+  // Quem moveu algo no editor conserva sua composicao pessoal.
+  const antigos: Record<string, [number, number, number, number, string]> = {
+    'prototype-karst-oeste': [-620, 92, 1460, 488, 'prototype/v2/karst-horizon'],
+    'prototype-karst-centro': [740, 124, 1320, 442, 'prototype/v2/karst-horizon'],
+    'prototype-karst-leste': [1980, 106, 1470, 492, 'prototype/v2/karst-horizon'],
+    'prototype-boat': [84, 120, 500, 252, 'prototype/v2/boat'],
+    'prototype-market': [MARKET_X - 252, 28, 510, 340, 'prototype/v2/market'],
+  };
+  const novosPorId = new Map(seed.filter((o) => o.prototypeAsset).map((o) => [o.id, o]));
   return {
     ...st,
     objects: [
-      ...st.objects.map((o) => (legacyIds.has(o.id) ? { ...o, legacyBase: true } : o)),
+      ...st.objects.map((o) => {
+        if (legacyIds.has(o.id)) return { ...o, legacyBase: true };
+        const old = antigos[o.id];
+        const novo = novosPorId.get(o.id);
+        if (!old || !novo || o.x !== old[0] || o.y !== old[1] || o.w !== old[2] || o.h !== old[3] || o.sprite !== old[4]) return o;
+        return { ...o, x: novo.x, y: novo.y, w: novo.w, h: novo.h, sprite: novo.sprite, opacity: novo.opacity };
+      }),
       ...landmarks,
     ],
     prototypeV: PROTOTYPE_VERSAO,
@@ -916,6 +985,7 @@ function garantirZonas(st: SceneState): SceneState {
 function garantirPecasDoMenu(st: SceneState): SceneState {
   const seed = seedMenu();
   const novas = seed.filter((s) => s.role);
+  const cenarioPrototipo = seed.filter((s) => s.id.startsWith('menu-prototype-'));
 
   /*
    * A caixa `botoes` e a assinatura de um menu ANTERIOR a divisao.
@@ -931,13 +1001,15 @@ function garantirPecasDoMenu(st: SceneState): SceneState {
   const preDivisao = st.objects.some((o) => (o.role as string) === 'botoes');
   if (preDivisao) {
     const cenario = st.objects.filter((o) => !o.role);
-    return { ...st, objects: [...cenario, ...novas] };
+    const extras = cenarioPrototipo.filter((s) => !cenario.some((o) => o.id === s.id));
+    return { ...st, objects: [...cenario, ...novas, ...extras] };
   }
 
   // caso normal: so entra o que faltava, e o que existe fica onde esta
   const faltando = novas.filter((s) => !st.objects.some((o) => o.role === s.role));
-  if (faltando.length === 0) return st;
-  return { ...st, objects: [...st.objects, ...faltando] };
+  const fundos = cenarioPrototipo.filter((s) => !st.objects.some((o) => o.id === s.id));
+  if (faltando.length === 0 && fundos.length === 0) return st;
+  return { ...st, objects: [...st.objects, ...faltando, ...fundos] };
 }
 
 function load(): Book {

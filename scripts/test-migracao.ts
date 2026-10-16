@@ -92,6 +92,7 @@ async function main() {
     const rampa = depois.filter((o) => o.sprite === 'pier2d/deck-rampa').length;
     const coqueiro = depois.find((o) => o.id === 'coqueiro-teste');
     const landmarks = depois.filter((o) => o.prototypeAsset).length;
+    const landmarksEsperados = cena.seedScene('mundo').objects.filter((o) => o.prototypeAsset).length;
     const baseEscondida = depois
       .filter((o) => o.id.startsWith('pier25-'))
       .every((o) => o.legacyBase === true);
@@ -117,7 +118,11 @@ async function main() {
     checa('rampa', rampa === 1, rampa);
     checa('o coqueiro espelhado sobreviveu', coqueiro?.flip === true, String(coqueiro?.flip));
     checa('o coqueiro manual continua visivel', coqueiro?.legacyBase !== true, String(coqueiro?.legacyBase));
-    checa('landmarks independentes entram na cena', landmarks === 6, landmarks);
+    checa(
+      'landmarks independentes entram na cena',
+      landmarks === landmarksEsperados,
+      `${landmarks}/${landmarksEsperados}`,
+    );
     checa('arte antiga do cais fica fora do runtime', baseEscondida, baseEscondida);
     checa('caixas de chao', pisos.length === 3, pisos.length);
     checa('uma delas e rampa (tem queda)', rampaDoChao === 1, rampaDoChao);

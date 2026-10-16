@@ -174,6 +174,13 @@ export function WorldPanel() {
           onChange={(v) => updateWorld({ shorePasso: Math.max(8, v) })}
           suffix="altura de cada degrau (a de verdade varia de 1 a 3x)"
         />
+        <NumberField
+          label="INCLINAÇÃO"
+          value={w.shoreLean}
+          step={0.05}
+          onChange={(v) => updateWorld({ shoreLean: Math.max(0, Math.min(1, v)) })}
+          suffix="recuo da praia por unidade vertical"
+        />
       </div>
       <div className="ehint">
         A costa é UM caminho, e água rasa, areia molhada e espuma são esse mesmo caminho deslocado
