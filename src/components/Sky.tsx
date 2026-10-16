@@ -48,6 +48,10 @@ interface Copy {
   duration: number;
   delay: number;
   flip: boolean;
+  bird: boolean;
+  turn: boolean;
+  wingSeconds: number;
+  motionDelay: number;
 }
 
 function copiesOf(it: Floater): Copy[] {
@@ -56,6 +60,7 @@ function copiesOf(it: Floater): Copy[] {
   return Array.from({ length: n }, (_, i) => {
     const jitter = (it.spreadY || 0) * (rnd() - 0.5) * 2;
     const dur = Math.max(2, it.seconds * (1 + (rnd() - 0.5) * 2 * (it.secondsVar || 0)));
+    const bird = /(?:seagull|bird)/.test(it.sprite);
     return {
       key: `${it.id}-${i}`,
       sprite: it.sprite,
@@ -68,6 +73,10 @@ function copiesOf(it: Floater): Copy[] {
       duration: dur,
       delay: -dur * rnd(),
       flip: it.flip !== rnd() > 0.82,
+      bird,
+      turn: bird && rnd() > 0.58,
+      wingSeconds: 0.42 + rnd() * 0.32,
+      motionDelay: -(0.3 + rnd() * 6.8),
     };
   });
 }
@@ -89,15 +98,12 @@ export function Sky({ hour }: { hour: SkyPhaseId }) {
       {cfg.night && <img className="stars" src={asset('sky/star-cluster')} alt="" />}
 
       {copies.map((c) => (
-        <img
+        <div
           key={c.key}
-          className="drifter"
-          src={asset(c.sprite)}
-          alt=""
+          className={`drifter${c.bird ? ' drifter-bird' : ' drifter-cloud'}`}
           style={
             {
               height: `${c.height}%`,
-              opacity: c.opacity,
               animationDuration: `${c.duration}s`,
               animationDelay: `${c.delay}s`,
               '--from-x': `${c.fromX}vw`,
@@ -105,9 +111,15 @@ export function Sky({ hour }: { hour: SkyPhaseId }) {
               '--from-y': `${c.fromY}vh`,
               '--to-y': `${c.toY}vh`,
               '--flip': c.flip ? -1 : 1,
+              '--wing-seconds': `${c.wingSeconds}s`,
+              '--motion-delay': `${c.motionDelay}s`,
             } as React.CSSProperties
           }
-        />
+        >
+          <span className={`drifter-turn${c.turn ? ' drifter-turning' : ''}`}>
+            <img className="drifter-sprite" src={asset(c.sprite)} alt="" style={{ opacity: c.opacity }} />
+          </span>
+        </div>
       ))}
 
       {storm && (

@@ -116,67 +116,6 @@ button {
   overflow: hidden;
 }
 
-/* ===========================================================================
-   DIREÇÃO DE ARTE DO PROTÓTIPO
-
-   A paisagem é uma arte única, em 16:9, deliberadamente separada das peças
-   jogáveis. Assim não há o erro de juntar vários recortes numa mesma folha
-   nem o risco de um deslocamento cortar um sprite. O mundo lógico continua
-   abaixo dela: colisão, câmera, pesca, personagem, anzol e minijogos são os
-   mesmos componentes interativos de antes.
-   =========================================================================== */
-.prototype-world-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background:
-    linear-gradient(rgba(3, 26, 55, 0.04), rgba(3, 26, 55, 0.12)),
-    url('../assets/game/prototype/tropical-coast-pier.png') center / cover no-repeat;
-}
-
-.prototype-market-vista .prototype-world-backdrop {
-  background-image:
-    linear-gradient(rgba(3, 26, 55, 0.04), rgba(3, 26, 55, 0.12)),
-    url('../assets/game/prototype/tropical-market-beach.png');
-}
-
-/* O cenário antigo fica somente como mapa lógico. Personagem, linha, anzol,
-   peixe e efeitos mantêm a própria camada e seguem vivos sobre a paisagem. */
-.prototype-art > .sky,
-.prototype-art .sea,
-.prototype-art .sand,
-.prototype-art .sand-top,
-.prototype-art .seabed,
-.prototype-art .world-spill,
-.prototype-art .mar-raso,
-.prototype-art .areia-molhada,
-.prototype-art .espuma,
-.prototype-art .water-surface,
-.prototype-art .world-scale .wobj {
-  /* Os objetos da cena recebem opacidade pela propriedade `style` do React.
-     Sem `!important`, essa opacidade em linha ganhava e o cenario antigo
-     ficava fantasma por cima da paisagem nova. */
-  opacity: 0 !important;
-}
-
-.prototype-art .player-sprite {
-  filter: drop-shadow(0 4px 1px rgba(0, 0, 0, 0.52)) saturate(1.12) contrast(1.06);
-}
-
-/* Molduras, botões e medidores recebem a mesma leitura de madeira, metal e
-   azul-marinho das referências. São regras de pele: não mudam eventos nem
-   estado dos componentes que elas estilizam. */
-.prototype-art ~ .ui-layer .chip,
-.prototype-art ~ .ui-layer .region-tag,
-.prototype-art ~ .ui-layer .dia-chip,
-.prototype-art ~ .ui-layer .dev-chip,
-.prototype-art ~ .ui-layer .hint-strip,
-.prototype-art ~ .ui-layer .casino-hud > div {
-  border-color: #b87c2d;
-  background: linear-gradient(180deg, rgba(8, 30, 51, 0.94), rgba(3, 17, 31, 0.94));
-  box-shadow: inset 0 0 0 1px rgba(255, 216, 126, 0.18), 0 3px 0 rgba(0, 0, 0, 0.35);
-}
-
 .pixel-box {
   border-color: #b87c2d;
   background:
@@ -281,6 +220,36 @@ button {
   will-change: transform;
 }
 
+.drifter-turn {
+  display: block;
+  height: 100%;
+  width: max-content;
+  transform: scaleX(var(--flip, 1));
+  transform-origin: 50% 50%;
+}
+
+.drifter-sprite {
+  display: block;
+  height: 100%;
+  width: auto;
+}
+
+.drifter-cloud .drifter-sprite {
+  animation: cloud-breathe 7s ease-in-out infinite alternate;
+  animation-delay: var(--motion-delay, 0s);
+}
+
+.drifter-bird .drifter-sprite {
+  animation: bird-wing var(--wing-seconds, 0.58s) ease-in-out infinite alternate;
+  animation-delay: var(--motion-delay, 0s);
+  transform-origin: 50% 52%;
+}
+
+.drifter-turning {
+  animation: bird-turn 13s steps(1, end) infinite;
+  animation-delay: var(--motion-delay, 0s);
+}
+
 .sky .stars {
   position: absolute;
   top: 4%;
@@ -355,11 +324,27 @@ button {
    as quatro pontas chegam em variavel e o quadro-chave so liga uma na outra. */
 @keyframes drift-path {
   from {
-    transform: translate3d(var(--from-x, -25vw), var(--from-y, 14vh), 0) scaleX(var(--flip, 1));
+    transform: translate3d(var(--from-x, -25vw), var(--from-y, 14vh), 0);
   }
   to {
-    transform: translate3d(var(--to-x, 125vw), var(--to-y, 14vh), 0) scaleX(var(--flip, 1));
+    transform: translate3d(var(--to-x, 125vw), var(--to-y, 14vh), 0);
   }
+}
+
+@keyframes cloud-breathe {
+  from { transform: translateY(-2px) scale(0.985); }
+  to { transform: translateY(3px) scale(1.015); }
+}
+
+@keyframes bird-wing {
+  from { transform: translateY(-2px) rotate(-8deg) scaleY(0.78); }
+  to { transform: translateY(2px) rotate(8deg) scaleY(1.06); }
+}
+
+@keyframes bird-turn {
+  0%, 43%, 100% { transform: scaleX(var(--flip, 1)); }
+  48%, 57% { transform: scaleX(calc(var(--flip, 1) * -1)); }
+  62% { transform: scaleX(var(--flip, 1)); }
 }
 
 @keyframes rain-fall {
@@ -2663,6 +2648,36 @@ button {
   transform-origin: 50% 100%;
 }
 
+.wobj .env-boat {
+  animation: env-boat-rock 5.6s ease-in-out infinite alternate;
+  transform-origin: 50% 76%;
+}
+
+.wobj .env-foliage {
+  animation: env-foliage-sway 4.8s ease-in-out infinite alternate;
+  transform-origin: 50% 100%;
+}
+
+.wobj .env-hanging {
+  animation: env-hanging-sway 3.7s ease-in-out infinite alternate;
+  transform-origin: 50% 0;
+}
+
+@keyframes env-boat-rock {
+  from { transform: rotate(-1.1deg) translateY(1px); }
+  to { transform: rotate(1.25deg) translateY(-3px); }
+}
+
+@keyframes env-foliage-sway {
+  from { transform: rotate(-0.75deg); }
+  to { transform: rotate(0.9deg); }
+}
+
+@keyframes env-hanging-sway {
+  from { transform: rotate(-0.5deg) translateY(0); }
+  to { transform: rotate(0.8deg) translateY(2px); }
+}
+
 @keyframes obj-rock {
   from {
     transform: rotate(-1.6deg) translateY(0);
@@ -2673,6 +2688,14 @@ button {
 }
 
 .no-anim .wobj .balanco {
+  animation: none;
+}
+
+.no-anim .wobj .env-boat,
+.no-anim .wobj .env-foliage,
+.no-anim .wobj .env-hanging,
+.no-anim .drifter-sprite,
+.no-anim .drifter-turn {
   animation: none;
 }
 
@@ -4880,6 +4903,21 @@ button {
   overflow: visible;
 }
 
+.water-details {
+  position: absolute;
+  z-index: 23;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.water-glint {
+  fill: none;
+  stroke: rgba(235, 252, 255, 0.82);
+  stroke-width: 2;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
 /* a espuma da crista */
 .ws-crista {
   stroke: rgba(255, 255, 255, 0.92);
@@ -4922,16 +4960,4 @@ button {
 
 .menu-slot > .title-palavra.destaque {
   color: var(--coin);
-}
-
-/* A tela de abertura usa a mesma costa ensolarada do protótipo. O cenário
-   editável anterior continua guardado para o editor; aqui ele só deixa de ser
-   a pintura visível, sem afetar os botões e suas ações. */
-.title-screen .title-scene .sky {
-  background-image: url('../assets/game/prototype/tropical-coast-pier.png') !important;
-  background-position: center;
-}
-
-.title-screen .title-scene .menu-world {
-  opacity: 0;
 }

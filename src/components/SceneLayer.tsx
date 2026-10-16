@@ -19,6 +19,13 @@ export { bandOf };
  * para containers proprios, movidos pelo laco do jogo.
  */
 function ObjectView({ o }: { o: SceneObject }) {
+  const environmentalMotion = o.sprite?.startsWith('nature/')
+    ? ' env-foliage'
+    : o.sprite?.includes('boat')
+      ? ' env-boat'
+      : o.sprite?.includes('market-stall') || o.sprite?.includes('cabana')
+        ? ' env-hanging'
+        : '';
   const style: React.CSSProperties = {
     left: o.x,
     top: o.y,
@@ -85,7 +92,7 @@ function ObjectView({ o }: { o: SceneObject }) {
   return (
     <div className={`wobj${o.role === 'vara' ? ' rod-obj' : ''}`} data-obj={o.id} style={style}>
       <img
-        className={`wobj-img${o.under ? ' under-tint' : ''}${o.anim ? ` ${o.anim}` : ''}`}
+        className={`wobj-img${o.under ? ' under-tint' : ''}${o.anim ? ` ${o.anim}` : ''}${environmentalMotion}`}
         src={asset(o.sprite)}
         alt=""
         draggable={false}
