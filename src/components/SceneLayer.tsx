@@ -19,11 +19,12 @@ export { bandOf };
  * para containers proprios, movidos pelo laco do jogo.
  */
 function ObjectView({ o }: { o: SceneObject }) {
+  const prototype = o.sprite?.startsWith('prototype/v2/') ?? false;
   const environmentalMotion = o.sprite?.startsWith('nature/')
     ? ' env-foliage'
-    : o.sprite?.includes('boat')
+    : o.sprite?.includes('boat') || o.sprite?.includes('prototype/v2/boat')
       ? ' env-boat'
-      : o.sprite?.includes('market-stall') || o.sprite?.includes('cabana')
+      : o.sprite?.includes('market-stall') || o.sprite?.includes('cabana') || o.sprite?.includes('prototype/v2/market')
         ? ' env-hanging'
         : '';
   const style: React.CSSProperties = {
@@ -92,7 +93,7 @@ function ObjectView({ o }: { o: SceneObject }) {
   return (
     <div className={`wobj${o.role === 'vara' ? ' rod-obj' : ''}`} data-obj={o.id} style={style}>
       <img
-        className={`wobj-img${o.under ? ' under-tint' : ''}${o.anim ? ` ${o.anim}` : ''}${environmentalMotion}`}
+        className={`wobj-img${prototype ? ' prototype-asset' : ''}${o.under ? ' under-tint' : ''}${o.anim ? ` ${o.anim}` : ''}${environmentalMotion}`}
         src={asset(o.sprite)}
         alt=""
         draggable={false}
@@ -110,9 +111,16 @@ interface Props {
   band?: BandId;
   /** esconde a vara fincada no deck (o Juggler esta com a dele na mao) */
   hideRod?: boolean;
+  /** O mundo usa a nova composicao, mas continua guardando os dados antigos. */
+  hideLegacyBase?: boolean;
 }
 
-export const SceneLayer = memo(function SceneLayer({ scene, band = 'perto', hideRod = false }: Props) {
+export const SceneLayer = memo(function SceneLayer({
+  scene,
+  band = 'perto',
+  hideRod = false,
+  hideLegacyBase = false,
+}: Props) {
   const state = useScene(scene);
   return (
     <>
@@ -126,6 +134,7 @@ export const SceneLayer = memo(function SceneLayer({ scene, band = 'perto', hide
         .filter((o) => !state.hidden.includes(o.layer))
         .filter((o) => bandOf(o) === band)
         .filter((o) => !(hideRod && o.role === 'vara'))
+        .filter((o) => !(hideLegacyBase && o.legacyBase))
         .map((o) => (
           <ObjectView key={o.id} o={o} />
         ))}

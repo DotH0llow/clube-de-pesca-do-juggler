@@ -2639,6 +2639,11 @@ button {
   height: 100%;
 }
 
+.wobj-img.prototype-asset {
+  image-rendering: auto;
+  filter: saturate(1.05) contrast(1.02);
+}
+
 .under-tint {
   filter: saturate(0.85) brightness(0.82) drop-shadow(0 0 6px rgba(2, 30, 50, 0.5));
 }

@@ -7,7 +7,7 @@
  *
  *   asset('fish/mahi-mahi')   -> URL final do sprite
  */
-const FILES = import.meta.glob('./game/**/*.webp', {
+const FILES = import.meta.glob('./game/**/*.{webp,png}', {
   eager: true,
   query: '?url',
   import: 'default',
@@ -16,7 +16,9 @@ const FILES = import.meta.glob('./game/**/*.webp', {
 export type AssetPath = string;
 
 export function asset(path: AssetPath): string {
-  const url = FILES[`./game/${path}.webp`];
+  const webp = FILES[`./game/${path}.webp`];
+  const png = FILES[`./game/${path}.png`];
+  const url = webp ?? png;
   if (!url && import.meta.env.DEV) {
     console.warn(`[assets] não encontrado: ${path}`);
   }
@@ -24,7 +26,7 @@ export function asset(path: AssetPath): string {
 }
 
 export function hasAsset(path: AssetPath): boolean {
-  return Boolean(FILES[`./game/${path}.webp`]);
+  return Boolean(FILES[`./game/${path}.webp`] ?? FILES[`./game/${path}.png`]);
 }
 
 /** Usado pelos testes e pela tela de creditos. */

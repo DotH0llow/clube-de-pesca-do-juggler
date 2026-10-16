@@ -211,11 +211,11 @@ export function World({
             para esconder, mover e trocar no editor - e so ficam em containers
             proprios porque andam mais devagar que a camera. */}
         <div className="layer" ref={farRef}>
-          <SceneLayer scene="mundo" band="longe" />
+          <SceneLayer scene="mundo" band="longe" hideLegacyBase />
         </div>
 
         <div className="layer" ref={midRef}>
-          <SceneLayer scene="mundo" band="meio" />
+          <SceneLayer scene="mundo" band="meio" hideLegacyBase />
         </div>
 
         {/* ---------------------------------------------------- plano do jogo */}
@@ -486,7 +486,7 @@ export function World({
               profundidade de cada objeto, nao da ordem deste arquivo. A vara
               fincada some quando o Juggler pega a dele - a arte da pescaria ja
               vem com uma na mao. */}
-          <SceneLayer scene="mundo" hideRod={fishing} />
+          <SceneLayer scene="mundo" hideRod={fishing} hideLegacyBase />
 
           {/* A LINHA durante a cacada sai da ponta da vara e chega no anzol,
               onde quer que ele esteja. Ela e redesenhada por quadro no proprio

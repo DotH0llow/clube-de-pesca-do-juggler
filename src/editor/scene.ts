@@ -71,7 +71,8 @@ import type { LayerId, SceneId, SceneObject, SceneState, ShapeKind, ZoneId } fro
  * e o cenario volta pela semente. O que se salva de verdade e a configuracao
  * de MUNDO e a de MECANICAS, que moram em outra chave e continuam valendo.
  */
-const KEY = 'juggler-fishing/cena/v5';
+const KEY = 'juggler-fishing/cena/v6';
+const KEY_V5 = 'juggler-fishing/cena/v5';
 const KEY_V4 = 'juggler-fishing/cena/v4';
 const KEY_V3 = 'juggler-fishing/cena/v3';
 const KEY_V2 = 'juggler-fishing/cena/v2';
@@ -103,6 +104,11 @@ let seq = 0;
  * o que voce ja tinha movido de lugar.
  */
 export const SPRITE_HOME: { match: RegExp; layer: LayerId; depth: number }[] = [
+  // composicao visual do prototipo: cada landmark e um objeto editavel
+  { match: /^prototype\/v2\/karst-horizon/, layer: 'fundo', depth: 0 },
+  { match: /^prototype\/v2\/pier/, layer: 'cenario', depth: 5 },
+  { match: /^prototype\/v2\/boat/, layer: 'cenario', depth: 3 },
+  { match: /^prototype\/v2\/market/, layer: 'cenario', depth: 4 },
   // horizonte: e isso que o BACKGROUND deve conter
   { match: /^sky\/(distant-mountain|horizon-haze|sunset-cloud|night-cloud)/, layer: 'fundo', depth: 0 },
   // as ilhas do pacote novo: horizonte, sempre
@@ -189,6 +195,103 @@ function strip(
     opacity,
     parallax,
   };
+}
+
+const PROTOTYPE_VERSAO = 1;
+
+/**
+ * Landmarks independentes que formam a nova leitura visual do mundo.
+ *
+ * Nenhum arquivo abaixo contem a cena inteira: o horizonte, o cais, o barco
+ * e o mercado sao objetos separados, com profundidade, parallax e animacao
+ * proprios. As zonas de jogo continuam em `seedMundo`, sem depender da arte.
+ */
+function prototypeLandmarks(): SceneObject[] {
+  const landmark = (o: Omit<SceneObject, 'prototypeAsset'>): SceneObject => ({ ...o, prototypeAsset: true });
+  return [
+    landmark({
+      id: 'prototype-karst-oeste',
+      layer: 'fundo',
+      kind: 'sprite',
+      sprite: 'prototype/v2/karst-horizon',
+      x: -620,
+      y: 92,
+      w: 1460,
+      h: 488,
+      rot: 0,
+      depth: 0,
+      opacity: 0.86,
+      parallax: 0.18,
+    }),
+    landmark({
+      id: 'prototype-karst-centro',
+      layer: 'fundo',
+      kind: 'sprite',
+      sprite: 'prototype/v2/karst-horizon',
+      x: 740,
+      y: 124,
+      w: 1320,
+      h: 442,
+      rot: 0,
+      depth: 0,
+      flip: true,
+      opacity: 0.72,
+      parallax: 0.26,
+    }),
+    landmark({
+      id: 'prototype-karst-leste',
+      layer: 'fundo',
+      kind: 'sprite',
+      sprite: 'prototype/v2/karst-horizon',
+      x: 1980,
+      y: 106,
+      w: 1470,
+      h: 492,
+      rot: 0,
+      depth: 0,
+      flip: true,
+      opacity: 0.82,
+      parallax: 0.2,
+    }),
+    landmark({
+      id: 'prototype-pier',
+      layer: 'cenario',
+      kind: 'sprite',
+      sprite: 'prototype/v2/pier',
+      x: 530,
+      y: 150,
+      w: 1120,
+      h: 405,
+      rot: 0,
+      depth: 5,
+    }),
+    landmark({
+      id: 'prototype-boat',
+      layer: 'cenario',
+      kind: 'sprite',
+      sprite: 'prototype/v2/boat',
+      x: 84,
+      y: 120,
+      w: 500,
+      h: 252,
+      rot: 0,
+      depth: 3,
+      anim: 'balanco',
+    }),
+    landmark({
+      id: 'prototype-market',
+      layer: 'cenario',
+      kind: 'sprite',
+      sprite: 'prototype/v2/market',
+      x: MARKET_X - 252,
+      y: 28,
+      w: 510,
+      h: 340,
+      rot: 0,
+      depth: 4,
+      anim: 'market-hanging',
+    }),
+  ];
 }
 
 function seedMundo(): SceneObject[] {
@@ -436,7 +539,16 @@ function seedMundo(): SceneObject[] {
     depth: 9,
   });
 
-  return out;
+  /*
+   * A cena ainda guarda as pecas antigas para nao destruir configuracao de
+   * editor que ja existe. O runtime as omite por `legacyBase` e desenha os
+   * landmarks acima. A vara fica visivel porque ela e a indicacao do gatilho
+   * de pesca, nao decoracao substituivel.
+   */
+  const legacy = out.map((o) =>
+    o.kind !== 'zone' && o.role !== 'vara' ? { ...o, legacyBase: true } : o,
+  );
+  return [...legacy, ...prototypeLandmarks()];
 }
 
 /**
@@ -601,7 +713,12 @@ function seedMenu(): SceneObject[] {
 }
 
 export function seedScene(id: SceneId = 'mundo'): SceneState {
-  return { objects: id === 'menu' ? seedMenu() : seedMundo(), hidden: [], pierV: PIER_VERSAO };
+  return {
+    objects: id === 'menu' ? seedMenu() : seedMundo(),
+    hidden: [],
+    pierV: PIER_VERSAO,
+    prototypeV: id === 'mundo' ? PROTOTYPE_VERSAO : undefined,
+  };
 }
 
 // ------------------------------------------------------------------- estado
@@ -743,6 +860,33 @@ function migrarClipes(st: SceneState): SceneState {
   };
 }
 
+/**
+ * Troca somente o desenho-base de uma cena salva pela composicao nova.
+ *
+ * IDs de semente sao a assinatura segura das pecas que o jogo criou. Um
+ * objeto manual nao recebe `legacyBase`, portanto continua visivel e editavel;
+ * zonas, pisos, paredes, gatilhos e suas coordenadas nunca entram neste filtro.
+ */
+function migrarComposicaoPrototipo(st: SceneState): SceneState {
+  if (st.prototypeV === PROTOTYPE_VERSAO) return st;
+  const seed = seedMundo();
+  const legacyIds = new Set(seed.filter((o) => o.legacyBase).map((o) => o.id));
+  const existentes = new Set(st.objects.map((o) => o.id));
+  const landmarks = seed.filter((o) => o.prototypeAsset && !existentes.has(o.id));
+  return {
+    ...st,
+    objects: [
+      ...st.objects.map((o) => (legacyIds.has(o.id) ? { ...o, legacyBase: true } : o)),
+      ...landmarks,
+    ],
+    prototypeV: PROTOTYPE_VERSAO,
+  };
+}
+
+function atualizarMundo(st: SceneState): SceneState {
+  return migrarComposicaoPrototipo(migrarClipes(garantirPiso(garantirZonas(trocarPier(st)))));
+}
+
 function garantirZonas(st: SceneState): SceneState {
   const seed = seedMundo();
   const faltando = seed.filter(
@@ -806,10 +950,15 @@ function load(): Book {
       for (const id of ['mundo', 'menu'] as SceneId[]) {
         const s = parsed[id];
         if (s && Array.isArray(s.objects) && s.objects.length > 0) {
-          const st = { objects: s.objects, hidden: s.hidden ?? [], pierV: s.pierV };
+          const st: SceneState = {
+            objects: s.objects,
+            hidden: s.hidden ?? [],
+            pierV: s.pierV,
+            prototypeV: s.prototypeV,
+          };
           book[id] =
             id === 'mundo'
-              ? migrarClipes(garantirPiso(garantirZonas(trocarPier(st))))
+              ? atualizarMundo(st)
               : garantirPecasDoMenu(st);
         }
       }
@@ -831,17 +980,22 @@ function load(): Book {
      * `limparAposentados`, em vez de a lista inteira ir para o lixo por causa
      * delas.
      */
-    for (const chave of [KEY_V4, KEY_V3, KEY_V2]) {
+    for (const chave of [KEY_V5, KEY_V4, KEY_V3, KEY_V2]) {
       const antigo = localStorage.getItem(chave);
       if (!antigo) continue;
       const parsed = JSON.parse(antigo) as Partial<Book>;
       for (const id of ['mundo', 'menu'] as SceneId[]) {
         const s = parsed[id];
         if (!s || !Array.isArray(s.objects) || s.objects.length === 0) continue;
-        const st = limparAposentados({ objects: s.objects, hidden: s.hidden ?? [] });
+        const st = limparAposentados({
+          objects: s.objects,
+          hidden: s.hidden ?? [],
+          pierV: s.pierV,
+          prototypeV: s.prototypeV,
+        });
         book[id] =
           id === 'mundo'
-            ? migrarClipes(garantirPiso(garantirZonas(garantirGruposNovos(st))))
+            ? atualizarMundo(garantirGruposNovos(st))
             : garantirPecasDoMenu(st);
       }
       break;

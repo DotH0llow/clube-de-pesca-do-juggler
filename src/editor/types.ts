@@ -190,6 +190,16 @@ export interface SceneObject {
   /** classe extra de animacao (drift, rise...) */
   anim?: string;
   /**
+   * Arte de base substituida por uma composicao mais rica.
+   *
+   * A peca continua na cena para que dados de edicao, referencias e zonas
+   * relacionadas nao sejam descartados. O runtime pode nao desenha-la, sem
+   * alterar colisao, gatilhos ou objetos criados manualmente no editor.
+   */
+  legacyBase?: boolean;
+  /** Marca os objetos independentes adicionados pela composicao do prototipo. */
+  prototypeAsset?: boolean;
+  /**
    * A que GRUPO a peca pertence.
    *
    * Etiqueta, e nao pai: o grupo nao tem posicao nem tamanho proprios, e as
@@ -293,6 +303,8 @@ export interface SceneObject {
 export interface SceneState {
   objects: SceneObject[];
   hidden: LayerId[];
+  /** Versao da composicao visual independente do mundo. */
+  prototypeV?: number;
   /**
    * Que geração do cais esta cena tem montada.
    *
