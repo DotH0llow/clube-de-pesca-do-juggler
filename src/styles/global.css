@@ -156,21 +156,6 @@ button {
   opacity: 0;
 }
 
-/* Marcos de área continuam visíveis. Eles informam para onde o jogador chegou
-   e continuam sendo as âncoras físicas das zonas Mercado, Cabana e Arcade. */
-.prototype-art .world-scale .wobj[data-obj^='fish-market'],
-.prototype-art .world-scale .wobj[data-obj^='beach-cabana'],
-.prototype-art .world-scale .wobj[data-obj^='hydrinho-arcade'] {
-  opacity: 1;
-  filter: saturate(1.22) contrast(1.08) drop-shadow(0 5px 3px rgba(1, 18, 29, 0.34));
-}
-
-.prototype-market-vista .world-scale .wobj[data-obj^='fish-market'],
-.prototype-market-vista .world-scale .wobj[data-obj^='beach-cabana'],
-.prototype-market-vista .world-scale .wobj[data-obj^='hydrinho-arcade'] {
-  opacity: 0;
-}
-
 .prototype-art .player-sprite {
   filter: drop-shadow(0 4px 1px rgba(0, 0, 0, 0.52)) saturate(1.12) contrast(1.06);
 }

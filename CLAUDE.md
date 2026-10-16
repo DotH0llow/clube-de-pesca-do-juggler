@@ -44,7 +44,17 @@ npm run build     # textos + tsc + vite build
 npm test          # recompensas e migração de save
 ```
 
-## 5. Arte de origem fica no repositório
+## 5. Atualização de jogo exige verificação visual
+
+Toda atualização que mude cenário, interface, animação, layout, asset ou
+interação do jogo precisa ser aberta em navegador e verificada por screenshots
+antes de ser considerada pronta. Capture apenas estados representativos — por
+exemplo, tela inicial, mundo, cada área modificada, painel ou fase de minijogo
+alterada — e inspecione se há sobreposição, recorte indevido, elemento antigo
+visível, texto fora da moldura ou ação sem resposta. Não basta a compilação ou
+o teste automatizado.
+
+## 6. Arte de origem fica no repositório
 
 Zip que gerou clipe mora em `arte-de-origem/`. O motivo é o item 1: quando os 43
 quadros sumiram, a única cópia estava no histórico do git.
