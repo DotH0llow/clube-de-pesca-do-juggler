@@ -153,7 +153,10 @@ button {
 .prototype-art .espuma,
 .prototype-art .water-surface,
 .prototype-art .world-scale .wobj {
-  opacity: 0;
+  /* Os objetos da cena recebem opacidade pela propriedade `style` do React.
+     Sem `!important`, essa opacidade em linha ganhava e o cenario antigo
+     ficava fantasma por cima da paisagem nova. */
+  opacity: 0 !important;
 }
 
 .prototype-art .player-sprite {
