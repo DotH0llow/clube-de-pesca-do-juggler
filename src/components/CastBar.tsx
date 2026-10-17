@@ -61,7 +61,7 @@ export function CastBar({ onLock }: Props) {
   }
 
   return (
-    <div className="pixel-box" style={{ width: 'min(460px, 92vw)' }}>
+    <div className="pixel-box" style={{ width: 'min(580px, 92vw)' }}>
       <div className="meter" onPointerDown={lock}>
         <div className="zone" style={{ left: `${GOOD_MIN}%`, width: `${GOOD_MAX - GOOD_MIN}%` }} />
         <div

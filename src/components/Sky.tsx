@@ -4,6 +4,7 @@ import { asset } from '../assets';
 import { skyPhase, type SkyPhaseId } from '../data/skies';
 import { floatersAt, useFloaters, type Floater } from '../editor/floaters';
 import { useDevFlags } from '../state/dev';
+import morningSky from '../assets/reference/morning-sky.webp';
 
 /**
  * Ceu de fundo com o que passa flutuando nele.
@@ -94,7 +95,7 @@ export function Sky({ hour }: { hour: SkyPhaseId }) {
   }, [hour, floaters]);
 
   return (
-    <div className="sky" style={{ backgroundImage: `url(${asset(cfg.bg)})` }}>
+    <div className={`sky sky-${hour}`} style={{ backgroundImage: `url(${hour === 'manha-clara' ? morningSky : asset(cfg.bg)})` }}>
       {cfg.night && <img className="stars" src={asset('sky/star-cluster')} alt="" />}
 
       {copies.map((c) => (

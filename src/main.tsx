@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { asset } from './assets';
 import './styles/global.css';
+import './styles/visual-upgrade.css';
 
 /**
  * As molduras do kit entram como border-image via CSS vars: o Vite versiona

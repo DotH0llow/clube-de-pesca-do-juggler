@@ -13,6 +13,7 @@ import { WaterSurface } from './WaterSurface';
 import { WaterDetails } from './WaterDetails';
 import { HookHunt } from './HookHunt';
 import { useDevFlags } from '../state/dev';
+import reefWater from '../assets/reference/reef-water.webp';
 
 /** A faixa do deck em que a água escorre: a mesma que `world/pier.ts` monta. */
 const PIER_X0 = PIER_START - 70;
@@ -246,7 +247,7 @@ export function World({
                 continuam animados por seus proprios componentes. */}
             <div
               className="sea-art-texture"
-              style={{ backgroundImage: `linear-gradient(180deg, rgba(0, 76, 161, .9), rgba(0, 122, 176, .45) 18%, transparent 47%), url(${asset('prototype/v3/reef-water')})` }}
+              style={{ backgroundImage: `linear-gradient(180deg, rgba(0, 116, 198, .25), rgba(0, 144, 202, .08) 18%, transparent 57%), url(${reefWater})` }}
             />
             {/* OS RAIOS DE LUZ SAIRAM.
 

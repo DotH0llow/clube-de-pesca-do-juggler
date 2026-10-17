@@ -8,6 +8,16 @@ prefere nao ter encontrado.
 Estetica: pixel art tropical/oceanica com cara de anos 2000 - agua turquesa,
 ilhas ao longe, por do sol, barco ancorado. Nada de fantasia medieval.
 
+## Upgrade visual dos prints de referencia
+
+As texturas compactadas em `src/assets/reference/` vieram dos prints fornecidos
+para este upgrade. O menu em tela larga usa a composicao do print como arte de
+fundo, com os botoes originais ativos por cima. Ao abrir o editor do menu, a
+cena volta a ser desenhada por objetos para manter a edicao visual funcional.
+Em telas estreitas, o titulo usa os controles vivos em uma coluna. No mundo,
+ceu, agua e moldura do celular usam recortes da referencia; movimento, editor,
+pesca, save e economia continuam nos componentes originais.
+
 
 ## Regra número um: não apague nada sem perguntar
 

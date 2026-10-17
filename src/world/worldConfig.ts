@@ -165,7 +165,7 @@ export function seedWorld(): WorldConfig {
     waterY: 372,
     seaDepth: 2088,
     seaWidth: 7200,
-    shoreX: 1400,
+    shoreX: 1580,
     sandY: 368,
     sandDepth: 70,
     pierY: 336,

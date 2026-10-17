@@ -71,6 +71,7 @@ function MenuSlot({
   return (
     <div
       className={`menu-slot ${className ?? ''}`}
+      data-role={role}
       style={{
         left: o.x,
         top: o.y,
@@ -166,7 +167,7 @@ export function TitleScreen({ onPlay }: { onPlay: () => void }) {
   };
 
   return (
-    <div className="title-screen" onPointerDown={initAudio}>
+    <div className={`title-screen${editor ? ' title-editing' : ' title-skin'}${hasProgress ? ' has-progress' : ''}`} onPointerDown={initAudio}>
       <TitleScene view={view} />
 
       {editor && (

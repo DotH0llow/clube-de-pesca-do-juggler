@@ -1,0 +1,295 @@
+/* Art direction from the supplied recreation screenshots. Keep game and editor DOM live. */
+
+img,
+.sprite {
+  image-rendering: auto;
+}
+
+.title-screen.title-skin {
+  background: #0474c5 url('../assets/reference/title.webp') center center / cover no-repeat;
+}
+
+.title-skin .title-scene,
+.title-skin .title-foot {
+  visibility: hidden;
+}
+
+/* The rendered reference is the title art; the existing buttons remain the hit targets. */
+.title-skin .menu-slot {
+  opacity: 0;
+}
+
+.title-skin .menu-slot > .title-btn {
+  position: relative;
+  top: -75px;
+}
+
+.title-skin .menu-slot[data-role='jogar'] > .title-btn { top: -54px; }
+.title-skin .menu-slot[data-role='editor'] > .title-btn { top: -72px; }
+.title-skin.has-progress .menu-slot[data-role='jogar'] { opacity: 1; }
+
+.title-skin .menu-slot > .title-btn:focus-visible {
+  opacity: 1;
+  outline: 3px solid #ffe173;
+  outline-offset: 3px;
+}
+
+.world-art {
+  filter: saturate(1.18) contrast(1.06) brightness(1.07);
+}
+
+.sky-manha-clara {
+  background-color: #087fec;
+  background-size: 100% 49%;
+  background-position: center top;
+}
+
+.sea-art-texture {
+  background-size: 860px 765px;
+  background-position: 0 0;
+  opacity: .95;
+}
+
+.sand {
+  background-size: 1080px 607px;
+}
+
+.topbar > .btn {
+  min-width: 188px;
+  min-height: 70px;
+  font-size: 18px;
+}
+
+.topbar > .btn .btn-icon {
+  width: 23px;
+  height: 23px;
+}
+
+.wallet .chip {
+  min-height: 47px;
+  font-size: 18px;
+  border-color: #9b6b3e;
+  background: linear-gradient(180deg, #133354, #061728);
+}
+
+.topbar .region-tag {
+  min-width: 390px;
+  border-color: #b7803f;
+  background: #061d34;
+  box-shadow: inset 0 0 0 2px #123654, 0 4px 0 rgba(0, 0, 0, .4);
+}
+
+.topbar .region-tag small {
+  opacity: .9;
+}
+
+.topbar .dev-chip,
+.topbar .dia-chip {
+  padding: 8px 13px;
+  border-color: #a97939;
+  background: linear-gradient(180deg, #14314e, #061728);
+  color: #ffdc74;
+}
+
+.casino-hud {
+  width: min(290px, 46vw);
+  font-size: 15px;
+}
+
+.casino-hud > div,
+.hud-toggle {
+  border-color: #b68042;
+  background: rgba(4, 24, 42, .93);
+}
+
+.world-hud .pixel-box {
+  margin-bottom: 40px;
+  border-color: #a6743a;
+}
+
+.world-hud .pixel-box .reel-hint {
+  font-size: 16px;
+}
+
+.phone-backdrop {
+  background: rgba(2, 14, 25, .12);
+}
+
+.phone {
+  width: min(521px, 96vw, 56.2vh);
+  height: auto;
+  aspect-ratio: 521 / 890;
+}
+
+.phone-body,
+.neon .phone-body {
+  padding: 65px 30px 77px;
+  border: 0;
+  border-radius: 0;
+  background: url('../assets/reference/phone-frame.webp') center / 100% 100% no-repeat;
+  box-shadow: 0 15px 28px rgba(1, 17, 31, .38);
+}
+
+.phone-speaker {
+  display: none;
+}
+
+.phone-screen {
+  border: 0;
+  background: #05243d;
+  box-shadow: none;
+  --screen: #07314e;
+  --screen-2: #0b395a;
+  --screen-line: #aa7439;
+  --screen-ink: #f0f7fa;
+}
+
+.phone-status {
+  min-height: 34px;
+  padding: 5px 12px;
+  font-size: 16px;
+  background: #061b30;
+}
+
+.phone-home-screen {
+  padding: 15px 23px;
+  gap: 21px;
+  background: linear-gradient(180deg, rgba(4, 37, 62, .92) 0%, rgba(4, 34, 55, .94) 70%, rgba(4, 27, 44, .7)), url('../assets/reference/phone-landscape.webp') center bottom / 100% auto no-repeat, #07233b;
+}
+
+.phone-hero-title {
+  font-size: 24px;
+  color: #ffd66f;
+}
+
+.phone-hero-sub {
+  font-size: 15px;
+  opacity: .95;
+}
+
+.phone-grid {
+  gap: 19px 13px;
+}
+
+.phone-icon {
+  gap: 7px;
+}
+
+.phone-icon .tile {
+  width: 84px;
+  height: 84px;
+  border: 3px solid #0b1926;
+  border-radius: 16px;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, .35), inset 0 -5px 0 rgba(0, 0, 0, .28), 0 5px 0 #061321;
+}
+
+.phone-icon .tile .sprite {
+  transform: scale(1.5);
+}
+
+.phone-icon .name {
+  font-size: 14px;
+  opacity: 1;
+}
+
+.phone-hint {
+  font-size: 14px;
+  opacity: .8;
+  border-top: 2px solid #436d83;
+  padding-top: 14px;
+}
+
+.phone-titlebar {
+  min-height: 52px;
+  padding: 8px;
+  font-size: 20px;
+  background: linear-gradient(180deg, #b4692b, #713b1a);
+  border-top: 3px solid #d69d52;
+  border-bottom: 4px solid #28190d;
+  text-shadow: 0 2px #251410;
+}
+
+.phone-back,
+.phone-x {
+  width: 39px;
+  height: 36px;
+  font-size: 24px;
+  background: linear-gradient(180deg, #d6eeff, #86b9dc);
+  border: 3px solid #081b2f;
+  color: #061b2f;
+  box-shadow: 0 3px #0a1621;
+}
+
+.phone-content {
+  padding: 9px;
+  gap: 9px;
+  background: #06314e;
+}
+
+.phone-content > .row {
+  min-height: 142px;
+  padding: 12px;
+}
+
+.phone-content .row .title { font-size: 17px; }
+.phone-content .row .desc { font-size: 14px; }
+.phone-content .row .sprite { transform: scale(1.28); margin: 0 5px; }
+.phone-content .tab { font-size: 14px; padding: 8px 10px; }
+.phone-content .app-summary { font-size: 16px; padding: 8px 10px; }
+.phone-content .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.phone-content .card { min-height: 163px; padding: 11px; }
+.phone-content .card.locked { opacity: .95; }
+.phone-content .card .name { font-size: 16px; }
+.phone-content .card .meta { font-size: 13px; }
+
+.phone-content .row,
+.phone-content .card,
+.phone-content .app-summary {
+  border: 3px solid #ad7739;
+  background: #092a45;
+  box-shadow: inset 0 0 0 2px #1b4c65;
+}
+
+.phone-home {
+  bottom: 20px;
+  width: 70px;
+  height: 27px;
+  margin-left: -35px;
+  border: 0;
+  background: transparent;
+}
+
+/* The editor toolbar must stay above the right library and left layers panel. */
+.editor-bar { z-index: 80; }
+.editor-panel,
+.editor-layers { top: 80px; }
+
+@media (max-width: 700px) {
+  .title-screen.title-skin {
+    background: #0474c5 url('../assets/reference/title.webp') 68% center / auto 100% no-repeat;
+  }
+  .title-skin .title-scene { visibility: hidden; }
+  .title-skin .title-foot { visibility: visible; }
+  .title-skin .menu-ui { transform: translate(0, 112px) scale(.68) !important; }
+  .title-skin .menu-slot[data-role='fishing'] { left: 72px !important; top: 260px !important; width: 410px !important; }
+  .title-skin .menu-slot[data-role='club'] { left: 72px !important; top: 320px !important; width: 410px !important; }
+  .title-skin .menu-slot[data-role='subtitulo'] { top: 395px !important; }
+  .title-skin .menu-slot[data-role='jogar'] { top: 485px !important; }
+  .title-skin .menu-slot[data-role='comojogar'] { top: 560px !important; }
+  .title-skin .menu-slot[data-role='config'] { top: 630px !important; }
+  .title-skin .menu-slot[data-role='editor'] { top: 700px !important; }
+  .title-skin .title-sub { font-size: 20px; }
+  .title-skin .title-btn { font-size: 20px; }
+  .title-skin .menu-slot,
+  .title-skin.has-progress .menu-slot { opacity: 1; }
+  .title-skin .menu-slot > .title-btn,
+  .title-skin .menu-slot[data-role='jogar'] > .title-btn,
+  .title-skin .menu-slot[data-role='editor'] > .title-btn { top: 0; }
+  .topbar > .btn { min-width: 120px; min-height: 50px; font-size: 13px; }
+  .topbar .region-tag { min-width: 0; }
+  .phone-body,
+  .neon .phone-body { padding: 47px 21px 55px; }
+  .phone-home { bottom: 11px; }
+  .phone-icon .tile { width: min(18vw, 84px); height: min(18vw, 84px); }
+  .phone-icon .name { font-size: 11px; }
+}
