@@ -622,7 +622,7 @@ export default function App() {
             {/* A CAÇADA. O aviso e o medidor de linha ficam na interface, e não
                 dentro d'água: são informação de jogo, e precisam continuar
                 legíveis com a câmera onde quer que ela esteja. */}
-            {phase === 'cacando' && <HuntHud onGiveUp={hookGaveUp} />}
+            {phase === 'cacando' && <HuntHud onGiveUp={hookGaveUp} target={pending ?? undefined} />}
 
             {phase === 'bite' && (
               <button className="btn danger" onClick={hook} style={{ fontSize: 24, padding: '20px 38px' }}>

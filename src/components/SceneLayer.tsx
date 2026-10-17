@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { asset } from '../assets';
 import { useScene } from '../editor/scene';
 import { bandOf, depthZ, type BandId, type SceneId, type SceneObject } from '../editor/types';
+import { getWorld } from '../world/worldConfig';
 
 export { bandOf };
 
@@ -18,9 +19,14 @@ export { bandOf };
  * as do meio e as que andam junto com o mundo. Os dois primeiros grupos vao
  * para containers proprios, movidos pelo laco do jogo.
  */
-function ObjectView({ o }: { o: SceneObject }) {
+function ObjectView({ o, waterY, shoreX }: { o: SceneObject; waterY: number; shoreX: number }) {
   const prototype = /^prototype\/v[23]\//.test(o.sprite ?? '');
-  const environmentalMotion = o.sprite?.startsWith('nature/')
+  const undersea = Boolean(o.under || (o.x < shoreX - 30 && /^(marine\/|fish\/|prototype\/v3\/coral-reef|props\/(?:coral|kelp|aquatic|seafloor|sunken|decorative-fish|starfish))/.test(o.sprite ?? '')));
+  const environmentalMotion = /marine\/(?:blue-)?crab/.test(o.sprite ?? '')
+    ? ' env-crab'
+    : o.sprite?.includes('jellyfish')
+      ? ' env-jelly'
+      : o.sprite?.startsWith('nature/')
     ? ' env-foliage'
     : o.sprite?.includes('boat') || o.sprite?.includes('prototype/v2/boat')
       ? ' env-boat'
@@ -35,6 +41,7 @@ function ObjectView({ o }: { o: SceneObject }) {
     opacity: o.opacity,
     zIndex: depthZ(o.depth),
     transform: `${o.rot ? `rotate(${o.rot}deg)` : ''}${o.flip ? ' scaleX(-1)' : ''}` || undefined,
+    clipPath: undersea && o.y < waterY ? `inset(${Math.min(100, Math.max(0, (waterY - o.y) / Math.max(1, o.h) * 100))}% 0 0 0)` : undefined,
   };
 
   // faixa que se repete no eixo x (horizonte, tabua do deck)
@@ -91,7 +98,7 @@ function ObjectView({ o }: { o: SceneObject }) {
   }
 
   return (
-    <div className={`wobj${o.role === 'vara' ? ' rod-obj' : ''}`} data-obj={o.id} style={style}>
+    <div className={`wobj${o.role === 'vara' ? ' rod-obj' : ''}${undersea ? ' wobj-undersea' : ''}`} data-obj={o.id} style={style}>
       <img
         className={`wobj-img${prototype ? ' prototype-asset' : ''}${o.under ? ' under-tint' : ''}${o.anim ? ` ${o.anim}` : ''}${environmentalMotion}`}
         src={asset(o.sprite)}
@@ -107,6 +114,8 @@ const UI_ROLES = ['juggler', 'titulo', 'botoes', 'vinheta'];
 
 interface Props {
   scene: SceneId;
+  waterY?: number;
+  shoreX?: number;
   /** 'perto' = anda junto com a camera; os outros dois sao horizonte */
   band?: BandId;
   /** esconde a vara fincada no deck (o Juggler esta com a dele na mao) */
@@ -117,6 +126,8 @@ interface Props {
 
 export const SceneLayer = memo(function SceneLayer({
   scene,
+  waterY = getWorld().waterY,
+  shoreX = getWorld().shoreX,
   band = 'perto',
   hideRod = false,
   hideLegacyBase = false,
@@ -136,7 +147,7 @@ export const SceneLayer = memo(function SceneLayer({
         .filter((o) => !(hideRod && o.role === 'vara'))
         .filter((o) => !(hideLegacyBase && o.legacyBase))
         .map((o) => (
-          <ObjectView key={o.id} o={o} />
+          <ObjectView key={o.id} o={o} waterY={waterY} shoreX={shoreX} />
         ))}
     </>
   );

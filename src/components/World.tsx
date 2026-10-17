@@ -245,10 +245,9 @@ export function World({
             {/* Material separado da onda, dos recifes soltos e da costa. A
                 textura acompanha o mar recortado; a superficie e os reflexos
                 continuam animados por seus proprios componentes. */}
-            <div
-              className="sea-art-texture"
-              style={{ backgroundImage: `linear-gradient(180deg, rgba(0, 116, 198, .25), rgba(0, 144, 202, .08) 18%, transparent 57%), url(${reefWater})` }}
-            />
+            <div className="sea-art-texture" style={{ backgroundImage: `url(${reefWater})` }} />
+            <div className="sea-depth-light" />
+            <div className="sea-reef-shelf" />
             {/* OS RAIOS DE LUZ SAIRAM.
 
                 Eram tres copias de `props/light-ray-strip` penduradas na
@@ -266,7 +265,7 @@ export function World({
                 pela agua. Era um gradiente bege desbotando para cima. */}
             <div
               className="seabed"
-              style={{ backgroundImage: `url(${asset('sand/sand_12_01110110')})` }}
+              style={{ backgroundImage: `url(${asset('prototype/v3/golden-sand')})` }}
             />
           </div>
 
@@ -301,8 +300,8 @@ export function World({
           <WaterDetails
             left={left}
             width={Math.max(80, costa.costaX - left)}
-            top={w.waterY + 10}
-            height={Math.max(96, w.waveH * 7)}
+            top={w.waterY + 14}
+            height={Math.min(860, w.seaDepth - 20)}
           />
 
           {/* -------------------------------- a terra, da praia para a direita */}
@@ -493,7 +492,7 @@ export function World({
               profundidade de cada objeto, nao da ordem deste arquivo. A vara
               fincada some quando o Juggler pega a dele - a arte da pescaria ja
               vem com uma na mao. */}
-          <SceneLayer scene="mundo" hideRod={fishing} hideLegacyBase />
+          <SceneLayer scene="mundo" hideRod={fishing} hideLegacyBase waterY={w.waterY} shoreX={w.shoreX} />
 
           {/* A LINHA durante a cacada sai da ponta da vara e chega no anzol,
               onde quer que ele esteja. Ela e redesenhada por quadro no proprio

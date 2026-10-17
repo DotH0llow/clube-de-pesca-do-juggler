@@ -141,6 +141,7 @@ export interface GameStats {
   lineBreaks: number;
   escapes: number;
   chests: number;
+  marketOrders: number;
   hydraEvents: number;
   totalEarned: number;
   eyesEarned: number;
@@ -209,6 +210,8 @@ export interface GameState {
   casino: CasinoMechanicsState;
   /** encomenda do mercado de peixe */
   market: MarketState;
+  /** Etapas resgatadas da expedicao principal (0 a 4). */
+  expeditionChapter: number;
 }
 
 /** Resultado completo de um lancamento, produzido pela engine. */

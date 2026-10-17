@@ -126,8 +126,8 @@ export function seedFloaters(): FloaterState {
         fromY: 18,
         toY: 12,
         spreadY: 10,
-        size: 3.4,
-        seconds: 1800,
+        size: 1.8,
+        seconds: 58,
         opacity: 0.75,
         hours: DIA,
       }),
@@ -141,8 +141,8 @@ export function seedFloaters(): FloaterState {
         fromY: 26,
         toY: 20,
         spreadY: 12,
-        size: 3,
-        seconds: 1500,
+        size: 1.35,
+        seconds: 34,
         opacity: 0.8,
         flip: true,
         hours: DIA,
@@ -178,7 +178,13 @@ function load(): FloaterState {
     const parsed = JSON.parse(raw) as Partial<FloaterState>;
     if (!Array.isArray(parsed.items)) return seed;
     // item novo da semente entra; item que voce criou continua
-    const items = parsed.items.map((it) => ({ ...base(it as Floater), ...it }));
+    const items = parsed.items.map((it) => {
+      const item = { ...base(it as Floater), ...it };
+      // Only migrate the shipped slow defaults; edited floaters keep their values.
+      if (item.id === 'gaivota' && item.size === 3 && item.seconds === 1500) return { ...item, size: 1.35, seconds: 34 };
+      if (item.id === 'bando' && item.size === 3.4 && item.seconds === 1800) return { ...item, size: 1.8, seconds: 58 };
+      return item;
+    });
     for (const s of seed.items) if (!items.some((i) => i.id === s.id)) items.push(s);
     return { items };
   } catch {

@@ -21,6 +21,7 @@ export function ReelMinigame({ target, onDone }: Props) {
   const [fish, setFish] = useState(0.5);
   const [progress, setProgress] = useState(0.32);
   const [inside, setInside] = useState(false);
+  const [seconds, setSeconds] = useState(Math.ceil(TIME_LIMIT / 1000));
 
   const zoneRef = useRef(0.45);
   const velRef = useRef(0);
@@ -76,6 +77,7 @@ export function ReelMinigame({ target, onDone }: Props) {
       setFish(fishRef.current);
       setProgress(progressRef.current);
       setInside(isIn);
+      setSeconds(Math.max(0, Math.ceil((TIME_LIMIT - (now - start)) / 1000)));
 
       if (progressRef.current >= 1) return finish(true);
       if (progressRef.current <= 0) return finish(false);
@@ -119,7 +121,10 @@ export function ReelMinigame({ target, onDone }: Props) {
   };
 
   return (
-    <div className="pixel-box" style={{ width: 'min(460px, 92vw)' }}>
+    <div className="pixel-box reel-card">
+      <div className="reel-heading">DISPUTA NA LINHA <span>{seconds}s</span></div>
+      <div className="reel-subtitle">{target.fish?.name ?? target.junk?.name ?? 'BAÚ AFUNDADO'}</div>
+      <div className="reel-game">
       <div
         className="reel"
         onPointerDown={hold(true)}
@@ -146,7 +151,14 @@ export function ReelMinigame({ target, onDone }: Props) {
           <div className="fill" style={{ height: `${progress * 100}%` }} />
         </div>
       </div>
-      <p className="reel-hint">Segure para subir a faixa. Mantenha o vulto dentro dela.</p>
+      <div className="reel-side">
+        <div className="reel-portrait">{target.fish ? <FishSprite fish={target.fish} size={92} /> : target.junk ? <JunkSprite junk={target.junk} size={84} /> : <Sprite path="fx/chest-closed" size={84} />}</div>
+        <div className="reel-label">CAPTURA {Math.round(progress * 100)}%</div>
+        <div className="reel-wide-progress"><i style={{ width: `${progress * 100}%` }} /></div>
+        <button className="btn primary reel-pull" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); holdRef.current = true; }} onPointerUp={() => { holdRef.current = false; }} onPointerCancel={() => { holdRef.current = false; }} onPointerLeave={() => { holdRef.current = false; }}>SEGURE PARA PUXAR</button>
+      </div>
+      </div>
+      <p className="reel-hint">ESPAÇO OU BOTÃO SOBE A FAIXA · SOLTE PARA DESCER · MANTENHA O ALVO DENTRO</p>
     </div>
   );
 }

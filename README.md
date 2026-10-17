@@ -18,6 +18,26 @@ Em telas estreitas, o titulo usa os controles vivos em uma coluna. No mundo,
 ceu, agua e moldura do celular usam recortes da referencia; movimento, editor,
 pesca, save e economia continuam nos componentes originais.
 
+### Revisao da agua e da pescaria
+
+O ceu da manha agora usa `morning-sky-no-birds.png`, uma edicao da faixa de
+referencia sem as gaivotas pintadas. As gaivotas do jogo sao sprites separados,
+pequenos e em voo continuo. A imagem original segue guardada. O mar usa a parte
+superior da textura de referencia, reflexos animados, uma transicao para a
+profundidade e recifes ligados a um talude. O mesmo grao de areia serve a praia
+e o fundo; objetos classificados como submersos sao cortados na linha d'agua.
+
+Depois de travar o lancamento, **setas/WASD guiam o anzol**. O sonar (`Espaco`)
+revela o alvo por alguns segundos; a interface informa direcao, distancia,
+profundidade e linha restante. Peixes, baus, sucata e sombras tem aparencia
+propria. A linha melhorada da loja aumenta o alcance do mergulho. Ao tocar o
+alvo, o jogador disputa a puxada. O minigame tem um botao de segurar para
+dispositivos de toque. Recolher antes do alvo nao paga a captura.
+
+O app **EXPEDICAO** no celular liga capturas, album, limpeza do mar, encomendas,
+equipamentos e raridades em quatro etapas com recompensas e um encerramento.
+O save antigo e migrado sem perder a cena montada no editor.
+
 
 ## Regra número um: não apague nada sem perguntar
 
@@ -180,7 +200,8 @@ progresso nao mexe nos ajustes:
 | Dados | Restaurar configuracoes / Apagar progresso | Reset separado de cada coisa |
 
 O ceu tem nuvens e passaros com tamanho, altura, opacidade e velocidade
-sorteados. Nuvens andam a 30% da velocidade antiga e passaros a 10%.
+sorteados. As aves atravessam a tela em dezenas de segundos e os ciclos de voo
+voltam ao mesmo quadro sem salto visivel.
 
 `Animacoes` e `Tremor de tela` ja nascem desligados se o sistema pedir
 `prefers-reduced-motion`.

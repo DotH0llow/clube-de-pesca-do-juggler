@@ -4,7 +4,7 @@ import { asset } from '../assets';
 import { skyPhase, type SkyPhaseId } from '../data/skies';
 import { floatersAt, useFloaters, type Floater } from '../editor/floaters';
 import { useDevFlags } from '../state/dev';
-import morningSky from '../assets/reference/morning-sky.webp';
+import morningSky from '../assets/reference/morning-sky-no-birds.png';
 
 /**
  * Ceu de fundo com o que passa flutuando nele.

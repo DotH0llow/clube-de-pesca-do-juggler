@@ -18,13 +18,13 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'linha',
     name: 'Linha Reforçada',
-    desc: 'Aguenta tranco de bicho grande e arrebenta menos.',
+    desc: 'Dá mais alcance ao mergulho e ajuda a vencer a puxada.',
     currency: 'sazoncoins',
     maxLevel: 6,
     baseCost: 200,
     costGrowth: 1.7,
     icon: 'props/fishing-line-spool',
-    effectText: (lv) => `+${pct(lv * 0.06)} de margem na fisga`,
+    effectText: (lv) => `+${lv * 18} m de linha; +${pct(lv * 0.06)} de margem na fisga`,
   },
   {
     id: 'isca',

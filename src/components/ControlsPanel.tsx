@@ -9,22 +9,22 @@ const STEPS = [
   },
   {
     n: '2',
-    title: 'Esperar',
-    touch: 'Nada a fazer. A boia fica na água por um tempo aleatório.',
-    keys: '-',
-    tip: 'Se voltar vazio, o jogo compensa: cada lançamento seco aumenta a chance do próximo dar peixe.',
+    title: 'Mergulhar',
+    touch: 'Use as setas na tela para guiar o anzol. Toque em SONAR para revelar o alvo.',
+    keys: 'Setas ou WASD; Espaço ativa o sonar',
+    tip: 'A indicação mostra direção, distância e profundidade. A linha acaba conforme o anzol se move; Linha Reforçada dá mais alcance.',
   },
   {
     n: '3',
-    title: 'Fisgar',
-    touch: 'Toque em FISGAR! assim que a boia mexer.',
-    keys: 'Espaço ou Enter',
-    tip: 'A janela é de uns 4 segundos e meio. Perdeu, perdeu o peixe. Dá para afinar esse tempo no editor, em MECÂNICAS.',
+    title: 'Alcançar',
+    touch: 'Encoste o anzol no peixe, baú, objeto perdido ou vulto. RECOLHER encerra o mergulho.',
+    keys: 'Setas ou WASD',
+    tip: 'O alvo se move. Se a linha acabar ou você recolher antes de alcançá-lo, não há recompensa.',
   },
   {
     n: '4',
     title: 'Puxar',
-    touch: 'Segure o dedo na tela para a faixa verde subir, solte para descer.',
+    touch: 'Segure o botão PUXAR para a faixa verde subir, solte para descer.',
     keys: 'Segurar Espaço',
     tip: 'Mantenha o vulto do peixe dentro da faixa para encher a barra da direita. Peixe raro se debate mais.',
   },
@@ -42,7 +42,7 @@ export function ControlsApp() {
     <>
       <div className="row">
         <div className="grow desc">
-          Cinco passos. Dá para jogar só com a barra de espaço ou só com o dedo.
+          Cinco passos: lance, mergulhe, alcance o alvo, puxe e complete a expedição.
         </div>
       </div>
 
@@ -104,7 +104,7 @@ export function ControlsApp() {
           pôr do sol, entardecer e noite, 3 minutos cada. Na noite profunda ele para e espera —
           amanhecer só acontece quando você encerra o dia e dorme. Cada fase tem um teto de
           raridade: de manhã não sai lendário nenhum, por mais que você pesque. O celular mostra que
-          horas são na aba CICLO DO DIA.
+          horas são no painel do canto superior direito.
         </div>
       </div>
     </>

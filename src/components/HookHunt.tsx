@@ -5,9 +5,10 @@ import { rodX } from '../editor/scene';
 import { getFx } from '../editor/fx';
 import type { CastResult } from '../state/types';
 import { getSettings } from '../state/settings';
+import { getState } from '../state/store';
 import { seaBottom, getWorld } from '../world/worldConfig';
-import { hookPos, setHookAtivo } from '../world/hookPos';
-import { FishSprite } from './Sprite';
+import { hookPos, huntInput, setHookAtivo, triggerSonar } from '../world/hookPos';
+import { FishSprite, JunkSprite, Sprite } from './Sprite';
 
 /**
  * A CAÇADA: guiar o anzol debaixo d'água.
@@ -18,7 +19,7 @@ import { FishSprite } from './Sprite';
  * unidades de profundidade e nada acontecia lá embaixo.
  *
  * Agora o anzol afunda e quem guia é o jogador. Setas ou WASD movem; a linha
- * tem comprimento máximo e vai acabando; encostar no peixe fisga.
+ * tem comprimento maximo e vai acabando; encostar no alvo fisga ou recolhe.
  *
  * ------------------------------------------------------- o que ela decide
  *
@@ -44,14 +45,14 @@ const NADO = 320;
 const ALCANCE = 46;
 
 /**
- * Comprimento da linha, em unidades.
+ * Alcance minimo da linha, em unidades.
  *
  * É o orçamento do lance: enquanto o anzol desce, a linha vai sendo gasta, e
  * quando acaba ele volta. Sem um teto, guiar o anzol seria só uma questão de
  * insistir - e o mergulho fundo atrás do peixe raro deixaria de ser uma
- * aposta.
+ * aposta. O alcance final cresce com a profundidade do alvo e com o upgrade.
  */
-const LINHA_MAX = 1500;
+const LINHA_BASE = 1100;
 
 /** Quanto a profundidade do peixe cresce com a raridade, de 0 a 1. */
 const FUNDURA: Record<string, number> = {
@@ -82,6 +83,7 @@ export function HookHunt({ alvo, onCatch, onGiveUp, hookRef }: Props) {
   const w = getWorld();
   const anzol = useRef<HTMLDivElement | null>(null);
   const peixe = useRef<HTMLDivElement | null>(null);
+  const sonar = useRef<HTMLElement | null>(null);
   const feito = useRef(false);
 
   /*
@@ -105,16 +107,24 @@ export function HookHunt({ alvo, onCatch, onGiveUp, hookRef }: Props) {
     })(),
   );
   const alvoX = useRef(inicio.current.x - 140 + Math.random() * 280);
+  const linhaMax = useRef(Math.max(LINHA_BASE, (alvoY.current - inicio.current.y) * 1.7 + 320) + getState().upgrades.linha * 180);
 
   useEffect(() => {
     hookRef.current = { ...inicio.current };
     hookPos.x = inicio.current.x;
     hookPos.y = inicio.current.y;
+    hookPos.targetX = alvoX.current;
+    hookPos.targetY = alvoY.current;
+    hookPos.linha = 1;
+    hookPos.maxLine = linhaMax.current;
+    hookPos.sonarUntil = 0;
+    hookPos.sonarReadyAt = 0;
     setHookAtivo(true);
     const teclas = new Set<string>();
     const down = (e: KeyboardEvent) => {
       teclas.add(e.code);
-      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS'].includes(e.code)) {
+      if (e.code === 'Space' && !e.repeat) triggerSonar();
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'Space'].includes(e.code)) {
         e.preventDefault();
       }
     };
@@ -142,24 +152,20 @@ export function HookHunt({ alvo, onCatch, onGiveUp, hookRef }: Props) {
         troca = VIRA_A_CADA * (0.6 + Math.random() * 0.8);
         rumo = Math.random() < 0.5 ? -1 : 1;
       }
-      px.x += rumo * PEIXE_NADA * dt;
-      px.y += Math.sin(now / 900) * 18 * dt;
+      px.x = Math.max(alvoX.current - 190, Math.min(alvoX.current + 190, px.x + rumo * PEIXE_NADA * (1 + (alvo.difficulty ?? 0)) * dt));
+      px.y = alvoY.current + Math.sin(now / 900) * 13;
 
       // ---------------------------------------------------------- o anzol
-      const esq = teclas.has('ArrowLeft') || teclas.has('KeyA');
-      const dir = teclas.has('ArrowRight') || teclas.has('KeyD');
-      const cima = teclas.has('ArrowUp') || teclas.has('KeyW');
-      const baixo = teclas.has('ArrowDown') || teclas.has('KeyS');
+      const esq = teclas.has('ArrowLeft') || teclas.has('KeyA') || huntInput.left;
+      const dir = teclas.has('ArrowRight') || teclas.has('KeyD') || huntInput.right;
+      const cima = teclas.has('ArrowUp') || teclas.has('KeyW') || huntInput.up;
+      const baixo = teclas.has('ArrowDown') || teclas.has('KeyS') || huntInput.down;
 
       pos.x += ((dir ? 1 : 0) - (esq ? 1 : 0)) * NADO * dt;
-      /*
-       * Subir CUSTA e descer é de graça.
-       *
-       * O anzol afunda sozinho o tempo todo; segurar para cima só cancela a
-       * queda e sobe devagar. É o que faz a descida ser uma decisão: chegar
-       * fundo é fácil, voltar não.
-       */
-      const vertical = (baixo ? AFUNDA * 1.6 : 0) - (cima ? AFUNDA * 1.5 : 0) + AFUNDA;
+      pos.x = Math.max(w.shoreX - w.seaWidth + 70, Math.min(w.shoreX - 90, pos.x));
+      /* O anzol afunda sozinho. Subir e descer gastam linha pela distancia
+         percorrida; a subida precisa permitir corrigir um mergulho excessivo. */
+      const vertical = AFUNDA * .65 + (baixo ? 250 : 0) - (cima ? 360 : 0);
       pos.y += vertical * dt;
 
       // não sobe acima da linha d'água nem passa do fundo
@@ -169,19 +175,23 @@ export function HookHunt({ alvo, onCatch, onGiveUp, hookRef }: Props) {
       // o gasto é a DISTÂNCIA percorrida, e não o tempo: ficar parado não
       // consome nada, e é o movimento que custa
       gasto += Math.abs(vertical * dt) + Math.abs(((dir ? 1 : 0) - (esq ? 1 : 0)) * NADO * dt);
-      const resta = Math.max(0, 1 - gasto / LINHA_MAX);
+      const resta = Math.max(0, 1 - gasto / linhaMax.current);
       hookPos.linha = resta;
 
       hookRef.current = { x: pos.x, y: pos.y };
       // a camera le daqui para descer junto com o anzol
       hookPos.x = pos.x;
       hookPos.y = pos.y;
+      hookPos.targetX = px.x;
+      hookPos.targetY = px.y;
       if (anzol.current) {
         anzol.current.style.transform = `translate3d(${pos.x}px,${pos.y}px,0)`;
       }
       if (peixe.current) {
         peixe.current.style.transform = `translate3d(${px.x}px,${px.y}px,0)`;
+        peixe.current.style.opacity = now < hookPos.sonarUntil || Math.hypot(pos.x - px.x, pos.y - px.y) < 185 ? '1' : '.42';
       }
+      if (sonar.current) sonar.current.style.opacity = now < hookPos.sonarUntil ? '.65' : '0';
 
       // ---------------------------------------------------------- encostou?
       const dx = pos.x - px.x;
@@ -204,6 +214,7 @@ export function HookHunt({ alvo, onCatch, onGiveUp, hookRef }: Props) {
     return () => {
       cancelAnimationFrame(raf);
       setHookAtivo(false);
+      huntInput.left = huntInput.right = huntInput.up = huntInput.down = false;
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
     };
@@ -224,6 +235,10 @@ export function HookHunt({ alvo, onCatch, onGiveUp, hookRef }: Props) {
       <div className="hunt-fish" ref={peixe}>
         {alvo.fish ? (
           <FishSprite fish={alvo.fish} size={72} />
+        ) : alvo.junk ? (
+          <JunkSprite junk={alvo.junk} size={62} />
+        ) : alvo.category === 'bau' ? (
+          <Sprite path="fx/chest-closed" size={72} />
         ) : (
           <img src={asset('props/distant-underwater-silhouette')} alt="" style={{ height: 62 }} />
         )}
@@ -234,6 +249,7 @@ export function HookHunt({ alvo, onCatch, onGiveUp, hookRef }: Props) {
       <div className="hunt-hook" ref={anzol}>
         <img src={asset('props/single-hook')} alt="" />
         {animar && <i className="hunt-ping" />}
+        <i className="hunt-sonar" ref={sonar} />
       </div>
     </>
   );
@@ -245,8 +261,10 @@ export function HookHunt({ alvo, onCatch, onGiveUp, hookRef }: Props) {
  * Fica fora do mundo de propósito: é informação de jogo, não coisa que existe
  * dentro d'água, e tem de continuar legível com a câmera onde quer que esteja.
  */
-export function HuntHud({ onGiveUp }: { onGiveUp: () => void }) {
+export function HuntHud({ onGiveUp, target }: { onGiveUp: () => void; target?: CastResult }) {
   const barra = useRef<HTMLElement | null>(null);
+  const info = useRef<HTMLDivElement | null>(null);
+  const sonarLabel = useRef<HTMLButtonElement | null>(null);
 
   /*
    * A barra e atualizada no DOM, e nao por estado do React.
@@ -260,6 +278,17 @@ export function HuntHud({ onGiveUp }: { onGiveUp: () => void }) {
     let raf = 0;
     const tick = () => {
       if (barra.current) barra.current.style.width = `${Math.round(hookPos.linha * 100)}%`;
+      if (info.current) {
+        const dx = hookPos.targetX - hookPos.x;
+        const dy = hookPos.targetY - hookPos.y;
+        const arrow = Math.abs(dx) > Math.abs(dy) * .6 ? (dx > 0 ? '→' : '←') : dy > 0 ? '↓' : '↑';
+        info.current.textContent = `${arrow}  ${Math.round(Math.hypot(dx, dy) / 10)} m  ·  PROF. ${Math.max(0, Math.round((hookPos.y - getWorld().waterY) / 10))} m`;
+      }
+      if (sonarLabel.current) {
+        const left = Math.max(0, (hookPos.sonarReadyAt - performance.now()) / 1000);
+        sonarLabel.current.textContent = left > 0 ? `SONAR ${left.toFixed(1)}s` : 'SONAR · ESPAÇO';
+        sonarLabel.current.disabled = left > 0;
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -268,14 +297,26 @@ export function HuntHud({ onGiveUp }: { onGiveUp: () => void }) {
 
   return (
     <div className="hunt-hud">
+      <div className="hunt-title">{target?.fish ? 'PERSEGUIÇÃO SUBMARINA' : target?.category === 'bau' ? 'BAÚ AFUNDADO' : target?.category === 'lixo' ? 'OBJETO PERDIDO' : 'SOMBRA DA HYDRA'}</div>
+      <div className="hunt-sonar-readout" ref={info}>LOCALIZANDO ALVO...</div>
       <div className="hunt-linha">
         <i ref={barra} />
         <span>LINHA</span>
       </div>
-      <div className="hint-strip">SETAS OU WASD GUIAM O ANZOL &middot; ENCOSTE NO PEIXE</div>
+      <div className="hint-strip">SETAS OU WASD GUIAM O ANZOL &middot; ENCOSTE NO ALVO</div>
+      <div className="hunt-actions">
+        <button className="btn ghost small" ref={sonarLabel} onClick={triggerSonar}>SONAR · ESPAÇO</button>
       <button className="btn ghost small" onClick={onGiveUp}>
         RECOLHER
       </button>
+      </div>
+      <div className="hunt-touch" aria-label="Controles do anzol">
+        {(['left', 'up', 'down', 'right'] as const).map((direction) => (
+          <button key={direction} className="btn ghost small" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); huntInput[direction] = true; }} onPointerUp={() => { huntInput[direction] = false; }} onPointerCancel={() => { huntInput[direction] = false; }}>
+            {{ left: '←', up: '↑', down: '↓', right: '→' }[direction]}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { startNewDay } from '../world/dayCycle';
 import { ACHIEVEMENTS, ACHIEVEMENTS_BY_ID } from '../data/achievements';
 import { FAMILIES, FAMILY_MEMBERS, FISH } from '../data/fish';
+import { EXPEDITION, expeditionReady } from '../data/expedition';
 import { matchesOrder, orderForDay, type MarketOrder } from '../data/market';
 import { RELICS_BY_ID, UPGRADES_BY_ID, upgradeCost } from '../data/upgrades';
 import { shardGain } from '../engine/fishing';
@@ -113,6 +114,25 @@ export function getState(): GameState {
   return state;
 }
 
+export function claimExpedition(): { coins: number; eyes: number; finished: boolean } | null {
+  if (!expeditionReady(state)) return null;
+  const chapter = EXPEDITION[state.expeditionChapter];
+  const nextChapter = state.expeditionChapter + 1;
+  set({
+    ...state,
+    expeditionChapter: nextChapter,
+    sazoncoins: state.sazoncoins + chapter.reward.coins,
+    hydraEyes: state.hydraEyes + chapter.reward.eyes,
+    lifetimeValue: state.lifetimeValue + chapter.reward.coins,
+    stats: {
+      ...state.stats,
+      totalEarned: state.stats.totalEarned + chapter.reward.coins,
+      eyesEarned: state.stats.eyesEarned + chapter.reward.eyes,
+    },
+  });
+  return { ...chapter.reward, finished: nextChapter === EXPEDITION.length };
+}
+
 export function subscribe(fn: () => void): () => void {
   listeners.add(fn);
   return () => {
@@ -211,7 +231,7 @@ export function applyCast(
   if (quality === 'perfeito') stats.perfectCasts += 1;
 
   const isFish = Boolean(result.fish);
-  const won = landed && (isFish || result.category === 'bau' || result.category === 'evento');
+  const won = landed && (isFish || result.category === 'bau' || result.category === 'evento' || result.category === 'lixo');
 
   let market = marketToday(s.market);
 
@@ -273,7 +293,7 @@ export function applyCast(
       if (rare) stats.lineBreaks += 1;
     }
     if (result.category === 'nada') stats.nothing += 1;
-    if (result.category === 'lixo') stats.junk += 1;
+    if (result.category === 'lixo' && landed) stats.junk += 1;
 
     const isFail = result.category === 'nada' || (isFish && !landed);
     if (isFail) {
@@ -289,12 +309,12 @@ export function applyCast(
     pity.dryStreak = 0;
     pity.legendaryShards = Math.min(SHARDS_FOR_LEGENDARY, pity.legendaryShards + shardGain(result));
   }
-  if (result.category === 'evento') {
+  if (result.category === 'evento' && landed) {
     stats.hydraEvents += 1;
   }
 
   let credited = 0;
-  if (won || result.category === 'lixo') {
+  if (won) {
     credited = guaranteedOverride ?? result.value;
     sazoncoins += credited;
     stats.totalEarned += credited;
@@ -411,6 +431,7 @@ export function claimMarketOrder(): MarketOrder | null {
     lifetimeValue: state.lifetimeValue + view.order.reward.sazoncoins,
     stats: {
       ...state.stats,
+      marketOrders: state.stats.marketOrders + 1,
       totalEarned: state.stats.totalEarned + view.order.reward.sazoncoins,
       eyesEarned: state.stats.eyesEarned + (view.order.reward.hydraEyes ?? 0),
     },

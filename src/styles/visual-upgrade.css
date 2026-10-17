@@ -45,13 +45,119 @@ img,
 }
 
 .sea-art-texture {
-  background-size: 860px 765px;
+  height: 340px;
+  background-size: 900px 800px;
   background-position: 0 0;
-  opacity: .95;
+  opacity: .78;
+  -webkit-mask-image: linear-gradient(#000 0%, #000 46%, transparent 100%);
+  mask-image: linear-gradient(#000 0%, #000 46%, transparent 100%);
+  animation: sea-sway 8s ease-in-out infinite alternate;
 }
 
 .sand {
   background-size: 1080px 607px;
+}
+
+/* The beach and seabed now use the same grain. The old autotile edge remains
+   in the editor data, while the shore contour supplies the visible edge. */
+.sand-top { display: none; }
+.seabed { background-size: 1080px 607px; filter: saturate(.6) brightness(.48); }
+
+.sea-depth-light {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 25% 22% at 73% 0%, rgba(255,255,222,.27), transparent),
+    linear-gradient(180deg, rgba(116,237,249,.15), rgba(5,84,139,.06) 28%, rgba(0,17,38,.42) 78%, rgba(0,10,24,.68));
+  animation: sea-light 11s ease-in-out infinite alternate;
+}
+@keyframes sea-sway {
+  from { transform: translateX(-10px) scale(1.012); filter: hue-rotate(-2deg); }
+  to { transform: translateX(10px) scale(1.025); filter: hue-rotate(3deg); }
+}
+@keyframes sea-light {
+  from { opacity: .74; transform: translateX(-2%); }
+  to { opacity: 1; transform: translateX(2%); }
+}
+.no-anim .sea-art-texture, .no-anim .sea-depth-light { animation: none; }
+
+.sea-reef-shelf {
+  position: absolute;
+  right: 0;
+  top: 424px;
+  width: min(2200px, 100%);
+  height: calc(100% - 424px);
+  background: linear-gradient(180deg, rgba(16,113,137,.85), rgba(7,54,82,.86) 11%, #02131f 100%);
+  clip-path: polygon(0 4%, 6% 3%, 13% 2%, 20% 2.5%, 26% 1%, 32% 1.5%, 40% .4%, 47% 1%, 55% 0, 63% .5%, 70% 0, 100% 0, 100% 100%, 0 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 76%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 76%, transparent 100%);
+}
+
+.wobj-undersea img {
+  filter: saturate(.83) brightness(.83) drop-shadow(0 5px 8px rgba(0,17,32,.4));
+}
+
+.drifter-bird .drifter-sprite {
+  animation: bird-glide var(--wing-seconds, .7s) ease-in-out infinite;
+}
+.drifter-bird .drifter-turning { animation: none; }
+.no-anim .drifter-bird .drifter-sprite { animation: none; }
+@keyframes bird-glide {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(-2px) scaleY(.76); }
+}
+
+.wobj .env-crab { animation: crab-scuttle 4.8s ease-in-out infinite; }
+.wobj .env-jelly { animation: jelly-drift 5.6s ease-in-out infinite; }
+@keyframes crab-scuttle {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  25% { transform: translateX(7px) rotate(2deg); }
+  55% { transform: translateX(-4px) rotate(-2deg); }
+  75% { transform: translateX(-9px) rotate(1deg); }
+}
+@keyframes jelly-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(8px, -15px) scale(.92, 1.06); }
+}
+.no-anim .wobj .env-crab, .no-anim .wobj .env-jelly { animation: none; }
+
+.hunt-hud {
+  padding: 13px 20px 16px;
+  border: 4px solid #af793c;
+  background: rgba(2, 24, 43, .92);
+  box-shadow: inset 0 0 0 2px #215b75, 0 8px 0 rgba(0,0,0,.34);
+  color: #ecfbff;
+}
+.hunt-title { color: #ffdc77; font-size: 17px; letter-spacing: 2px; }
+.hunt-sonar-readout { color: #9df5ee; font-size: 15px; }
+.hunt-actions, .hunt-touch { display: flex; gap: 9px; justify-content: center; }
+.hunt-touch { display: none; }
+.hunt-sonar {
+  position: absolute;
+  left: -37px;
+  top: -37px;
+  width: 74px;
+  height: 74px;
+  border: 3px solid #b7f9f4;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  animation: sonar-breathe 1.4s ease-in-out infinite;
+}
+@keyframes sonar-breathe {
+  0%, 100% { transform: scale(.8); }
+  50% { transform: scale(2.4); }
+}
+.hunt-ping { animation: hunt-ping-smooth 1.4s ease-in-out infinite; }
+.no-anim .hunt-ping, .no-anim .hunt-sonar { animation: none; }
+@keyframes hunt-ping-smooth {
+  0%, 100% { transform: scale(.55); opacity: 0; }
+  45% { transform: scale(1.25); opacity: .75; }
+}
+@media (pointer: coarse) {
+  .hunt-touch { display: flex; }
+  .hunt-touch button { min-width: 46px; touch-action: none; }
 }
 
 .topbar > .btn {
@@ -241,6 +347,44 @@ img,
 .phone-content .card.locked { opacity: .95; }
 .phone-content .card .name { font-size: 16px; }
 .phone-content .card .meta { font-size: 13px; }
+
+.expedition-app, .expedition-finale { display: flex; flex-direction: column; gap: 12px; padding: 13px; color: #ecf8f9; }
+.expedition-app h2, .expedition-finale h2 { margin: 0; font-size: 20px; color: #ffda76; }
+.expedition-app p, .expedition-finale p { margin: 0; line-height: 1.4; font-size: 14px; }
+.expedition-map { display: flex; gap: 8px; }
+.expedition-map span { width: 32px; height: 32px; display: grid; place-items: center; border: 2px solid #7fa6b0; color: #8daab4; background: #062138; }
+.expedition-map .lit { border-color: #f2c66d; color: #ffe9a2; background: #65431d; }
+.expedition-tasks { display: flex; flex-direction: column; gap: 8px; }
+.expedition-task { display: grid; grid-template-columns: 1fr auto; gap: 5px; font-size: 13px; }
+.expedition-task strong { color: #a9efe9; }
+.expedition-task i { grid-column: 1 / -1; height: 7px; background: #061827; border: 1px solid #307184; }
+.expedition-task b { display: block; height: 100%; background: #51decf; }
+.expedition-reward { border-top: 2px solid #a9753b; padding-top: 10px; color: #ffdc77; font-size: 13px; }
+.expedition-app .btn:disabled { opacity: .55; cursor: default; }
+.expedition-finale { text-align: center; align-items: center; }
+.expedition-finale strong { color: #ffdc77; }
+
+.reel-card { width: min(550px, 94vw); padding: 16px; border-color: #b98547; background: rgba(3, 28, 48, .95); }
+.reel-heading { display: flex; justify-content: space-between; color: #ffdc77; font-size: 20px; letter-spacing: 1px; }
+.reel-heading span { color: #9df4eb; }
+.reel-subtitle { margin: 5px 0 12px; color: #eaf8fa; font-size: 15px; }
+.reel-game { display: grid; grid-template-columns: 124px 1fr; gap: 16px; }
+.reel-card .reel { justify-content: flex-start; }
+.reel-side { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.reel-portrait { display: grid; place-items: center; min-height: 108px; border: 2px solid #34718a; background: radial-gradient(circle, #12617b, #05233b); }
+.reel-label { color: #9df4eb; font-size: 15px; }
+.reel-wide-progress { height: 18px; border: 2px solid #378799; background: #071725; }
+.reel-wide-progress i { display: block; height: 100%; background: linear-gradient(90deg, #21bea9, #ffe27a); }
+.reel-pull { flex: 1; min-height: 56px; touch-action: none; font-size: 14px; }
+.reel-card .reel-hint { margin: 11px 0 0; line-height: 1.4; color: #bbeced; }
+@media (max-width: 600px) {
+  .reel-card { padding: 11px; }
+  .reel-heading { font-size: 16px; }
+  .reel-game { grid-template-columns: 107px 1fr; gap: 8px; }
+  .reel-portrait { min-height: 80px; }
+  .reel-portrait .sprite { max-height: 72px; }
+  .reel-pull { font-size: 11px; }
+}
 
 .phone-content .row,
 .phone-content .card,

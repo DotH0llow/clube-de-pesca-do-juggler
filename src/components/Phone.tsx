@@ -3,6 +3,7 @@ import { playSfx } from '../engine/audio';
 import { useGame } from '../state/store';
 import { AchievementsApp } from './AchievementsPanel';
 import { AlbumApp } from './AlbumPanel';
+import { ExpeditionApp } from './ExpeditionPanel';
 import { ControlsApp } from './ControlsPanel';
 import { SettingsApp } from './SettingsPanel';
 import { ShopApp } from './ShopPanel';
@@ -10,7 +11,7 @@ import { MissionApp } from './casino/MissionApp';
 import { PlaylistApp } from './PlaylistApp';
 import { Sprite } from './Sprite';
 
-type AppId = 'album' | 'cartela' | 'radio' | 'cais' | 'conquistas' | 'config' | 'ajuda';
+type AppId = 'album' | 'cartela' | 'radio' | 'cais' | 'conquistas' | 'config' | 'ajuda' | 'expedicao';
 
 interface AppMeta {
   id: AppId;
@@ -21,6 +22,7 @@ interface AppMeta {
 }
 
 const APPS: AppMeta[] = [
+  { id: 'expedicao', label: 'EXPEDIÇÃO', icon: 'ui/depth-indicator', tint: '#0a8d91' },
   { id: 'album', label: 'ÁLBUM', icon: 'ui/fish-album-icon', tint: '#1e6f9b' },
   { id: 'cais', label: 'CAIS', icon: 'ui/upgrade-icon', tint: '#0f7a63' },
   { id: 'cartela', label: 'CARTELA', icon: 'ui/rarity-rare', tint: '#7a3fa8' },
@@ -31,6 +33,7 @@ const APPS: AppMeta[] = [
 ];
 
 const TITLE: Record<AppId, string> = {
+  expedicao: 'EXPEDIÇÃO DO CLUBE',
   album: 'ÁLBUM DO PESCADOR',
   cartela: 'CARTELA E ODDS',
   radio: 'RÁDIO DO CLUBE',
@@ -140,6 +143,7 @@ export function Phone({ onClose }: { onClose: () => void }) {
 
                 <div className="phone-content">
                   {app === 'album' && <AlbumApp />}
+                  {app === 'expedicao' && <ExpeditionApp />}
                   {app === 'cartela' && <MissionApp />}
                   {app === 'radio' && <PlaylistApp />}
                   {app === 'cais' && <ShopApp />}

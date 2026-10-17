@@ -26,7 +26,7 @@ export function CatchPopup({ outcome, onAgain, onStop }: Props) {
   const { result, landed, escapeText } = outcome;
   const fish = result.fish;
   const rarity = fish ? RARITIES[fish.rarity] : null;
-  const failed = Boolean(fish) && !landed;
+  const failed = !landed && result.category !== 'nada';
   const burst = fish && !failed ? BURST[fish.rarity] : null;
 
   const accent = failed ? '#ff5f7e' : rarity ? rarity.color : '#cfe8f5';
@@ -48,7 +48,7 @@ export function CatchPopup({ outcome, onAgain, onStop }: Props) {
             porcentagem para centralizar o titulo. */}
         <div className="catch-banner">
           <span className="headline" style={{ color: failed ? '#7a1e12' : undefined }}>
-            {failed ? 'ESCAPOU' : result.headline}
+            {failed ? (fish ? 'ESCAPOU' : 'NÃO ALCANÇOU') : result.headline}
           </span>
         </div>
 
@@ -110,7 +110,7 @@ export function CatchPopup({ outcome, onAgain, onStop }: Props) {
           <div className="flavor">Nem todo lance traz peixe. Joga de novo.</div>
         )}
 
-        {!failed && (result.value > 0 || result.eyes > 0) && (
+        {landed && (result.value > 0 || result.eyes > 0) && (
           <div className="reward-line">
             {result.value > 0 && <span style={{ color: 'var(--coin)' }}>+{result.value} SZ</span>}
             {result.eyes > 0 && <span style={{ color: 'var(--eye)' }}>+{result.eyes} Olhos</span>}

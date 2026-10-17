@@ -1,62 +1,66 @@
 import { useEffect, useRef } from 'react';
 import { useSettings } from '../state/settings';
 
-interface Props {
-  left: number;
-  width: number;
-  top: number;
-  height: number;
+interface Props { left: number; width: number; top: number; height: number }
+
+interface Glint { x: number; y: number; length: number; phase: number; speed: number; depth: number }
+
+// Spatial placement is seeded so changing panels never reshuffles the sea.
+function glintsFor(width: number, height: number): Glint[] {
+  let seed = 0x9e3779b9;
+  const random = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  const count = Math.max(20, Math.min(220, Math.round(width / 38)));
+  return Array.from({ length: count }, () => {
+    const depth = Math.pow(random(), 1.28);
+    return {
+      x: random() * width,
+      y: 14 + depth * (height - 28),
+      length: 16 + random() * (72 - depth * 32),
+      phase: random() * Math.PI * 2,
+      speed: .48 + random() * .32,
+      depth,
+    };
+  });
 }
 
-const GLINTS = [
-  { x: 0.08, y: 0.23, w: 78, pace: 0.62, phase: 0.4 },
-  { x: 0.29, y: 0.54, w: 56, pace: 0.83, phase: 1.9 },
-  { x: 0.49, y: 0.31, w: 94, pace: 0.51, phase: 3.1 },
-  { x: 0.67, y: 0.72, w: 62, pace: 0.76, phase: 4.4 },
-  { x: 0.84, y: 0.43, w: 71, pace: 0.58, phase: 5.6 },
-];
-
-/** Reflexos de superficie atualizados sem re-renderizar o mundo. */
+/** Moving caustic strokes share the same water column as the shore and reef. */
 export function WaterDetails({ left, width, top, height }: Props) {
   const paths = useRef<(SVGPathElement | null)[]>([]);
-  const settings = useSettings();
+  const { animations } = useSettings();
+  const glints = glintsFor(width, height);
 
   useEffect(() => {
     let raf = 0;
+    let lastDraw = 0;
     const start = performance.now();
-
     const draw = (now: number) => {
-      const seconds = (now - start) / 1000;
-      for (let i = 0; i < GLINTS.length; i += 1) {
-        const glint = GLINTS[i];
-        const node = paths.current[i];
-        if (!node) continue;
-        const pulse = Math.sin(seconds * glint.pace * Math.PI * 2 + glint.phase);
-        const drift = Math.sin(seconds * glint.pace * 0.43 + glint.phase) * 11;
-        const x = glint.x * width + drift;
-        const y = glint.y * height + pulse * 2;
-        const half = glint.w * (0.58 + (pulse + 1) * 0.21);
-        node.setAttribute('d', `M ${(x - half).toFixed(1)} ${y.toFixed(1)} Q ${x.toFixed(1)} ${(y - 2.5).toFixed(1)} ${(x + half).toFixed(1)} ${y.toFixed(1)}`);
-        node.style.opacity = `${0.12 + (pulse + 1) * 0.12}`;
+      if (now - lastDraw >= 30 || !animations) {
+        lastDraw = now;
+        const time = animations ? (now - start) / 1000 : 0;
+        glints.forEach((g, i) => {
+          const node = paths.current[i];
+          if (!node) return;
+          const wave = Math.sin(time * g.speed * Math.PI * 2 + g.phase);
+          const drift = Math.sin(time * .43 + g.phase) * 13;
+          const cx = g.x + drift;
+          const cy = g.y + wave * 3;
+          const radius = g.length * (.74 + .15 * wave);
+          node.setAttribute('d', `M ${(cx-radius).toFixed(1)} ${cy.toFixed(1)} Q ${cx.toFixed(1)} ${(cy-5-wave*2).toFixed(1)} ${(cx+radius).toFixed(1)} ${cy.toFixed(1)}`);
+          node.style.opacity = String((.1 + (wave + 1) * .12) * (1 - g.depth * .72));
+        });
       }
-      if (settings.animations) raf = requestAnimationFrame(draw);
+      if (animations) raf = requestAnimationFrame(draw);
     };
-
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [width, height, settings.animations]);
+  }, [width, height, animations]);
 
   return (
-    <svg
-      className="water-details"
-      style={{ left, top, width, height }}
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      {GLINTS.map((glint, index) => (
-        <path key={glint.phase} ref={(node) => { paths.current[index] = node; }} className="water-glint" />
-      ))}
+    <svg className="water-details" style={{ left, top, width, height }} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden>
+      {glints.map((_, index) => <path key={index} ref={(node) => { paths.current[index] = node; }} className="water-glint" />)}
     </svg>
   );
 }
