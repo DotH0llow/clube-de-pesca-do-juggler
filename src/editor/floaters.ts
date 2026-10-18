@@ -89,7 +89,7 @@ export function seedFloaters(): FloaterState {
         fromY: 6,
         toY: 9,
         size: 9,
-        seconds: 330,
+        seconds: 600,
         hours: DIA,
       }),
       base({
@@ -100,7 +100,7 @@ export function seedFloaters(): FloaterState {
         fromY: 16,
         toY: 14,
         size: 5.5,
-        seconds: 260,
+        seconds: 480,
         opacity: 0.6,
         hours: DIA,
       }),
@@ -112,7 +112,7 @@ export function seedFloaters(): FloaterState {
         fromY: 10,
         toY: 12,
         size: 8,
-        seconds: 420,
+        seconds: 720,
         opacity: 0.5,
         hours: NOITE,
       }),
@@ -180,9 +180,12 @@ function load(): FloaterState {
     // item novo da semente entra; item que voce criou continua
     const items = parsed.items.map((it) => {
       const item = { ...base(it as Floater), ...it };
-      // Only migrate the shipped slow defaults; edited floaters keep their values.
+      // Only migrate shipped defaults; edited floaters keep their values.
       if (item.id === 'gaivota' && item.size === 3 && item.seconds === 1500) return { ...item, size: 1.35, seconds: 34 };
       if (item.id === 'bando' && item.size === 3.4 && item.seconds === 1800) return { ...item, size: 1.8, seconds: 58 };
+      if (item.id === 'nuvem-grande' && item.seconds === 330) return { ...item, seconds: 600 };
+      if (item.id === 'nuvem-pequena' && item.seconds === 260) return { ...item, seconds: 480 };
+      if (item.id === 'nuvem-noite' && item.seconds === 420) return { ...item, seconds: 720 };
       return item;
     });
     for (const s of seed.items) if (!items.some((i) => i.id === s.id)) items.push(s);

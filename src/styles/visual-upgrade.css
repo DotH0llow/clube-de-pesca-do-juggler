@@ -45,12 +45,12 @@ img,
 }
 
 .sea-art-texture {
-  height: 340px;
-  background-size: 900px 800px;
+  height: 940px;
+  background-size: 860px 765px;
   background-position: 0 0;
-  opacity: .78;
-  -webkit-mask-image: linear-gradient(#000 0%, #000 46%, transparent 100%);
-  mask-image: linear-gradient(#000 0%, #000 46%, transparent 100%);
+  opacity: .9;
+  -webkit-mask-image: linear-gradient(#000 0%, #000 67%, transparent 100%);
+  mask-image: linear-gradient(#000 0%, #000 67%, transparent 100%);
   animation: sea-sway 8s ease-in-out infinite alternate;
 }
 
@@ -81,18 +81,6 @@ img,
   to { opacity: 1; transform: translateX(2%); }
 }
 .no-anim .sea-art-texture, .no-anim .sea-depth-light { animation: none; }
-
-.sea-reef-shelf {
-  position: absolute;
-  right: 0;
-  top: 424px;
-  width: min(2200px, 100%);
-  height: calc(100% - 424px);
-  background: linear-gradient(180deg, rgba(16,113,137,.85), rgba(7,54,82,.86) 11%, #02131f 100%);
-  clip-path: polygon(0 4%, 6% 3%, 13% 2%, 20% 2.5%, 26% 1%, 32% 1.5%, 40% .4%, 47% 1%, 55% 0, 63% .5%, 70% 0, 100% 0, 100% 100%, 0 100%);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 76%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 76%, transparent 100%);
-}
 
 .wobj-undersea img {
   filter: saturate(.83) brightness(.83) drop-shadow(0 5px 8px rgba(0,17,32,.4));

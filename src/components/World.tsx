@@ -247,7 +247,6 @@ export function World({
                 continuam animados por seus proprios componentes. */}
             <div className="sea-art-texture" style={{ backgroundImage: `url(${reefWater})` }} />
             <div className="sea-depth-light" />
-            <div className="sea-reef-shelf" />
             {/* OS RAIOS DE LUZ SAIRAM.
 
                 Eram tres copias de `props/light-ray-strip` penduradas na
