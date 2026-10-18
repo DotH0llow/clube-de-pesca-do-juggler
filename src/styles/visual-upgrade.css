@@ -38,6 +38,11 @@ img,
   filter: saturate(1.18) contrast(1.06) brightness(1.07);
 }
 
+.world-scale.world-night { filter: brightness(.6) saturate(.77); }
+.world-scale.world-blue-hour { filter: brightness(.76) saturate(.87); }
+.world-scale.world-golden-hour { filter: brightness(.86) saturate(.94); }
+.world-scale.world-night .sand { filter: brightness(.65) saturate(.72); }
+
 .sky-manha-clara {
   background-color: #087fec;
   background-size: 100% 49%;
@@ -45,13 +50,15 @@ img,
 }
 
 .sea-art-texture {
-  height: 940px;
-  background-size: 860px 765px;
+  height: 760px;
+  background-size: 1500px 750px;
   background-position: 0 0;
-  opacity: .9;
-  -webkit-mask-image: linear-gradient(#000 0%, #000 67%, transparent 100%);
-  mask-image: linear-gradient(#000 0%, #000 67%, transparent 100%);
-  animation: sea-sway 8s ease-in-out infinite alternate;
+  opacity: .3;
+  -webkit-mask-image: repeating-linear-gradient(90deg, transparent 0px, #000 65px, #000 1435px, transparent 1500px), linear-gradient(#000 0%, #000 22%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: repeating-linear-gradient(90deg, transparent 0px, #000 65px, #000 1435px, transparent 1500px), linear-gradient(#000 0%, #000 22%, transparent 100%);
+  mask-composite: intersect;
+  animation: sea-sway 12s ease-in-out infinite alternate;
 }
 
 .sand {
@@ -82,8 +89,28 @@ img,
 }
 .no-anim .sea-art-texture, .no-anim .sea-depth-light { animation: none; }
 
+.sea-shallow-floor {
+  position: absolute;
+  z-index: 7;
+  width: 2100px;
+  height: 800px;
+  pointer-events: none;
+  background-color: #8aa99d;
+  background-size: 1080px 607px;
+  background-blend-mode: luminosity;
+  opacity: .54;
+  clip-path: polygon(0 100%, 7% 14%, 13% 10%, 22% 12%, 29% 14%, 38% 12%, 46% 10%, 53% 12%, 59% 16%, 65% 12%, 70% 10%, 80% 7%, 88% 2%, 100% 0, 100% 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 13%), linear-gradient(180deg, #000 0%, #000 54%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 13%), linear-gradient(180deg, #000 0%, #000 54%, transparent 100%);
+  mask-composite: intersect;
+}
+
+.wobj-undersea {
+  mix-blend-mode: multiply;
+}
 .wobj-undersea img {
-  filter: saturate(.83) brightness(.83) drop-shadow(0 5px 8px rgba(0,17,32,.4));
+  filter: saturate(.86) brightness(1.2);
 }
 
 .drifter-bird .drifter-sprite {

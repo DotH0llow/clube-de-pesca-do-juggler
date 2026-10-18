@@ -13,7 +13,7 @@ import { WaterSurface } from './WaterSurface';
 import { WaterDetails } from './WaterDetails';
 import { HookHunt } from './HookHunt';
 import { useDevFlags } from '../state/dev';
-import reefWater from '../assets/reference/reef-water.webp';
+import underwaterCaustics from '../assets/reference/underwater-caustics-v2.png';
 
 /** A faixa do deck em que a água escorre: a mesma que `world/pier.ts` monta. */
 const PIER_X0 = PIER_START - 70;
@@ -132,6 +132,8 @@ export function World({
   const chovendo = dev.rain === null ? skyPhase(hour).storm : dev.rain;
   const sky = skyPhase(hour);
   const p = sky.palette;
+  const worldLighting = sky.id === 'anoitecer-azul' ? ' world-blue-hour' : sky.night ? ' world-night' : sky.id === 'por-do-sol' || sky.id === 'nascer-do-sol' ? ' world-golden-hour' : '';
+  const shoreLight = sky.night ? .45 : 1;
   const inWater = fishing && (phase === 'waiting' || phase === 'bite' || phase === 'reeling');
   const biting = phase === 'bite';
   const step: StepId = phase === 'result' ? 'result' : pose;
@@ -203,7 +205,7 @@ export function World({
           `viewY` vem do `usePlayer` e é o que mantém a linha d'água parada na
           tela quando a câmera abre no píer. */}
       <div
-        className="world-scale"
+        className={`world-scale${worldLighting}`}
         ref={worldRef}
         style={{ transform: `translate3d(0,${viewY}px,0) scale(${scale})` }}
       >
@@ -238,14 +240,14 @@ export function World({
               width: costa.mar.w,
               top: costa.mar.y,
               height: costa.mar.h,
-              background: `linear-gradient(180deg, ${p.seaTop} 0%, ${p.seaTop} 4%, ${p.seaBottom} 42%, #02131f 100%)`,
+              background: `radial-gradient(ellipse 32% 9% at 22% 5%, color-mix(in srgb, ${p.haze} 24%, transparent), transparent), radial-gradient(ellipse 24% 12% at 72% 8%, color-mix(in srgb, ${p.haze} 14%, transparent), transparent), linear-gradient(180deg, ${p.seaTop} 0%, color-mix(in srgb, ${p.seaTop} 86%, ${p.seaBottom}) 7%, color-mix(in srgb, ${p.seaTop} 65%, ${p.seaBottom}) 22%, color-mix(in srgb, ${p.seaTop} 36%, ${p.seaBottom}) 45%, ${p.seaBottom} 75%, #02131f 100%)`,
               clipPath: costa.marClip,
             }}
           >
             {/* Material separado da onda, dos recifes soltos e da costa. A
                 textura acompanha o mar recortado; a superficie e os reflexos
                 continuam animados por seus proprios componentes. */}
-            <div className="sea-art-texture" style={{ backgroundImage: `url(${reefWater})` }} />
+            <div className="sea-art-texture" style={{ backgroundImage: `url(${underwaterCaustics})`, opacity: sky.night ? .07 : sky.storm ? .2 : .3 }} />
             <div className="sea-depth-light" />
             {/* OS RAIOS DE LUZ SAIRAM.
 
@@ -267,6 +269,19 @@ export function World({
               style={{ backgroundImage: `url(${asset('prototype/v3/golden-sand')})` }}
             />
           </div>
+
+          {/* A areia submersa usa o mesmo grao da praia. O relevo suave apoia os
+              recifes rasos; a mascara dissolve o banco no mar aberto. */}
+          <div
+            className="sea-shallow-floor"
+            style={{
+              left: w.shoreX - 2030,
+              top: w.waterY + 333,
+              backgroundImage: `url(${asset('prototype/v3/golden-sand')})`,
+              backgroundPosition: grade(w.shoreX - 2030, w.waterY + 333),
+              opacity: sky.night ? .22 : sky.storm ? .4 : .54,
+            }}
+          />
 
           {/* A SUPERFICIE DA AGUA.
 
@@ -398,7 +413,7 @@ export function World({
               width: costa.caixa.w,
               height: costa.caixa.h,
               background: esverdeia(p.seaTop, 0.38),
-              opacity: w.shoreRasoAlfa * 0.55,
+              opacity: w.shoreRasoAlfa * 0.55 * shoreLight,
               clipPath: costa.rasoFundo,
             }}
           />
@@ -410,7 +425,7 @@ export function World({
               width: costa.caixa.w,
               height: costa.caixa.h,
               background: esverdeia(p.seaTop, 0.7),
-              opacity: w.shoreRasoAlfa,
+              opacity: w.shoreRasoAlfa * shoreLight,
               clipPath: costa.raso,
             }}
           />
@@ -429,7 +444,7 @@ export function World({
               width: costa.caixa.w,
               height: costa.caixa.h,
               background: clareia(esverdeia(p.seaTop, 0.72), 0.5),
-              opacity: w.shoreRasoAlfa * 0.9,
+              opacity: w.shoreRasoAlfa * 0.9 * shoreLight,
               clipPath: costa.rasoAreia,
             }}
           />
@@ -491,7 +506,7 @@ export function World({
               profundidade de cada objeto, nao da ordem deste arquivo. A vara
               fincada some quando o Juggler pega a dele - a arte da pescaria ja
               vem com uma na mao. */}
-          <SceneLayer scene="mundo" hideRod={fishing} hideLegacyBase waterY={w.waterY} shoreX={w.shoreX} />
+          <SceneLayer scene="mundo" hideRod={fishing} hideLegacyBase waterY={w.waterY} shoreX={w.shoreX} shoreLean={w.shoreLean} shoreTop={Math.min(w.sandY, w.waterY) - 48} />
 
           {/* A LINHA durante a cacada sai da ponta da vara e chega no anzol,
               onde quer que ele esteja. Ela e redesenhada por quadro no proprio

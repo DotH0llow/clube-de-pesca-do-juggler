@@ -19,9 +19,10 @@ export { bandOf };
  * as do meio e as que andam junto com o mundo. Os dois primeiros grupos vao
  * para containers proprios, movidos pelo laco do jogo.
  */
-function ObjectView({ o, waterY, shoreX }: { o: SceneObject; waterY: number; shoreX: number }) {
+function ObjectView({ o, waterY, shoreX, shoreLean, shoreTop }: { o: SceneObject; waterY: number; shoreX: number; shoreLean: number; shoreTop: number }) {
   const prototype = /^prototype\/v[23]\//.test(o.sprite ?? '');
-  const undersea = Boolean(o.under || (o.x < shoreX - 30 && /^(marine\/|fish\/|prototype\/v3\/coral-reef|props\/(?:coral|kelp|aquatic|seafloor|sunken|decorative-fish|starfish))/.test(o.sprite ?? '')));
+  const coastAtObject = shoreX - Math.min(Math.max(0, o.y + o.h / 2 - shoreTop), 760) * shoreLean;
+  const undersea = Boolean(o.under || (o.x + o.w / 2 < coastAtObject - 8 && /^(marine\/|fish\/|prototype\/v3\/coral-reef|props\/(?:coral|kelp|aquatic|seafloor|sunken|decorative-fish|starfish))/.test(o.sprite ?? '')));
   const environmentalMotion = /marine\/(?:blue-)?crab/.test(o.sprite ?? '')
     ? ' env-crab'
     : o.sprite?.includes('jellyfish')
@@ -38,7 +39,7 @@ function ObjectView({ o, waterY, shoreX }: { o: SceneObject; waterY: number; sho
     top: o.y,
     width: o.w,
     height: o.h,
-    opacity: o.opacity,
+    opacity: (o.opacity ?? 1) * (undersea ? .78 : 1),
     zIndex: depthZ(o.depth),
     transform: `${o.rot ? `rotate(${o.rot}deg)` : ''}${o.flip ? ' scaleX(-1)' : ''}` || undefined,
     clipPath: undersea && o.y < waterY ? `inset(${Math.min(100, Math.max(0, (waterY - o.y) / Math.max(1, o.h) * 100))}% 0 0 0)` : undefined,
@@ -116,6 +117,8 @@ interface Props {
   scene: SceneId;
   waterY?: number;
   shoreX?: number;
+  shoreLean?: number;
+  shoreTop?: number;
   /** 'perto' = anda junto com a camera; os outros dois sao horizonte */
   band?: BandId;
   /** esconde a vara fincada no deck (o Juggler esta com a dele na mao) */
@@ -128,6 +131,8 @@ export const SceneLayer = memo(function SceneLayer({
   scene,
   waterY = getWorld().waterY,
   shoreX = getWorld().shoreX,
+  shoreLean = getWorld().shoreLean,
+  shoreTop = Math.min(getWorld().sandY, waterY) - 48,
   band = 'perto',
   hideRod = false,
   hideLegacyBase = false,
@@ -147,7 +152,7 @@ export const SceneLayer = memo(function SceneLayer({
         .filter((o) => !(hideRod && o.role === 'vara'))
         .filter((o) => !(hideLegacyBase && o.legacyBase))
         .map((o) => (
-          <ObjectView key={o.id} o={o} waterY={waterY} shoreX={shoreX} />
+          <ObjectView key={o.id} o={o} waterY={waterY} shoreX={shoreX} shoreLean={shoreLean} shoreTop={shoreTop} />
         ))}
     </>
   );
